@@ -1,0 +1,63 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "instructions": [".github/instructions/*.instructions.md", "rules/*.md"],
+  "plugin": [
+    "./plugins/prompt-loop-reminder.js",
+    "./plugins/env-file-guard.js",
+    "./plugins/git-move-guard.js",
+    "./plugins/test-reminder.js",
+    "./plugins/docs-update-reminder.js"
+  ],
+  "skills": {
+    "paths": [".github/skills/"]
+  },
+  "permission": {
+    "websearch": "allow",
+    "glob": "allow",
+    "grep": "allow"
+  },
+  "compaction": {
+    "prune": true,
+    "auto": true,
+    "reserved": 8192
+  },
+  "mcp": {
+    "Context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp"]
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+      "timeout": 120000
+    },
+    "electron-mcp": {
+      "type": "local",
+      "command": ["npx", "-y", "@iflow-mcp/electron-mcp-server"],
+      "timeout": 120000
+    },
+    "interactive-desktop": {
+      "type": "remote",
+      "url": "http://localhost:3100/mcp",
+      "timeout": 1260000
+    },
+    "interactive": {
+      "command": [
+        "npx",
+        "-y",
+        "@rawwee/interactive-mcp",
+        "-t",
+        "1200",
+        "--disable-tools",
+        "message_complete_notification"
+      ],
+      "type": "local",
+      "timeout": 1210000
+    },
+    "github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/"
+    }
+  }
+}
