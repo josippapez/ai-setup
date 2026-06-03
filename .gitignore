@@ -5,3 +5,4 @@ node_modules/
 *secret*
 *token*
 *.log
+**/interactive-mcp-doc-embeddings.json

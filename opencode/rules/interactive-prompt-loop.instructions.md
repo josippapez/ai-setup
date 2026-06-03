@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+applyTo: "**"
 name: interactive-prompt-loop
 description: Deterministic prompt-loop policy using the built-in questions tool.
 ---
@@ -22,5 +22,4 @@ Required rules:
 4. You MUST keep the todo active across cycles (`pending` -> `in_progress` -> `pending`) until an exact stop phrase.
 5. You MUST mark the todo completed only when an exact stop phrase is received.
 6. If a prompt times out or response is empty, you MUST re-prompt via the built-in questions tool.
-7. You MUST NOT use interactive MCP prompt tools (`request_user_input`, `ask_intensive_chat`, `start_intensive_chat`, `stop_intensive_chat`, `push_session_status`, `send_message`) for in-repo agent work — that MCP path is deprecated for this repository.
-8. You MUST NOT use plain-text prompting when a prompt trigger applies.
+7. You MUST NOT use plain-text prompting when a prompt trigger applies.

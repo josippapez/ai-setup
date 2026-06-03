@@ -1,12 +1,13 @@
 ---
 name: agent-orchestration
-description: Route tasks to the repository's starter custom agents based on task type and scope. Main agent acts as orchestrator and prompting loop owner throughout.
+description: Route tasks to repository custom agents and background OpenCode subagents based on task type, scope, and parallelization needs. Main agent acts as orchestrator and prompting loop owner throughout.
 ---
 
 # agent-orchestration
 
 Use this skill to decide when and how to delegate to custom agents under
-`.github/agents`.
+`.github/agents` or background OpenCode subagents through
+`manage_background_subagents`.
 
 ## Core rules
 
@@ -29,6 +30,9 @@ Use this skill to decide when and how to delegate to custom agents under
    same unresolved objective.
 9. If no meaningful progress remains after allowed attempts, the main agent
    MUST stop delegating, execute directly, validate, and report why.
+10. When the Interactive Desktop MCP tool `manage_background_subagents` is
+    available, the main agent SHOULD prefer it for independent background work
+    that should remain visible in the desktop session tree.
 
 ## Context forwarding
 
@@ -40,6 +44,77 @@ extensions (`docs-recommender`, `test-reminder`, `prompt-loop`). Therefore:
 2. The main agent MUST include `pnpm exec nx test <project>` commands received via
    `test-reminder` context in the delegation prompt's validation commands
    section.
+
+## Background OpenCode subagents
+
+Use `manage_background_subagents` for fire-and-forget or parallel work that can
+run while the main agent continues. This is preferred over blocking delegation
+when the child session should be visible in the desktop app and later collected
+with `status` or `output`.
+
+Use background subagents for:
+
+- Independent research, codebase exploration, or comparison tasks.
+- Long-running audits, documentation reviews, validation sweeps, or browser
+  checks.
+- Parallel investigation while the main agent continues implementation.
+- User-requested background review, especially with explicit model or reasoning
+  requests such as `gpt-5.5 xhigh`.
+
+Do not use background subagents for:
+
+- Work that must complete before the main agent can proceed.
+- Tiny checks the main agent can finish faster.
+- Multiple agents touching the same files unless scopes or batches are
+  explicitly non-overlapping.
+- Delivering a coordination message; use `message_background_subagent` instead.
+
+Required `manage_background_subagents` workflow:
+
+1. Use `action: "models"` when model availability is uncertain, or use
+   `preset: "deep" | "labor" | "fast"` when exact model choice is less
+   important.
+2. Use `action: "start"` with a bounded prompt that includes objective, scope,
+   constraints, validation expectations, and final handoff format.
+3. Pass the current `openCodeSessionId` and repository `baseDirectory` so
+   routing and session-tree attachment are correct.
+4. For deep reasoning requests, select a high-tier connected model when
+   available and pass the strongest supported reasoning variant (`high`,
+   `xhigh`, or `max`).
+5. Store the returned `backgroundId` and child `sessionId` in the main-agent
+   context.
+6. Use `action: "status"` or rely on completion notifications; use
+   `action: "output"` to collect final results.
+7. Review the child output, run any missing verification, and own the final
+   handoff quality.
+8. Use `message_background_subagent` for parent-child coordination events such
+   as pause, wait, handoff, or cross-agent dependency updates.
+
+Background subagents MAY run in parallel only when their scopes do not share
+state, output dependencies, or overlapping files. If a background subagent
+stalls or fails, retry once with a refined prompt. If it fails again, continue
+directly and report why.
+
+## Background prompt template
+
+```text
+Objective: [one-sentence goal]
+
+Scope: [files, projects, URLs, admin surfaces, or directories]
+
+Constraints:
+- [files to avoid]
+- [prior decisions to honor]
+- [ordering requirements]
+- [non-overlap / batching rules]
+- [whether edits are allowed]
+
+Validation expected: [commands/checks/browser verification]
+
+Coordination: Use message_background_subagent only for [specific events].
+
+Handoff format: [findings, patch summary, validation result, open questions]
+```
 
 ## Agent mapping
 
@@ -55,6 +130,8 @@ extensions (`docs-recommender`, `test-reminder`, `prompt-loop`). Therefore:
 ## References
 
 - docs/guides/agent-files.md#custom-agent-orchestration-starter-set
+- Interactive Desktop MCP: `manage_background_subagents`,
+  `message_background_subagent`
 - .github/skills/prompt-user/SKILL.md
 - .github/instructions/interactive-prompt-loop.instructions.md
 - .github/instructions/agent-orchestration.instructions.md
