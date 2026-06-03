@@ -25,6 +25,9 @@
     "auto": true,
     "reserved": 8192
   },
+  "experimental": {
+    "continue_loop_on_deny": true
+  },
   "mcp": {
     "Context7": {
       "type": "local",
