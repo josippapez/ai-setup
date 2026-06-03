@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ai-setup",
+  "description": "Personal Claude Code setup mirrored from OpenCode global configuration.",
+  "owner": {
+    "name": "Personal AI Setup"
+  },
+  "plugins": [
+    {
+      "name": "interactive-mcp",
+      "description": "Repo docs/libs and dependency MCP tools mirrored from the OpenCode custom plugin.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./plugins/interactive-mcp"
+    }
+  ]
+}

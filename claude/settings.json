@@ -1,0 +1,56 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__pencil"
+    ]
+  },
+  "model": "opus[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /Users/josippapez/.claude/statusline-command.sh"
+  },
+  "extraKnownMarketplaces": {
+    "ai-setup": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/josippapez/Desktop/ai-setup/claude"
+      }
+    }
+  },
+  "effortLevel": "xhigh",
+  "tui": "fullscreen",
+  "verbose": false,
+  "mcpServers": {
+    "interactive-desktop": {
+      "url": "http://localhost:3100"
+    },
+    "interactive": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@rawwee/interactive-mcp",
+        "-t",
+        "1200",
+        "--disable-tools",
+        "message_complete_notification"
+      ],
+      "type": "stdio"
+    }
+  },
+  "enabledPlugins": {
+    "interactive-mcp@ai-setup": true
+  }
+}
