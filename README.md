@@ -20,3 +20,7 @@ Semantic docs search is built with `node ~/.config/opencode/plugins/interactive-
 `claude/` mirrors `~/.claude/` 1:1 and includes a local Claude marketplace (`claude/.claude-plugin/marketplace.json`) with an `interactive-mcp` plugin that mirrors the OpenCode MCP tools and skills.
 `claude/install.sh` performs the global install, copying `CLAUDE.md`, `RTK.md`, `settings.json`, and `rules/` into `~/.claude/` and registering/updating the plugin marketplace.
 Rule files live at `claude/rules/`; once installed to `~/.claude/rules/`, Claude Code auto-loads them (no `CLAUDE.md` `@import` needed).
+
+## Requirements
+
+- `jq` must be on `PATH`. The `PostToolUse` hook in `claude/settings.json` runs ESLint after every `Write`/`Edit` (`eslint --fix` on the file, then reports any remaining errors) and uses `jq` to read the file path from the hook's stdin JSON. The hook safely no-ops when `jq` is missing, when a project has no local `node_modules/.bin/eslint`, or when the edited file isn't a JS/TS source (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`). Install with `brew install jq`.

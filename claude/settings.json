@@ -16,6 +16,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); [ -n \"$f\" ] || exit 0; case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) ;; *) exit 0 ;; esac; [ -x ./node_modules/.bin/eslint ] || exit 0; ./node_modules/.bin/eslint --fix \"$f\" >/dev/null 2>&1; ./node_modules/.bin/eslint \"$f\" 2>/dev/null || true",
+            "timeout": 120,
+            "statusMessage": "Linting edited file"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
