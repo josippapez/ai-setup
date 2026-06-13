@@ -10,6 +10,8 @@ function createContext(rootArg, openCodeServerUrlArg) {
     memoriesPath: path.join(root, '.opencode', 'interactive-mcp-memories.json'),
     openCodeServerUrl: openCodeServerUrlArg || 'http://localhost:4096',
     dependencyIndex: null,
+    dependencyIndexPromise: null,
+    dependencyIndexState: { status: 'idle', processed: 0, total: 0 },
     backgroundSubagents: new Map(),
     nextBackgroundId: 1,
   };

@@ -1,6 +1,6 @@
 'use strict';
 
-const { getDependencyIndex } = require('../lib/dependency-index.cjs');
+const { ensureDependencyIndex } = require('../lib/dependency-index.cjs');
 
 const definition = {
   name: 'get_file_dependencies',
@@ -20,10 +20,10 @@ const definition = {
   },
 };
 
-function execute(args, context) {
+async function execute(args, context) {
   const rel = String(args.path || '').trim();
   if (!rel) return 'Please provide a non-empty path.';
-  const index = getDependencyIndex(context);
+  const index = await ensureDependencyIndex(context);
   const edges = index.dependenciesByFile.get(rel) || [];
   const header = `repo ${context.root}\nfile ${rel}\ndependencies`;
   if (edges.length === 0) return `${header}\nnone`;

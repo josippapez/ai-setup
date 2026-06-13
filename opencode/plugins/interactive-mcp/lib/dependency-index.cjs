@@ -15,6 +15,11 @@ const SOURCE_EXTENSIONS = new Set([
   '.tsx',
 ]);
 
+// How many files to parse between yields to the event loop. Keeps the build
+// non-blocking so get_repository_index_status can report live progress while
+// indexing is in flight.
+const YIELD_EVERY_FILES = 50;
+
 function getSourceFiles(context) {
   const files = [];
   walkDirectory(context.root, (filePath) => {
@@ -64,13 +69,28 @@ function parseDependencies(context, filePath) {
   return edges;
 }
 
-function getDependencyIndex(context) {
-  if (context.dependencyIndex) return context.dependencyIndex;
+function indexState(context) {
+  if (!context.dependencyIndexState) {
+    context.dependencyIndexState = { status: 'idle', processed: 0, total: 0 };
+  }
+  return context.dependencyIndexState;
+}
+
+// Builds the dependency graph incrementally, updating progress on the context
+// and yielding to the event loop so concurrent status calls observe live state.
+async function buildDependencyIndex(context) {
+  const state = indexState(context);
   const sourceFiles = getSourceFiles(context);
+  state.status = 'building';
+  state.processed = 0;
+  state.total = sourceFiles.length;
+
   const dependenciesByFile = new Map();
   const dependentsByFile = new Map();
   let edgeCount = 0;
-  for (const filePath of sourceFiles) {
+
+  for (let i = 0; i < sourceFiles.length; i += 1) {
+    const filePath = sourceFiles[i];
     const rel = relativePath(context.root, filePath);
     const edges = parseDependencies(context, filePath);
     dependenciesByFile.set(rel, edges);
@@ -80,14 +100,55 @@ function getDependencyIndex(context) {
       if (!dependentsByFile.has(edge.to)) dependentsByFile.set(edge.to, []);
       dependentsByFile.get(edge.to).push(edge);
     }
+    state.processed = i + 1;
+    if ((i + 1) % YIELD_EVERY_FILES === 0) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
   }
+
   context.dependencyIndex = {
     sourceFiles,
     dependenciesByFile,
     dependentsByFile,
     edgeCount,
   };
+  state.status = 'ready';
   return context.dependencyIndex;
 }
 
-module.exports = { getDependencyIndex };
+// Idempotent: kicks off the async build once and returns a promise resolving to
+// the built index. Safe to call repeatedly (on connect, from the status tool,
+// and from the dependency tools) — only the first call starts work.
+function startDependencyIndex(context) {
+  if (context.dependencyIndex) return Promise.resolve(context.dependencyIndex);
+  if (context.dependencyIndexPromise) return context.dependencyIndexPromise;
+  const promise = buildDependencyIndex(context).catch((err) => {
+    indexState(context).status = 'error';
+    context.dependencyIndexPromise = null;
+    throw err;
+  });
+  context.dependencyIndexPromise = promise;
+  return promise;
+}
+
+// Async accessor for the dependency tools — awaits the in-flight/started build.
+function ensureDependencyIndex(context) {
+  return startDependencyIndex(context);
+}
+
+// Snapshot of current build progress for the status tool (does not start work).
+function getDependencyIndexState(context) {
+  const state = indexState(context);
+  return {
+    status: state.status,
+    processed: state.processed,
+    total: state.total,
+    index: context.dependencyIndex || null,
+  };
+}
+
+module.exports = {
+  startDependencyIndex,
+  ensureDependencyIndex,
+  getDependencyIndexState,
+};

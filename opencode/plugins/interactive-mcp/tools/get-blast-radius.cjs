@@ -1,6 +1,6 @@
 'use strict';
 
-const { getDependencyIndex } = require('../lib/dependency-index.cjs');
+const { ensureDependencyIndex } = require('../lib/dependency-index.cjs');
 const { clampInteger } = require('../lib/fs-utils.cjs');
 
 const definition = {
@@ -39,12 +39,12 @@ const definition = {
   },
 };
 
-function execute(args, context) {
+async function execute(args, context) {
   const roots = Array.isArray(args.paths) ? args.paths.map(String) : [];
   const maxDepth = clampInteger(args.maxDepth, 3, 0, 10);
   const limit = clampInteger(args.limit, 60, 1, 200);
   if (roots.length === 0) return 'Please provide at least one path.';
-  const index = getDependencyIndex(context);
+  const index = await ensureDependencyIndex(context);
   const queue = roots.map((item) => ({ path: item, distance: 0, via: null }));
   const seen = new Map();
   for (const item of queue) seen.set(item.path, item);
