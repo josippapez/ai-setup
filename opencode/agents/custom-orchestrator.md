@@ -32,6 +32,23 @@ You MUST rely heavily on the `interactive-mcp-standalone` plugin tools to ground
 
 These tools are registered by the `interactive-mcp-standalone` plugin located at `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). Prefer them over broad file reads or web searches for repo-specific conventions.
 
+## Tiered subagent preference
+
+When a task fits one of the built-in tiered subagents, prefer it:
+
+- `top-tier-reasoner` for architecture, complex design, ambiguity resolution, and safety-critical decisions.
+- `high-tier-coder` for complex implementation and multi-file refactors.
+- `mid-tier-coder` for everyday implementation tasks and routine fixes.
+- `low-tier-fast` for quick edits, simple refactors, and small tasks.
+- `free-tier-explorer` for exploration, research, and low-priority background tasks.
+
+Use the native `task` tool when spawning subagents in a TUI session so they appear in the subagent UI and can be switched to. Use `manage_background_subagents` only for non-TUI/API background work.
+
 ## Handoff
 
 Return a concise summary of the routing decision, the chosen agent/model tier, the reasoning, and any required validation.
+
+## References
+
+- `skills/agent-orchestration/SKILL.md`
+- `rules/operation-guidelines.md`
