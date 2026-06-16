@@ -22,6 +22,7 @@ const {
   messageBackgroundSubagentTool,
 } = require('./tools/message-background-subagent.cjs');
 const { manageMemoriesTool } = require('./tools/manage-memories.cjs');
+const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
 
 const SERVER_INFO = { name: 'interactive-mcp-standalone', version: '0.1.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
@@ -76,6 +77,15 @@ async function handleRequest(message) {
       instructions:
         'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup; find_libs to check installed packages and versions; get_file_dependencies / get_file_dependents / get_blast_radius before editing or deleting a module to gauge impact. Paths are repo-root-relative POSIX. Dependency tools track relative imports only (package/alias imports are not resolved).',
     });
+    // Ensure the OpenCode server is reachable; if not, start it in the
+    // background at the configured port so tools that rely on it work without
+    // manually running opencode serve.
+    context.serverReadyPromise = ensureOpenCodeServer(
+      context.openCodeServerUrl,
+      context.root,
+    ).catch((err) =>
+      process.stderr.write(`ensureOpenCodeServer error: ${err.message}\n`),
+    );
     warmUp();
     // Start building the dependency graph in the background on connect so the
     // index is ready (or observably in progress) before the first tool call.

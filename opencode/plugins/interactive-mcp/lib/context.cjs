@@ -9,6 +9,7 @@ function createContext(rootArg, openCodeServerUrlArg) {
     maxFileSizeBytes: 512 * 1024,
     memoriesPath: path.join(root, '.opencode', 'interactive-mcp-memories.json'),
     openCodeServerUrl: openCodeServerUrlArg || 'http://localhost:4096',
+    serverReadyPromise: null,
     dependencyIndex: null,
     dependencyIndexPromise: null,
     dependencyIndexState: { status: 'idle', processed: 0, total: 0 },

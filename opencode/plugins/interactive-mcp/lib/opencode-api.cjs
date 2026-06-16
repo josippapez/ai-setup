@@ -19,6 +19,9 @@ function buildOpenCodeAuthHeader(env = process.env) {
 }
 
 async function openCodeRequest(context, method, apiPath, body) {
+  if (context.serverReadyPromise) {
+    await context.serverReadyPromise;
+  }
   const url = new URL(apiPath, context.openCodeServerUrl);
   url.searchParams.set('directory', context.root);
   const headers = new Headers();
