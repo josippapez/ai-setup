@@ -27,9 +27,10 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
   - `mid-tier-coder` — everyday implementation tasks and routine fixes.
   - `low-tier-fast` — quick edits, simple refactors, and small tasks.
   - `free-tier-coder` — small, well-defined coding tasks where the instructions are explicit.
+  - `free-tier-maintainer` — docs, hygiene, configuration tweaks, and lightweight synchronization.
   - `free-tier-explorer` — exploration, research, and low-priority background tasks.
 - Prefer the native `task` tool for spawning subagents in a TUI session so they appear in the subagent UI and can be switched to.
-- Use the `manage_background_subagents` MCP tool only for non-TUI/API background work where TUI visibility is not required.
+- Prefer free-tier subagents (`free-tier-coder`, `free-tier-explorer`) whenever they can handle the task satisfactorily. Only escalate to paid tiers when the task requires stronger reasoning, complex multi-file changes, or the free agent fails after retry.
 
 ## Exceptions — do NOT apply tier-aware routing
 
@@ -55,7 +56,7 @@ Before delegating or answering repo-specific questions, the main agent MUST pref
 - Package versions: `find_libs`
 - Dependency and impact analysis: `get_file_dependencies`, `get_file_dependents`, `get_blast_radius`
 - Graph readiness: `get_repository_index_status`
-- Background work and coordination: `manage_background_subagents`, `message_background_subagent`
+- Subagent spawning: use the native `task` tool in a TUI session; the `interactive-mcp-standalone` plugin is for repo grounding tools only.
 - Persistent context: `manage_memories`
 
 These tools are registered by the `interactive-mcp-standalone` plugin in `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). Use them to ground decisions in repo conventions without loading large amounts of source code into context.
@@ -69,4 +70,5 @@ These tools are registered by the `interactive-mcp-standalone` plugin in `~/.con
 - `agents/mid-tier-coder.md`
 - `agents/low-tier-fast.md`
 - `agents/free-tier-coder.md`
+- `agents/free-tier-maintainer.md`
 - `agents/free-tier-explorer.md`

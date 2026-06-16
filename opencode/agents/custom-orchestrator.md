@@ -27,7 +27,7 @@ You MUST rely heavily on the `interactive-mcp-standalone` plugin tools to ground
 - Package versions: `find_libs`
 - Dependency and impact analysis: `get_file_dependencies`, `get_file_dependents`, `get_blast_radius`
 - Graph readiness: `get_repository_index_status`
-- Background work and coordination: `manage_background_subagents`, `message_background_subagent`
+- Subagent spawning: use the native `task` tool in a TUI session; the `interactive-mcp-standalone` plugin is for repo grounding tools only.
 - Persistent context: `manage_memories`
 
 These tools are registered by the `interactive-mcp-standalone` plugin located at `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). Prefer them over broad file reads or web searches for repo-specific conventions.
@@ -41,9 +41,11 @@ When a task fits one of the built-in tiered subagents, prefer it:
 - `mid-tier-coder` for everyday implementation tasks and routine fixes.
 - `low-tier-fast` for quick edits, simple refactors, and small tasks.
 - `free-tier-coder` for small, well-defined coding tasks where the instructions are explicit.
+- `free-tier-maintainer` for docs, hygiene, configuration tweaks, and lightweight synchronization.
 - `free-tier-explorer` for exploration, research, and low-priority background tasks.
 
-Use the native `task` tool when spawning subagents in a TUI session so they appear in the subagent UI and can be switched to. Use `manage_background_subagents` only for non-TUI/API background work.
+Use the native `task` tool when spawning subagents in a TUI session so they appear in the subagent UI and can be switched to.
+- Prefer `free-tier-coder` for coding tasks and `free-tier-maintainer` for maintenance tasks whenever they can handle the task satisfactorily. Escalate to higher tiers only when the task requires stronger reasoning, spans many files, or the free agent fails after retry.
 
 ## Handoff
 

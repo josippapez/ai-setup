@@ -15,12 +15,6 @@ const {
 const { fileDependenciesTool } = require('./tools/get-file-dependencies.cjs');
 const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
 const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
-const {
-  manageBackgroundSubagentsTool,
-} = require('./tools/manage-background-subagents.cjs');
-const {
-  messageBackgroundSubagentTool,
-} = require('./tools/message-background-subagent.cjs');
 const { manageMemoriesTool } = require('./tools/manage-memories.cjs');
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
 
@@ -36,8 +30,6 @@ const registeredTools = [
   fileDependenciesTool,
   fileDependentsTool,
   blastRadiusTool,
-  manageBackgroundSubagentsTool,
-  messageBackgroundSubagentTool,
   manageMemoriesTool,
 ];
 
