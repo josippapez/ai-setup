@@ -26,6 +26,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
   - `high-tier-coder` — complex implementation and multi-file refactors.
   - `mid-tier-coder` — everyday implementation tasks and routine fixes.
   - `low-tier-fast` — quick edits, simple refactors, and small tasks.
+  - `free-tier-coder` — small, well-defined coding tasks where the instructions are explicit.
   - `free-tier-explorer` — exploration, research, and low-priority background tasks.
 - Prefer the native `task` tool for spawning subagents in a TUI session so they appear in the subagent UI and can be switched to.
 - Use the `manage_background_subagents` MCP tool only for non-TUI/API background work where TUI visibility is not required.
@@ -67,4 +68,5 @@ These tools are registered by the `interactive-mcp-standalone` plugin in `~/.con
 - `agents/high-tier-coder.md`
 - `agents/mid-tier-coder.md`
 - `agents/low-tier-fast.md`
+- `agents/free-tier-coder.md`
 - `agents/free-tier-explorer.md`
