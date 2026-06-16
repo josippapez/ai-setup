@@ -10,7 +10,7 @@ These guidelines apply to all operations.
 
 ## Tier-aware orchestration
 
-The agent MUST consult the `agent-orchestration-v2` skill and the `custom-orchestrator` agent for implementation and operation guidelines.
+The agent MUST consult the `agent-orchestration` skill and the `custom-orchestrator` agent for implementation and operation guidelines.
 
 - Implementation and execution work (coding, refactoring, file generation, running tests, lint fixes) MUST be delegated to lower-tier/faster/cheaper agents or models when a suitable one exists.
 - Planning, architecture, complex reasoning, ambiguity resolution, and safety-critical decisions SHOULD be routed to higher-tier/more expensive reasoning models.
