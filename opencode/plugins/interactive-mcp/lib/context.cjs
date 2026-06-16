@@ -13,8 +13,6 @@ function createContext(rootArg, openCodeServerUrlArg) {
     dependencyIndex: null,
     dependencyIndexPromise: null,
     dependencyIndexState: { status: 'idle', processed: 0, total: 0 },
-    backgroundSubagents: new Map(),
-    nextBackgroundId: 1,
   };
 }
 
