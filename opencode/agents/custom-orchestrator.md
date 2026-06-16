@@ -40,6 +40,7 @@ When a task fits one of the built-in tiered subagents, prefer it:
 - `high-tier-coder` for complex implementation and multi-file refactors.
 - `mid-tier-coder` for everyday implementation tasks and routine fixes.
 - `low-tier-fast` for quick edits, simple refactors, and small tasks.
+- `free-tier-coder` for small, well-defined coding tasks where the instructions are explicit.
 - `free-tier-explorer` for exploration, research, and low-priority background tasks.
 
 Use the native `task` tool when spawning subagents in a TUI session so they appear in the subagent UI and can be switched to. Use `manage_background_subagents` only for non-TUI/API background work.
