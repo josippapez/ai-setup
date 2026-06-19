@@ -7,7 +7,17 @@ set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/.claude"
 
-mkdir -p "$DEST/rules"
+mkdir -p "$DEST/rules" "$DEST/hooks" "$DEST/skills" "$DEST/agents"
+
+# Ensure rtk (Rust Token Killer) is installed — settings.json hooks depend on it.
+# Install from the rtk-ai tap explicitly; the bare name collides with homebrew/core/rtk.
+if command -v rtk >/dev/null 2>&1; then
+  echo "rtk already installed: $(rtk --version 2>/dev/null || echo present)"
+elif command -v brew >/dev/null 2>&1; then
+  brew install rtk-ai/tap/rtk
+else
+  echo "Warning: rtk not found and Homebrew unavailable; install rtk manually (https://www.rtk-ai.app)." >&2
+fi
 
 # Copy top-level config files.
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"
@@ -16,6 +26,13 @@ cp "$SRC/settings.json" "$DEST/settings.json"
 
 # Copy user-level rules (auto-loaded by Claude Code from ~/.claude/rules/).
 cp "$SRC"/rules/*.md "$DEST/rules/"
+
+# Copy hooks (referenced by settings.json, e.g. rtk-read-interceptor.py).
+cp "$SRC"/hooks/*.py "$DEST/hooks/"
+
+# Copy user-level skills and agents (auto-loaded from ~/.claude/skills and ~/.claude/agents).
+cp -R "$SRC"/skills/. "$DEST/skills/"
+cp -R "$SRC"/agents/. "$DEST/agents/"
 
 # Register or refresh the local plugin marketplace.
 if claude plugin marketplace list 2>/dev/null | grep -q "ai-setup"; then
@@ -46,4 +63,6 @@ fi
 echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
 echo "  - rules/ (*.md)"
+echo "  - hooks/ (*.py)"
+echo "  - skills/, agents/"
 echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
