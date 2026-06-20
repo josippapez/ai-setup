@@ -1,8 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "mcp__pencil"
-    ]
+    "allow": ["mcp__pencil"]
   },
   "model": "opus[1m]",
   "hooks": {
@@ -48,6 +46,7 @@
   },
   "enabledPlugins": {
     "interactive-mcp@ai-setup": true,
+    "linear-orchestration@ai-setup": true,
     "superpowers@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
@@ -72,24 +71,17 @@
   },
   "effortLevel": "xhigh",
   "tui": "fullscreen",
-  "verbose": false,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "mcpServers": {
-    "interactive-desktop": {
-      "url": "http://localhost:3100"
-    },
-    "interactive": {
+    "Framelink Figma": {
+      "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "@rawwee/interactive-mcp",
-        "-t",
-        "1200",
-        "--disable-tools",
-        "message_complete_notification"
-      ],
-      "type": "stdio"
+      "args": ["-y", "figma-developer-mcp", "--stdio"],
+      "env": {
+        "FIGMA_API_KEY": "${FIGMA_API_KEY}"
+      }
     }
-  }
+  },
+  "remoteControlAtStartup": true
 }

@@ -30,9 +30,18 @@ cp "$SRC"/rules/*.md "$DEST/rules/"
 # Copy hooks (referenced by settings.json, e.g. rtk-read-interceptor.py).
 cp "$SRC"/hooks/*.py "$DEST/hooks/"
 
-# Copy user-level skills and agents (auto-loaded from ~/.claude/skills and ~/.claude/agents).
-cp -R "$SRC"/skills/. "$DEST/skills/"
-cp -R "$SRC"/agents/. "$DEST/agents/"
+# Copy user-level skills and agents as real copies, replacing any existing symlink or dir
+# (e.g. skills installed via `npx skills` symlink into ~/.claude/skills, which `cp -R` can't overwrite).
+for d in "$SRC"/skills/*/; do
+  [ -d "$d" ] || continue
+  rm -rf "$DEST/skills/$(basename "$d")"
+  cp -R "$d" "$DEST/skills/$(basename "$d")"
+done
+for f in "$SRC"/agents/*; do
+  [ -e "$f" ] || continue
+  rm -rf "$DEST/agents/$(basename "$f")"
+  cp -R "$f" "$DEST/agents/$(basename "$f")"
+done
 
 # Register or refresh the local plugin marketplace.
 if claude plugin marketplace list 2>/dev/null | grep -q "ai-setup"; then
@@ -47,6 +56,15 @@ if claude plugin list 2>/dev/null | grep -q "interactive-mcp@ai-setup"; then
 else
   claude plugin install interactive-mcp@ai-setup --scope user
 fi
+
+# Install or update the linear-orchestration plugin.
+if claude plugin list 2>/dev/null | grep -q "linear-orchestration@ai-setup"; then
+  claude plugin update linear-orchestration@ai-setup
+else
+  claude plugin install linear-orchestration@ai-setup --scope user
+fi
+# Remove loose files migrated into the linear-orchestration plugin (now plugin-provided).
+rm -rf "$DEST/skills/linear-orchestration" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
 
 # Install plugin runtime deps (e.g. @xenova/transformers) in the installed cache copy.
 # Pick the highest version dir (sort -V), not the newest mtime — plugin updates
@@ -66,3 +84,4 @@ echo "  - rules/ (*.md)"
 echo "  - hooks/ (*.py)"
 echo "  - skills/, agents/"
 echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
+echo "  - linear-orchestration@ai-setup plugin"

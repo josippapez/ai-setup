@@ -14,6 +14,13 @@ The MAIN agent is the orchestrator and prompt-loop owner. Full design: `docs/sup
 - Honor explicit overrides ("track in Linear" / "skip Linear").
 - If the Linear MCP is unauthenticated, ask the user to authenticate (or fall back to in-session todos and warn that tracking won't persist).
 
+## Project scoping
+
+File issues under a **per-repo Linear project** (not loose in the team):
+- Derive the project name from the current repo — the basename of `git rev-parse --show-toplevel` (e.g. `ai-setup`); fall back to the cwd basename if not a git repo.
+- Find-or-create: `list_projects` (team `Ai agents`, query = name); if absent, `save_project` (name, `addTeams: ["Ai agents"]`).
+- Create the parent issue and every sub-issue with `project` set to that project. One project per repo = a board per codebase.
+
 ## Phases
 
 0. **Gate** — decide engage vs inline (above).
@@ -44,5 +51,5 @@ Todo → In Progress (orchestrator, at dispatch) → In Review (orchestrator, wh
 
 ## Defaults
 
-- Team: `Ai agents`. Labels: `agent-task` (all auto-created), `blocked`, `partial`.
+- Team: `Ai agents`. Project: per-repo (see Project scoping). Labels: `agent-task` (all auto-created), `blocked`, `partial`.
 - Models: worker sonnet (haiku trivial); reviewer sonnet (opus high-risk). Retry cap 2.
