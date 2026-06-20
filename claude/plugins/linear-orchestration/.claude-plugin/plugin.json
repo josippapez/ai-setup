@@ -1,0 +1,15 @@
+{
+  "name": "linear-orchestration",
+  "version": "0.1.0",
+  "description": "Linear-backed task orchestration: grill a task to a spec, decompose into a per-repo Linear project's parent + sub-issues, dispatch worker/reviewer subagents (relayed model — the orchestrator performs all Linear writes), and drive statuses to done/partial/abandoned. Auto-engages on non-trivial tasks via a UserPromptSubmit hook.",
+  "author": {
+    "name": "Personal AI Setup"
+  },
+  "license": "MIT",
+  "keywords": [
+    "linear",
+    "orchestration",
+    "subagents",
+    "workflow"
+  ]
+}
