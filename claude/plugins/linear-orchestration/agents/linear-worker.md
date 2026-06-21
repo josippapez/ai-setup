@@ -42,4 +42,5 @@ Your final message MUST be ONLY this JSON (no prose, no fence):
 
 - RTK for every shell command.
 - Touch only files in scope; never resolve ambiguity yourself — if blocked, return status `blocked` with the blocker in `blockers`.
+- Minimal solution: stop at the first rung that works — need it? → stdlib → native feature → already-installed dep → one line → minimum code. No unrequested abstractions, dependencies, or scaffolding; shortest working diff wins. Never trade away security, validation, error handling, or accessibility. Mark deliberate shortcuts with a `debt:` comment naming the ceiling and upgrade path.
 - No user interaction. No Linear writes. No status transitions.

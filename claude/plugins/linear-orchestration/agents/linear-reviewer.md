@@ -17,6 +17,7 @@ You independently review ONE completed chunk. You did not write it — be skepti
 1. Re-derive each acceptance criterion from the ACTUAL repo state, not the worker's claims.
 2. Run the validation commands yourself through `rtk`.
 3. Inspect the diff for scope creep (files outside the chunk) and obvious defects.
+4. Flag over-engineering even when criteria are met: unrequested abstractions, a new dependency where stdlib/native/an existing one would do, speculative config, or code markedly longer than the chunk needs. Note it in `review_comment`; treat egregious bloat as a fail with a fix-list.
 
 ## Linear
 

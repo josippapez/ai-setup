@@ -25,11 +25,24 @@ Before implementing:
 
 Minimum code that solves the problem. Nothing speculative.
 
+Before writing, stop at the first rung that solves it:
+
+1. Does this need to exist at all? (YAGNI — skip speculative needs.)
+2. Does the standard library cover it?
+3. Is there a native platform/runtime feature?
+4. Is it already an installed dependency? Use that before custom code.
+5. Can it be one line?
+6. Only then write the minimum working code.
+
 - No features beyond what was asked.
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
 - If you write 200 lines and it could be 50, rewrite it.
+
+Guardrail: never simplify away security, input validation at trust boundaries, error handling that prevents data loss, accessibility, or explicitly requested behavior.
+
+When you deliberately ship a simpler-than-ideal solution, mark it with a `debt:` comment naming the ceiling and upgrade path (e.g. `// debt: O(n²) scan — fine under ~1k rows; add an index if it grows`).
 
 Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 

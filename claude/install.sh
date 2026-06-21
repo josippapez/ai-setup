@@ -22,7 +22,49 @@ fi
 # Copy top-level config files.
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"
 cp "$SRC/RTK.md" "$DEST/RTK.md"
+
+# Copy settings.json, preserving hardcoded secrets in any `env` block: where the
+# committed source uses a ${VAR} placeholder but the existing live settings had a
+# concrete value, keep the live value. Source stays env-ref; local deploy keeps
+# working secrets. On failure, restore the previous settings so a deploy never
+# leaves a working setup worse off.
+PREV_SETTINGS="$(mktemp)"
+if [ -f "$DEST/settings.json" ]; then cp "$DEST/settings.json" "$PREV_SETTINGS"; fi
 cp "$SRC/settings.json" "$DEST/settings.json"
+if ! python3 - "$DEST/settings.json" "$PREV_SETTINGS" <<'PY'
+import json, re, sys
+new_path, prev_path = sys.argv[1], sys.argv[2]
+new = json.load(open(new_path))
+try:
+    prev = json.load(open(prev_path))
+except Exception:
+    prev = None
+PLACEHOLDER = re.compile(r'^\$\{[^}]+\}$')
+def reconcile(n, p):
+    if not (isinstance(n, dict) and isinstance(p, dict)):
+        return
+    for k, v in n.items():
+        pv = p.get(k)
+        if k == "env" and isinstance(v, dict) and isinstance(pv, dict):
+            for ek, ev in v.items():
+                pev = pv.get(ek)
+                if isinstance(ev, str) and PLACEHOLDER.match(ev) and isinstance(pev, str) and pev and not PLACEHOLDER.match(pev):
+                    v[ek] = pev
+        elif isinstance(v, dict):
+            reconcile(v, pv)
+if isinstance(prev, dict):
+    reconcile(new, prev)
+    json.dump(new, open(new_path, "w"), indent=2, ensure_ascii=False)
+    open(new_path, "a").write("\n")
+    print("Reconciled `env` blocks: kept hardcoded values where source uses ${VAR}.")
+else:
+    print("No previous settings.json to reconcile; deployed source as-is.")
+PY
+then
+  echo "Warning: settings env reconcile failed; restoring previous settings.json." >&2
+  [ -s "$PREV_SETTINGS" ] && cp "$PREV_SETTINGS" "$DEST/settings.json" || true
+fi
+rm -f "$PREV_SETTINGS"
 
 # Copy user-level rules (auto-loaded by Claude Code from ~/.claude/rules/).
 cp "$SRC"/rules/*.md "$DEST/rules/"

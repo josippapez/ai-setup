@@ -13,7 +13,7 @@ Use this file as a strict policy. Do not interpret these rules loosely.
 ## Mandatory tool usage
 
 - You MUST use the **built-in questions tool** (the harness-provided question/ask-question tool) for all interactive communication with the user.
-- You MUST NOT use `interactive` MCP server prompts (`request_user_input`, `ask_intensive_chat`, `start_intensive_chat`, `stop_intensive_chat`, `push_session_status`, `send_message`) for in-repo agent work. That MCP path is deprecated for this repository's agent guidance, though the tool implementations remain in `desktop/src/main/tools/` for external consumers.
+- The built-in questions tool is the only prompting path for in-repo agent work. You MUST NOT use any other prompt mechanism (custom prompt servers, plain-text prompts, or ad-hoc tools) for user interaction.
 - You MUST NOT exit the prompt loop until the user explicitly indicates they want to stop being prompted, even if they are unresponsive or keep giving empty responses.
 - You MUST NOT send plain-text-only user-facing replies when a prompt trigger applies; use the built-in questions tool in that same response.
 
@@ -44,7 +44,7 @@ You MUST ask the user via the built-in questions tool in all of the following si
 ## Active question tool
 
 - The active question tool is the **built-in questions tool** at all times.
-- There is no fallback or alternate path. Interactive MCP prompting is disabled for this repository.
+- There is no fallback or alternate path; always prompt with the built-in questions tool.
 
 ## Per-turn enforcement
 
