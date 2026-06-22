@@ -23,7 +23,7 @@ Before implementing:
 
 ## 2. Simplicity first
 
-Minimum code that solves the problem. Nothing speculative.
+Minimum code that solves the problem. Nothing speculative. **Follow YAGNI; prefer one-liner solutions.**
 
 Before writing, stop at the first rung that solves it:
 

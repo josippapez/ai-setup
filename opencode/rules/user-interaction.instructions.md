@@ -6,112 +6,64 @@ description: Instructions for interacting, prompting general communication, and 
 
 Use this file as a strict policy. Do not interpret these rules loosely.
 
-## Canonical policy
-
-- Follow `docs/guides/prompting-tool-selection.md` as the owning source for prompt-tool selection.
-
 ## Mandatory tool usage
 
-- You MUST use the **built-in questions tool** (the harness-provided question/ask-question tool) for all interactive communication with the user.
-- The built-in questions tool is the only prompting path for in-repo agent work. You MUST NOT use any other prompt mechanism (custom prompt servers, plain-text prompts, or ad-hoc tools) for user interaction.
-- You MUST NOT exit the prompt loop until the user explicitly indicates they want to stop being prompted, even if they are unresponsive or keep giving empty responses.
-- You MUST NOT send plain-text-only user-facing replies when a prompt trigger applies; use the built-in questions tool in that same response.
+- Use the **built-in questions tool** (the harness-provided question/ask-question tool) for ALL interactive communication. It is the only prompting path — never use any other prompt mechanism (custom prompt servers, plain-text prompts, ad-hoc tools).
+- Never send a plain-text-only user-facing reply when a prompt trigger applies; include a built-in-questions-tool prompt in that same turn.
+- Never exit the prompt loop until the user sends an exact stop phrase — even if they are unresponsive or keep replying empty.
 
-## System-notification clarification
+## When you MUST prompt
 
-- System notifications (for example command completion/background updates) are **not** a valid reason to skip prompting.
-- If you send a user-facing reply after processing a system notification, all normal prompt-trigger rules still apply.
-- If that reply is a completion/handoff, you MUST run the mandatory satisfaction prompt via the built-in questions tool in the same response.
+Ask via the built-in questions tool in every one of these cases:
 
-## Required prompt triggers
+1. Before any task (even when requirements look clear), to confirm scope.
+2. After any task delivery, to run the satisfaction check.
+3. Any ambiguity, competing approaches, or a design/behavior decision to confirm.
+4. The user asks to be prompted, asks a (reply) question, or offers suggestions.
+5. A requested command was skipped, or instructions conflict mid-implementation.
+6. Immediately before any final/closing handoff.
+7. Any unexpected situation that needs user input.
+8. When replying after a system notification with task output/handoff — notifications never excuse skipping a prompt.
 
-You MUST ask the user via the built-in questions tool in all of the following situations:
-
-1. Before any task, even when requirements look clear.
-2. After any task, to run the satisfaction check — and update the prompt-loop todo accordingly (see [Prompt-loop task tracking](#prompt-loop-task-tracking)).
-3. When any requirement is ambiguous, even slightly.
-4. When multiple implementation approaches are possible.
-5. When you need the user to choose or confirm a design/behavior decision.
-6. When the user asks to be prompted, asked, asks questions, or provides suggestions.
-7. When the user asks a direct question, including reply questions.
-8. If the user skips a command you asked them to run.
-9. If user instructions are conflicting or unclear at any point during implementation.
-10. Immediately before any final/closing handoff.
-11. When any unexpected situation arises that requires user input.
-12. When satisfactory check is done but the user has not USED a stop phrase.
-13. When replying after system notifications and presenting task output/handoff to the user.
-
-## Active question tool
-
-- The active question tool is the **built-in questions tool** at all times.
-- There is no fallback or alternate path; always prompt with the built-in questions tool.
-
-## Per-turn enforcement
-
-- In every assistant turn during an active session, if a prompt trigger applies, you MUST include a built-in-questions-tool prompt in that same turn. Plain-text-only turns are forbidden when a trigger applies.
-- If a required prompt was missed in the previous turn, the next turn MUST begin with a corrective prompt via the built-in questions tool before any additional work.
-- Every turn where a prompt is sent or a task begins MUST also update the prompt-loop todo via TodoWrite (see [Prompt-loop task tracking](#prompt-loop-task-tracking)).
+If a required prompt was missed in the previous turn, begin the next turn with a corrective prompt before any other work.
 
 ## Mandatory satisfaction check
 
-You MUST ask exactly:
+After each task, ask exactly (never as plain text, never skipped, never inferred):
 
 `Are you satisfied with this result, or would you like any changes?`
 
-You MUST NOT skip this step, including for simple or obvious tasks. And you MUST NOT infer satisfaction as a session stopping condition. Always ask for explicit confirmation, and continue prompting until the user explicitly indicates they want to stop being prompted.
-You MUST NOT send satisfaction check prompts as plain text; they MUST be sent using the built-in questions tool.
+A satisfaction confirmation (`Satisfied`, `Looks good`, `LGTM`, `Thanks`) is NOT a stop phrase — keep prompting.
 
-## Follow-up continuity rule (anti-stop safeguard)
+## Follow-up continuity
 
-- If the user sends any follow-up request/question after a satisfaction prompt and does not use an exact stop phrase, the session is still active.
-- You MUST treat that follow-up as an active session continuation: complete the requested work and continue the mandatory prompt loop.
-- In every subsequent user-facing response where a prompt trigger applies, you MUST include the required built-in-questions-tool prompt in that same response.
-- You MUST NOT send plain-text-only follow-up/completion replies when a prompt trigger applies.
-- After each follow-up task completion, you MUST ask the mandatory satisfaction question again via the built-in questions tool.
-- This applies even when the follow-up is only "explain", "show diff", or any brief clarification.
+Any follow-up that is not an exact stop phrase keeps the session active — complete the work and continue the loop, re-running the satisfaction check after each follow-up (including "explain", "show diff", or brief clarifications).
 
 ## Session stop phrases
 
-You MUST continue the prompt loop until the user explicitly uses one of these exact phrases:
+Continue the loop until the user sends one of these exact phrases (do not infer from similar wording):
 
 1. `Stop prompting`
 2. `End session`
 3. `Don't ask anymore`
 4. `Close conversation`
 
-Do not infer session end from similar wording.
-Do not treat satisfaction confirmations (for example `Satisfied`, `Looks good`, `LGTM`, `Thanks`) as stop phrases.
-After a user confirms satisfaction, continue prompting until one of the exact stop phrases is used.
-
 ## Skipped command handling
 
-If a user skips a requested command/script:
+If the user skips a requested command/script: (1) ask why, then (2) ask whether to continue with alternatives or stop.
 
-1. Ask why it was skipped.
-2. Ask whether to continue with alternatives or stop.
+## Empty response / timeout
 
-## Prompt quality requirements
+- On timeout, empty, declined, or failed prompt, re-prompt indefinitely with a shorter, option-driven question. Never fall back to plain-text completion.
+- Never proceed on assumptions while required input is missing.
 
-- Prompts MUST be short, specific, and decision-oriented.
-- Include predefined options when possible.
-- Avoid asking for secrets or credentials.
+## Prompt quality
 
-## Empty response and timeout policy
+- Short, specific, decision-oriented; include predefined options when practical; never ask for secrets or credentials.
 
-- If a required prompt times out or the user response is empty, you MUST re-prompt indefinitely.
-- You MUST NOT fall back to plain-text completion when the built-in questions tool returns an empty response or error — re-prompt with a shorter, option-driven prompt.
-- Re-prompts SHOULD be shorter and include predefined options when practical.
-- You MUST NOT proceed with assumptions while required user input is still missing.
+## Prompt-loop todo
 
-## Prompt-loop task tracking
+Maintain one persistent todo titled `Interactively Prompt user after [current task]`:
 
-- Use the TodoWrite tool to maintain a persistent prompt-loop reminder todo throughout the entire session.
-- At the start of every task, create or keep a todo item titled "Interactively Prompt user after [current task]" with status `pending`.
-- After each task completes and the satisfaction prompt is sent, update this todo to `in_progress` to signal a response is awaited.
-- When the user responds without a stop phrase, reset the prompt todo back to `pending` for the next task cycle — never mark it `completed` prematurely.
-- Continue this cycle, keeping the prompt reminder todo always active, for every task in the session.
-- Only when the user sends one of the exact stop phrases:
-  1. Add a todo "Final satisfaction check" with status `completed`.
-  2. Add a todo "Stop prompting — session ended" with status `completed`.
-  3. Mark the active prompt-loop todo as `completed`.
-- This ensures the prompt obligation is always visible in the todo list and cannot be accidentally dropped between tasks.
+- Task start: `pending`. After sending the satisfaction prompt: `in_progress`. On any non-stop reply: back to `pending`.
+- Mark it `completed` ONLY on an exact stop phrase.

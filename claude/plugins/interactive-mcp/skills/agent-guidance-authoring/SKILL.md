@@ -7,7 +7,7 @@ description: Author and evolve agent guidance — docs, patterns, skills, and in
 
 Create or evolve skills, instructions, docs, and patterns that drive repeatable agent behavior. Keep skills minimal and doc-first so guidance changes in one place.
 
-Use this skill whenever the user wants to change repeatable agent behavior or the guidance that drives it. This covers the full authoring surface: `docs/guides`, `docs/standards`, `.github/skills/**`, and `.github/instructions/**`.
+Use this skill whenever the user wants to change repeatable agent behavior or the guidance that drives it. This covers the full authoring surface: the always-on rules/instructions and the skills, across each platform adapter (`claude/`, `opencode/`).
 
 ## Triggers
 
@@ -18,13 +18,13 @@ Use this skill whenever the user wants to change repeatable agent behavior or th
 - User asks to update a doc/guide/standard that owns a rule.
 - User asks to make something "always happen" or "never happen" again.
 
-## Required flow (docs-first)
+## Required flow (single-source-first)
 
-1. **Identify or create the owning doc** in `docs/guides` or `docs/standards`. Update it first so there is a single canonical rule source.
-2. **Update or create the skill** at `.github/skills/<skill-name>/SKILL.md`. Keep it concise and link to the doc instead of duplicating guidance.
-3. **Update or create the instruction** under `.github/instructions/**` when behavior must be always-on and trigger-based.
-4. **Update delegation mapping** if the change affects agent routing: `.github/agents/**`, `agent-orchestration.instructions.md`, and the `agent-orchestration` skill.
-5. **Validate consistency** across docs + skill + instruction, and call out the exact behavior delta (before → after) in handoff.
+1. **Identify the owning guidance** — the one file that should canonically own this behavior (an always-on rule, or a skill). Update it first so there is a single source of truth.
+2. **Update or create the skill** (`claude/plugins/*/skills/<name>/SKILL.md`, mirrored under `opencode/skills/`). Keep it concise and link to the owning rule instead of duplicating guidance.
+3. **Update or create the always-on rule** (`claude/rules/**`, mirrored under `opencode/rules/`) when behavior must be always-on and trigger-based.
+4. **Update delegation mapping** if the change affects agent routing: the agent definitions and the `agent-orchestration` skill.
+5. **Validate consistency** across rule + skill, and call out the exact behavior delta (before → after) in handoff.
 
 For non-trivial cross-surface changes, prefer delegating to the `self-improve-specialist` agent.
 
@@ -53,12 +53,8 @@ Skill `description` fields are the primary discovery surface — weak descriptio
 - Keep skills minimal and doc-first; change guidance in one place.
 - Keep instructions trigger-based, deterministic, and use `MUST`/`SHOULD`/`MAY`.
 - Prefer one canonical rule source; avoid near-duplicate policy text across skills and instructions.
-- If a skill touches mobile code, reference `docs/standards/patterns/mobile` and keep mobile-specific detail there.
-- If a requested behavior is not covered by an existing skill, create a new skill (or instruction) that points to the owning doc before proceeding.
+- If a requested behavior is not covered by an existing skill, create a new skill (or instruction) that points to the owning rule before proceeding.
 
 ## References
 
-- [docs/guides/agent-files.md](../../../docs/guides/agent-files.md)
-- docs/standards/patterns
-- docs/guides (update the specific guide before adjusting skills)
-- `.github/agents/self-improve-specialist.agent.md` — delegate non-trivial cross-surface changes
+- `self-improve` skill — companion workflow for behavior changes.

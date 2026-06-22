@@ -116,15 +116,5 @@ Handoff format: [findings, patch summary, validation result, open questions]
 
 ## References
 
-- docs/guides/agent-files.md#custom-agent-orchestration-starter-set
-- .github/skills/prompt-user/SKILL.md
-- .github/instructions/interactive-prompt-loop.instructions.md
-- .github/instructions/agent-orchestration.instructions.md
-- .github/agents/hcp-frontend-specialist.agent.md
-- .github/agents/nx-test-specialist.agent.md
-- .github/agents/docs-maintainer.agent.md
-- .github/agents/fe-guardrails-auditor.agent.md
-- .github/agents/wcag-a11y-aa-specialist.agent.md
-- .github/agents/figma-layout-token-analyst.agent.md
-- .github/agents/dockerfile-specialist.agent.md
-- .github/agents/self-improve-specialist.agent.md
+- `prompt-user` skill — prompt-loop ownership rules.
+- `agent-guidance-authoring` skill — authoring/maintaining this guidance.

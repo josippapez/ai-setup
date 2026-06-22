@@ -15,10 +15,10 @@ Use this skill when a user asks to change how the agent should behave in a repea
 
 ## Required flow
 
-1. Update owning docs first (`docs/guides` or `docs/standards`).
-2. Update or add `.github/skills/**` guidance.
-3. Update or add `.github/instructions/**` policy constraints.
-4. If delegation mapping changes, update `.github/agents/**` and orchestration docs/instructions.
+1. Update the owning guidance first — the canonical rule or skill that owns the behavior.
+2. Update or add the matching skill (`claude/plugins/*/skills/**`, mirrored under `opencode/skills/`).
+3. Update or add the always-on rule (`claude/rules/**`, mirrored under `opencode/rules/`) for policy constraints.
+4. If delegation mapping changes, update the agent definitions and the `agent-orchestration` skill.
 5. Validate consistency and call out exact behavior changes in handoff.
 
 ## Best practices
@@ -29,5 +29,4 @@ Use this skill when a user asks to change how the agent should behave in a repea
 
 ## References
 
-- [docs/guides/agent-files.md](../../../docs/guides/agent-files.md)
-- [../skill-authoring/SKILL.md](../skill-authoring/SKILL.md)
+- `agent-guidance-authoring` skill — the fuller authoring workflow.

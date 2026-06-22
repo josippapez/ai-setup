@@ -14,7 +14,6 @@ When a user points to specific files, instructions or skill, or says they update
 
 ## References
 
-- Relevant docs/guides depending on the change
 - [agent-guidance-authoring](../agent-guidance-authoring/SKILL.md) for how to update skills, instructions, and docs when patterns change
 - [workspace-hygiene](../workspace-hygiene/SKILL.md) for keeping the repo clean and up to date after changes
 - [prompt-user](../prompt-user/SKILL.md) for how to ask the user for clarifications or confirmations when needed
