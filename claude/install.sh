@@ -107,6 +107,8 @@ else
 fi
 # Remove loose files migrated into the linear-orchestration plugin (now plugin-provided).
 rm -rf "$DEST/skills/linear-orchestration" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
+# Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
+rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 
 # Install plugin runtime deps (e.g. @xenova/transformers) in the installed cache copy.
 # Pick the highest version dir (sort -V), not the newest mtime — plugin updates

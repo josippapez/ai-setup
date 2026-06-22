@@ -4,7 +4,7 @@ name: interactive-prompt-loop
 description: Deterministic prompt-loop policy using the built-in questions tool.
 ---
 
-<!-- This is a concise summary of the prompt-loop policy. The authoritative full policy is in `user-interaction.instructions.md`, and prompt-tool selection is owned by `docs/guides/prompting-tool-selection.md`. If these files diverge, `user-interaction.instructions.md` takes precedence for enforcement. -->
+<!-- Concise prompt-loop policy for the prompt-user skill. The authoritative full policy is the global `user-interaction.instructions.md` rule; if they diverge, that rule wins. -->
 
 Stop phrases (exact match only):
 
