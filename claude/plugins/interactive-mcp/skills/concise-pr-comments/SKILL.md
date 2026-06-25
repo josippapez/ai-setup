@@ -9,12 +9,15 @@ Use this skill when drafting or posting PR review comments.
 
 ## Style
 
-- Keep comments short and direct.
-- Sound like a human reviewer, not an automated policy engine.
-- State the concrete issue in one or two sentences.
-- Avoid long explanations unless the user asks for detail.
-- Avoid forced suggestions when the issue is already clear.
-- Prefer a focused question only when it helps the author decide the fix.
+Write like a senior dev dropping a quick note for a teammate, not like an automated policy engine.
+
+- Keep it short. One or two sentences for most comments.
+- Casual is good: contractions, plain words, get to the point.
+- State the concrete issue plainly. Drop the corporate hedging ("this appears to potentially introduce a risk that may...").
+- Use a "nit:" prefix for minor or optional stuff so the author knows it's not a blocker.
+- Ask a direct question when you actually want the author to make the call ("why skip instead of fail here?"). Don't bolt on a forced suggestion when the issue already speaks for itself.
+- Save the long explanation for when the user asks for detail.
+- No em dashes. Use a comma, a period, or just split the sentence. People typing fast in a PR almost never reach for one, so it reads as bot-written.
 
 ## Examples
 
