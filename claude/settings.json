@@ -3,43 +3,6 @@
     "allow": ["mcp__pencil"]
   },
   "model": "opus[1m]",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/rtk-read-interceptor.py",
-            "timeout": 15,
-            "statusMessage": "rtk read filtering"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); [ -n \"$f\" ] || exit 0; case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) ;; *) exit 0 ;; esac; [ -x ./node_modules/.bin/eslint ] || exit 0; ./node_modules/.bin/eslint --fix \"$f\" >/dev/null 2>&1; [ -x ./node_modules/.bin/prettier ] && ./node_modules/.bin/prettier --write \"$f\" >/dev/null 2>&1 || true; ./node_modules/.bin/eslint \"$f\" 2>/dev/null || true",
-            "timeout": 120,
-            "statusMessage": "Linting edited file"
-          }
-        ]
-      }
-    ]
-  },
   "statusLine": {
     "type": "command",
     "command": "bash -c 'cols=${COLUMNS:-}; case \"$cols\" in \"\"|*[!0-9]*) cols=$(stty size </dev/tty 2>/dev/null | awk '\"'\"'{print $2}'\"'\"');; esac; case \"$cols\" in \"\"|*[!0-9]*) cols=120;; esac; export COLUMNS=$(( cols > 4 ? cols - 4 : 1 )); plugin_dir=$(ls -d \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"/plugins/cache/*/claude-hud/*/ 2>/dev/null | awk -F/ '\"'\"'{ print $(NF-1) \"\\t\" $0 }'\"'\"' | grep -E '\"'\"'^[0-9]+\\.[0-9]+\\.[0-9]+[[:space:]]'\"'\"' | sort -t. -k1,1n -k2,2n -k3,3n -k4,4n | tail -1 | cut -f2-); exec \"/opt/homebrew/bin/bun\" --env-file /dev/null \"${plugin_dir}src/index.ts\"'"
@@ -69,8 +32,9 @@
       }
     }
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "tui": "fullscreen",
+  "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "mcpServers": {
@@ -83,5 +47,30 @@
       }
     }
   },
-  "remoteControlAtStartup": true
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); [ -n \"$f\" ] || exit 0; case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) ;; *) exit 0 ;; esac; [ -x ./node_modules/.bin/eslint ] || exit 0; ./node_modules/.bin/eslint --fix \"$f\" >/dev/null 2>&1; [ -x ./node_modules/.bin/prettier ] && ./node_modules/.bin/prettier --write \"$f\" >/dev/null 2>&1 || true; ./node_modules/.bin/eslint \"$f\" 2>/dev/null || true",
+            "timeout": 120,
+            "statusMessage": "Linting edited file"
+          }
+        ]
+      }
+    ]
+  }
 }
