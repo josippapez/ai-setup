@@ -9,7 +9,7 @@ DEST="$HOME/.claude"
 # The plugin marketplace manifest lives at the repo root (one level above this claude/ dir).
 REPO_ROOT="$(cd "$SRC/.." && pwd)"
 
-mkdir -p "$DEST/rules" "$DEST/skills" "$DEST/agents"
+mkdir -p "$DEST/skills" "$DEST/agents"
 
 # Ensure rtk (Rust Token Killer) is installed — settings.json hooks depend on it.
 # Install from the rtk-ai tap explicitly; the bare name collides with homebrew/core/rtk.
@@ -30,8 +30,8 @@ cp "$SRC/RTK.md" "$DEST/RTK.md"
 # scope in ~/.claude.json, never in this file.
 cp "$SRC/settings.json" "$DEST/settings.json"
 
-# Copy user-level rules (auto-loaded by Claude Code from ~/.claude/rules/).
-cp "$SRC"/rules/*.md "$DEST/rules/"
+# Rules are no longer copied loose into ~/.claude/rules/: the interactive-mcp plugin
+# now bundles them and injects them via its SessionStart hook (see cleanup below).
 
 # Copy user-level skills and agents as real copies, replacing any existing symlink or dir
 # (e.g. skills installed via `npx skills` symlink into ~/.claude/skills, which `cp -R` can't overwrite).
@@ -69,6 +69,9 @@ fi
 rm -rf "$DEST/skills/linear-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
 # Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
+# Remove rules migrated into the interactive-mcp plugin (now injected via its SessionStart
+# hook). Deleting the loose copies prevents them double-loading alongside the plugin's.
+rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md" "$DEST/rules/user-interaction.instructions.md"
 
 # interactive-mcp runtime deps (@xenova/transformers) auto-install via the plugin's
 # SessionStart hook into ${CLAUDE_PLUGIN_DATA}/node_modules on first session — no manual
@@ -76,7 +79,6 @@ rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 
 echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
-echo "  - rules/ (*.md)"
 echo "  - skills/, agents/"
 echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
 echo "  - linear-orchestration@ai-setup plugin"
