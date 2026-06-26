@@ -16,7 +16,7 @@
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-hud@claude-hud": true,
-    "linear@claude-plugins-official": true
+    "linear@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
     "ai-setup": {
