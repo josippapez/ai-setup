@@ -12,7 +12,7 @@ The MAIN agent is the orchestrator and prompt-loop owner. Full design: `docs/sup
 - Engage for non-trivial, multi-step tasks (multiple files/steps, or one that needs decomposition).
 - Skip trivial one-offs — handle them inline.
 - Honor explicit overrides ("track in Linear" / "skip Linear").
-- If the Linear MCP is unauthenticated, ask the user to authenticate (or fall back to in-session todos and warn that tracking won't persist).
+- This plugin **bundles the Linear MCP** (`https://mcp.linear.app/mcp`, server name `linear`) via its `.mcp.json`, so it's available on install. If the Linear MCP is unauthenticated, ask the user to authenticate (or fall back to in-session todos and warn that tracking won't persist). (If the official `linear@claude-plugins-official` plugin is also installed, both Linear servers load — disable one to avoid duplicate tools.)
 
 ## Project scoping
 
