@@ -24,8 +24,8 @@ File issues under a **per-repo Linear project** (not loose in the team):
 ## Phases
 
 0. **Gate** — decide engage vs inline (above).
-1. **Intake (grill)** — use the brainstorming/grilling flow with the user to reach a clear written spec. Orchestrator ↔ user only.
-2. **Decompose** — create a Linear **parent issue** (body = spec summary + acceptance criteria), then one **sub-issue per chunk**. Each sub-issue MUST be self-contained: objective, exact scope/files, constraints, acceptance criteria, RTK-prefixed validation commands, handoff format. Order by dependency; mark independents parallelizable. Sub-issues start in **Todo**. Label auto-created issues `agent-task`. (First call `list_issue_statuses` for the team and adapt the status names to what it actually has — see Status map.)
+1. **Intake (grill)** — interview the user to a clear written spec before decomposing. For a **domain-heavy / schema-bearing** task, invoke `/grill-with-docs` (combines `/grilling` + `/domain-modeling`, capturing the ubiquitous language + ADRs as you go). For a **simpler** spec, `/grilling` alone is enough. These sharpen the spec but are **not hard dependencies** — if a skill is unavailable, fall back to a built-in question-tool scope interview and continue; never block intake on a missing skill. Orchestrator ↔ user only.
+2. **Decompose** — create a Linear **parent issue** (body = spec summary + acceptance criteria), then one **sub-issue per chunk**. Each sub-issue MUST be self-contained: objective, exact scope/files, constraints, acceptance criteria, RTK-prefixed validation commands, handoff format. Order by dependency; mark independents parallelizable. Sub-issues start in **Todo**. Label auto-created issues `agent-task`. (First call `list_issue_statuses` for the team and adapt the status names to what it actually has — see Status map.) Before decomposing any **schema/data-model** chunk, ensure the domain model is captured — if intake didn't already (e.g. `/grilling` alone), invoke `/domain-modeling` first (skip gracefully if the skill is absent).
 3. **Execute** — per chunk: set the sub-issue **In Progress**, dispatch a `linear-worker` (model sonnet, or haiku for trivial) with the chunk **inline** + the sub-issue id. The worker returns a result including `findings`; **you post `findings` as a comment** and set the sub-issue **In Review**. Independent chunks may run as parallel workers.
 4. **Review** — dispatch a `linear-reviewer` with the acceptance criteria + the worker's diff/result. It returns `verdict`, `review_comment`, `target_status`. **You post `review_comment`** and set the status: pass → **Done**; fail → **In Progress** (post the fix-list), retry up to 2; at the cap apply the `blocked` label and surface to the user.
 5. **Converge** — all Done → parent **Done** + summary + satisfaction check. Some blocked/deferred → parent + `partial` label + a comment listing done vs remaining. User aborts / infeasible → parent **Canceled**.
@@ -48,6 +48,7 @@ Todo → In Progress (orchestrator, at dispatch) → In Review (orchestrator, wh
 - Workers get fully-specified chunks; never push ambiguity to a cheap worker.
 - Linear is the source of truth; on resume, re-read open sub-issues to rebuild state.
 - Nests inside the existing prompt loop; follows the `agent-orchestration` delegation rules.
+- **Companion skills are graceful, not required:** `/grilling` + `/domain-modeling` (or the combined `/grill-with-docs`) enrich intake and schema work — never block orchestration on a missing or unavailable skill; fall back to question-tool intake / inline domain notes and continue.
 
 ## Defaults
 
