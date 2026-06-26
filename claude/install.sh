@@ -106,7 +106,8 @@ else
   claude plugin install linear-orchestration@ai-setup --scope user
 fi
 # Remove loose files migrated into the linear-orchestration plugin (now plugin-provided).
-rm -rf "$DEST/skills/linear-orchestration" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
+# Includes the grilling/domain-modeling/grill-with-docs skills relocated from skills/ into the plugin.
+rm -rf "$DEST/skills/linear-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
 # Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 
