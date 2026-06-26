@@ -5,7 +5,7 @@ description: Use when a non-trivial, multi-step task should be tracked in Linear
 
 # Linear orchestration
 
-The MAIN agent is the orchestrator and prompt-loop owner. Full design: `docs/superpowers/specs/2026-06-19-linear-orchestration-design.md`.
+The MAIN agent is the orchestrator and prompt-loop owner. Plugin overview & one-time setup: `../../README.md`.
 
 ## When to engage
 
