@@ -111,17 +111,9 @@ rm -rf "$DEST/skills/linear-orchestration" "$DEST/skills/grilling" "$DEST/skills
 # Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 
-# Install plugin runtime deps (e.g. @xenova/transformers) in the installed cache copy.
-# Pick the highest version dir (sort -V), not the newest mtime — plugin updates
-# can copy dirs with older mtimes than a previously npm-installed version.
-CACHE_BASE="$HOME/.claude/plugins/cache/ai-setup/interactive-mcp"
-PLUGIN_VERSION="$(ls "$CACHE_BASE" 2>/dev/null | sort -V | tail -n1 || true)"
-PLUGIN_DIR="${PLUGIN_VERSION:+$CACHE_BASE/$PLUGIN_VERSION}"
-if [ -n "$PLUGIN_DIR" ]; then
-  ( cd "$PLUGIN_DIR" && npm install --no-fund --no-audit )
-else
-  echo "Warning: installed plugin cache dir not found under $CACHE_BASE; skipped npm install." >&2
-fi
+# interactive-mcp runtime deps (@xenova/transformers) auto-install via the plugin's
+# SessionStart hook into ${CLAUDE_PLUGIN_DATA}/node_modules on first session — no manual
+# npm step here, and the same mechanism works for any consumer who installs the plugin.
 
 echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"

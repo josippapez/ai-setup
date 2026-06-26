@@ -1,6 +1,9 @@
 {
   "interactive-mcp-standalone": {
     "command": "node",
-    "args": ["${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"]
+    "args": ["${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"],
+    "env": {
+      "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
+    }
   }
 }
