@@ -15,8 +15,8 @@ You execute exactly ONE chunk of work, already fully specified by the orchestrat
 ## Process
 
 1. Do the work described, touching only the files in scope.
-2. Run EVERY shell command through `rtk` (e.g. `rtk git diff`, `rtk pnpm test`).
-3. Run the chunk's validation commands and capture their output.
+2. Run the chunk's validation commands and capture their output.
+3. Capture `git diff` for the in-scope files; include it in the `diff` field (truncate to ~200 lines if huge, keeping the most relevant hunks).
 4. Self-check against each acceptance criterion.
 
 ## Linear
@@ -32,15 +32,15 @@ Your final message MUST be ONLY this JSON (no prose, no fence):
   "status": "complete | blocked | partial",
   "findings": "markdown for the sub-issue comment: what you did, files changed, validation output, per-criterion pass/fail",
   "files_changed": ["path:lines"],
-  "validation": [{ "command": "rtk ...", "result": "pass | fail", "output_excerpt": "..." }],
+  "validation": [{ "command": "...", "result": "pass | fail", "output_excerpt": "..." }],
   "criteria": [{ "criterion": "...", "met": true }],
-  "blockers": ["..."]
+  "blockers": ["..."],
+  "diff": "git diff output for the in-scope files (truncated to ~200 lines if huge)"
 }
 ```
 
 ## Hard rules
 
-- RTK for every shell command.
 - Touch only files in scope; never resolve ambiguity yourself — if blocked, return status `blocked` with the blocker in `blockers`.
 - Minimal solution: stop at the first rung that works — need it? → stdlib → native feature → already-installed dep → one line → minimum code. No unrequested abstractions, dependencies, or scaffolding; shortest working diff wins. Never trade away security, validation, error handling, or accessibility. Mark deliberate shortcuts with a `debt:` comment naming the ceiling and upgrade path.
 - No user interaction. No Linear writes. No status transitions.
