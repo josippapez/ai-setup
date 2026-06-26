@@ -1,7 +1,5 @@
 {
-  "permissions": {
-    "allow": ["mcp__pencil"]
-  },
+  "permissions": {},
   "model": "opus[1m]",
   "statusLine": {
     "type": "command",
@@ -36,16 +34,6 @@
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "mcpServers": {
-    "Framelink Figma": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--stdio"],
-      "env": {
-        "FIGMA_API_KEY": "${FIGMA_API_KEY}"
-      }
-    }
-  },
   "hooks": {
     "PreToolUse": [
       {
