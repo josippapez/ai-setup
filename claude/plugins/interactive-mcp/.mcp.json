@@ -5,5 +5,20 @@
     "env": {
       "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
     }
+  },
+  "context7": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@upstash/context7-mcp"]
+  },
+  "chrome-devtools": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "chrome-devtools-mcp@latest", "--autoConnect"]
+  },
+  "wcag": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "wcag-guidelines-mcp"]
   }
 }
