@@ -6,6 +6,8 @@ set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/.claude"
+# The plugin marketplace manifest lives at the repo root (one level above this claude/ dir).
+REPO_ROOT="$(cd "$SRC/.." && pwd)"
 
 mkdir -p "$DEST/rules" "$DEST/hooks" "$DEST/skills" "$DEST/agents"
 
@@ -85,12 +87,10 @@ for f in "$SRC"/agents/*; do
   cp -R "$f" "$DEST/agents/$(basename "$f")"
 done
 
-# Register or refresh the local plugin marketplace.
-if claude plugin marketplace list 2>/dev/null | grep -q "ai-setup"; then
-  claude plugin marketplace update ai-setup
-else
-  claude plugin marketplace add "$SRC"
-fi
+# Register or refresh the local plugin marketplace (root-level .claude-plugin/marketplace.json).
+# Re-add from the repo root so a moved/renamed source path is always picked up.
+claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
+claude plugin marketplace add "$REPO_ROOT"
 
 # Install or update the interactive-mcp plugin.
 if claude plugin list 2>/dev/null | grep -q "interactive-mcp@ai-setup"; then
