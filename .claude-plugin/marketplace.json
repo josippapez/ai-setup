@@ -13,7 +13,7 @@
         "name": "Personal AI Setup"
       },
       "category": "development",
-      "source": "./plugins/interactive-mcp"
+      "source": "./claude/plugins/interactive-mcp"
     },
     {
       "name": "linear-orchestration",
@@ -22,7 +22,7 @@
         "name": "Personal AI Setup"
       },
       "category": "development",
-      "source": "./plugins/linear-orchestration"
+      "source": "./claude/plugins/linear-orchestration"
     }
   ]
 }
