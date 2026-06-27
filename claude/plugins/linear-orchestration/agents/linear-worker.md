@@ -17,9 +17,9 @@ You execute exactly ONE chunk, fully specified by the orchestrator, and you own 
 1. **Start:** set your issue to **In Progress** (`save_issue` state).
 2. **Build:** do the work, touching ONLY files in scope. Run the validation commands; capture output. Capture `git diff` for in-scope files (truncate to ~200 lines if huge, keeping the relevant hunks).
 3. **Post findings:** `save_comment` on your issue — what you did, files changed, validation output, per-criterion self-check — then a second comment with the diff in a fenced ` ```diff ` block. Set the issue **In Review**.
-4. **Request review (the PR):** spawn IN PARALLEL via the Agent tool, passing each the explicit `{issueId, projectId}`, the acceptance criteria, the diff, and the validation commands:
-   - a **code-standards-checker** (`subagent_type: code-standards-checker`) — repo quality gates + standards; model by complexity (**haiku** for small mechanical diffs, **sonnet** otherwise);
-   - a **linear-reviewer** (`subagent_type: linear-reviewer`) — correctness vs acceptance criteria. **Pick its model by complexity:** **opus** when the chunk is `high` complexity OR touches security/auth, data migrations, concurrency, money, or a large/cross-cutting diff; **sonnet** for normal; **haiku** for trivial/mechanical changes.
+4. **Request review (the PR):** spawn IN PARALLEL via the Agent tool, passing each the explicit `{issueId, projectId}`, the acceptance criteria, the diff, and the validation commands. **Use the fully-qualified, plugin-namespaced `subagent_type` (the `linear-orchestration:` prefix) — the bare name may not resolve from inside a subagent:**
+   - a **code-standards-checker** (`subagent_type: linear-orchestration:code-standards-checker`) — repo quality gates + standards; model by complexity (**haiku** for small mechanical diffs, **sonnet** otherwise);
+   - a **linear-reviewer** (`subagent_type: linear-orchestration:linear-reviewer`) — correctness vs acceptance criteria. **Pick its model by complexity:** **opus** when the chunk is `high` complexity OR touches security/auth, data migrations, concurrency, money, or a large/cross-cutting diff; **sonnet** for normal; **haiku** for trivial/mechanical changes.
 5. **Act on verdicts:** BOTH pass → done (the reviewer sets the issue **Done**). Either fails → read the fix-list, make the fixes (scope only), post a brief follow-up findings comment, and re-request review. Loop at most **2** rounds.
 6. **Cap:** if still failing after 2 rounds, stop and return `blocked` with the outstanding fix-list — do not keep grinding.
 
