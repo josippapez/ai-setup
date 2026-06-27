@@ -1,12 +1,12 @@
 # Linear Orchestration Claude Plugin
 
 Linear-backed task orchestration. On a non-trivial, multi-step task the main agent
-grills it to a spec, sets up a per-repo Linear project (the epic) with **milestones**
-(phases) and self-contained **issues** (chunks), then dispatches **self-managing**
-`linear-worker` subagents that build each chunk, run their own code-standards + review
-loop, and post their own Linear updates; the orchestrator drives convergence and statuses
-to Done / partial / abandoned. Everything is addressed by explicit ID passed top-down, so
-multiple projects can run concurrently without collision.
+grills it to a spec, sets up a **long-lived per-repo Linear project** with the **epic as a
+milestone** and its **chunks as issues**, then dispatches **self-managing** `linear-worker`
+subagents that build each chunk, run their own code-standards + review loop, and post their
+own Linear updates; the orchestrator drives convergence and statuses to Done / partial /
+abandoned. Everything is addressed by explicit ID passed top-down, so multiple repos/epics
+run concurrently without collision.
 
 ## Layout
 
