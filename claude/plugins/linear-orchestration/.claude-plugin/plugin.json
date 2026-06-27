@@ -1,7 +1,7 @@
 {
   "name": "linear-orchestration",
-  "version": "0.7.0",
-  "description": "Linear-backed task orchestration: grill a task to a spec, decompose into a per-repo Linear project's parent + sub-issues, dispatch worker/reviewer subagents (relayed model — the orchestrator performs all Linear writes), and drive statuses to done/partial/abandoned. Auto-engages on non-trivial tasks via a UserPromptSubmit hook.",
+  "version": "0.8.0",
+  "description": "Linear-backed task orchestration: grill a task to a spec, set up a per-repo Linear project (the epic) with milestones (phases) and issues (chunks), then dispatch self-managing worker subagents that build their chunk, run their own code-standards + review loop (spawning a checker and a tier-by-complexity reviewer), and post their own Linear updates (attempt-then-relay; the orchestrator is writer of last resort). Everything addressed by explicit ID for concurrent multi-project safety. Engages via skill-discovery on matching non-trivial tasks.",
   "author": {
     "name": "Personal AI Setup"
   },
