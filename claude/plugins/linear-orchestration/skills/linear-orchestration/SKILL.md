@@ -16,10 +16,15 @@ The MAIN agent is the orchestrator and prompt-loop owner. Plugin overview & one-
 
 ## Project scoping
 
-File issues under a **per-repo Linear project** (not loose in the team):
+File issues under a **per-repo Linear project** (not loose in a team). **No specific team is assumed to exist** — resolve the team dynamically:
 - Derive the project name from the current repo — the basename of `git rev-parse --show-toplevel` (e.g. `ai-setup`); fall back to the cwd basename if not a git repo.
-- Find-or-create: `list_projects` (team `Ai agents`, query = name); if absent, `save_project` (name, `addTeams: ["Ai agents"]`).
-- Create the parent issue and every sub-issue with `project` set to that project. One project per repo = a board per codebase.
+- **Find the project workspace-wide (across ALL teams):** `list_projects` (query = name) — do NOT filter by team. If it exists, **resolve `TEAM` from the project itself** (`project.teams[0]`) and skip the next step.
+- **If the project does not exist, resolve `TEAM` for the new project** (never hardcode a team name):
+  1. `list_teams`. **One** team → use it. **`Ai agents` present** among several → prefer it (legacy default). **Several with no clear default** → ask the user which team (orchestrator ↔ user).
+  2. **Zero teams** → the bundled MCP **cannot create a team** (no `teamCreate`; creation needs a Linear API key via `@linear/sdk`/GraphQL, which the OAuth MCP lacks — there is no official CLI). **Ask the user to create a team in Linear (Settings → Teams) and wait for them to confirm** — do NOT fall back to in-session todos, and do NOT proceed until a team exists. Re-check with `list_teams` after they confirm, then continue.
+  3. Then `save_project` (name, `addTeams: [TEAM]`).
+- **Use the resolved `TEAM` for every team-scoped call** (`list_issue_statuses`, `create_issue_label`, issue team). A project may live under any team (e.g. `Side projects`).
+- Create the parent issue and every sub-issue with `project` set to that project (issues inherit `TEAM`). One project per repo = a board per codebase.
 
 ## Phases
 
@@ -51,5 +56,5 @@ Todo → In Progress (orchestrator, at dispatch) → In Review (orchestrator, wh
 
 ## Defaults
 
-- Team: `Ai agents`. Project: per-repo (see Project scoping). Labels: `agent-task` (all auto-created), `blocked`, `partial`.
+- Team: resolved **per project** (see Project scoping); **no team is assumed to exist**. Use the project's own team; for a new project prefer an `Ai agents` team if present, else the single existing team, else ask (several) or have the user create one (zero — MCP can't). Project: per-repo. Labels: `agent-task` (all auto-created), `blocked`, `partial`.
 - Models: worker sonnet (haiku trivial); reviewer sonnet (opus high-risk). Retry cap 2.
