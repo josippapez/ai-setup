@@ -9,7 +9,7 @@ DEST="$HOME/.claude"
 # The plugin marketplace manifest lives at the repo root (one level above this claude/ dir).
 REPO_ROOT="$(cd "$SRC/.." && pwd)"
 
-mkdir -p "$DEST/skills" "$DEST/agents"
+mkdir -p "$DEST/skills" "$DEST/agents" "$DEST/hooks/scripts"
 
 # Ensure rtk (Rust Token Killer) is installed — settings.json hooks depend on it.
 # Install from the rtk-ai tap explicitly; the bare name collides with homebrew/core/rtk.
@@ -29,6 +29,9 @@ cp "$SRC/RTK.md" "$DEST/RTK.md"
 # thing that carried hardcoded keys — now live in plugins (.mcp.json) or at user
 # scope in ~/.claude.json, never in this file.
 cp "$SRC/settings.json" "$DEST/settings.json"
+
+# Copy hook scripts referenced by settings.json (format-lint-edited-files + prompt-loop-reminder).
+cp "$SRC/hooks/scripts/"*.mjs "$DEST/hooks/scripts/"
 
 # Rules are no longer copied loose into ~/.claude/rules/: the interactive-mcp plugin
 # now bundles them and injects them via its SessionStart hook (see cleanup below).

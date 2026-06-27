@@ -1,5 +1,9 @@
 {
-  "permissions": {},
+  "permissions": {
+    "allow": [
+      "mcp__plugin_linear-orchestration_linear"
+    ]
+  },
   "model": "opus[1m]",
   "statusLine": {
     "type": "command",
@@ -48,13 +52,37 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); [ -n \"$f\" ] || exit 0; case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) ;; *) exit 0 ;; esac; [ -x ./node_modules/.bin/eslint ] || exit 0; ./node_modules/.bin/eslint --fix \"$f\" >/dev/null 2>&1; [ -x ./node_modules/.bin/prettier ] && ./node_modules/.bin/prettier --write \"$f\" >/dev/null 2>&1 || true; ./node_modules/.bin/eslint \"$f\" 2>/dev/null || true",
+            "command": "HOOK_RUN_ESLINT=1 node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/format-lint-edited-files.mjs\"",
             "timeout": 120,
-            "statusMessage": "Linting edited file"
+            "statusMessage": "Formatting edited file"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/prompt-loop-reminder.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/prompt-loop-reminder.mjs\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/prompt-loop-reminder.mjs\""
           }
         ]
       }
