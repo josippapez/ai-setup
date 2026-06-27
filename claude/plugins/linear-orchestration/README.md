@@ -25,9 +25,13 @@ No local Linear app is required — the bundled MCP is Linear's hosted HTTP endp
 2. **Authorize the MCP**: the first time the `linear` server is used, Claude Code prompts an
    OAuth flow — approve it. Until authorized, the plugin warns and falls back to in-session
    todos (tracking won't persist). Check with `/mcp`.
-3. A team named **`Ai agents`** in that workspace (the default team for `list_projects` /
-   `save_project`). Create it in Linear if absent, or change the `Team` default in the skill's
-   `Defaults` section.
+3. **At least one team** in the workspace — the plugin does **not** require a specific team
+   name. It routes each project to its own team (resolved per project across all teams; see
+   `Project scoping`), so a project under e.g. `Side projects` keeps its work there. For a
+   *new* project it prefers an `Ai agents` team if one exists, otherwise the single existing
+   team (you're asked if there are several). The bundled MCP **cannot create teams** (no
+   `teamCreate`; that needs a Linear API key via `@linear/sdk`, and there is no official CLI) —
+   if the workspace has none, create one in Linear (Settings → Teams).
 
 ## Avoiding duplicate Linear tools
 
