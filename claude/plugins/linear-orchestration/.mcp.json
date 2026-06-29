@@ -2,5 +2,12 @@
   "linear": {
     "type": "http",
     "url": "https://mcp.linear.app/mcp"
+  },
+  "repo-docs": {
+    "command": "node",
+    "args": ["${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"],
+    "env": {
+      "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
+    }
   }
 }
