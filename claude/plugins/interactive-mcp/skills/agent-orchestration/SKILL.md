@@ -1,6 +1,6 @@
 ---
 name: agent-orchestration
-description: Route tasks to the right subagent or Claude model tier based on task type, scope, and cost. Use when deciding whether to delegate coding, refactoring, file generation, tests, research, or validation to a faster/cheaper subagent, when planning/design/risk needs a stronger model, when choosing between generic subagents (Explore/Plan/general-purpose) and background subagents, or when grounding repo-specific work before delegating. Triggers include phrases like "delegate this", "spawn a subagent", "run in background", "use a cheaper model", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", and "explore the codebase". Main agent stays orchestrator and prompt-loop owner throughout.
+description: Route tasks to the right subagent or Claude model tier based on task type, scope, and cost. Use when deciding whether to delegate coding, refactoring, file generation, tests, research, or validation to a faster/cheaper subagent, when planning/design/risk needs a stronger model, when choosing between generic subagents (Explore/Plan/general-purpose), repo custom agents (tier/coder agents and domain specialists like docs-maintainer or wcag-a11y-aa-specialist), and background subagents, or when grounding repo-specific work before delegating. Triggers include phrases like "delegate this", "spawn a subagent", "run in background", "use a cheaper model", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", and "explore the codebase". Main agent stays orchestrator and prompt-loop owner throughout.
 ---
 
 # agent-orchestration
@@ -49,7 +49,9 @@ fixed table:
 Route by need to the matching generic subagent regardless of tier: read-heavy
 fan-out search → `Explore`; design/planning → `Plan`; implementation or mixed
 research → `general-purpose`; Claude Code / SDK / API questions →
-`claude-code-guide`.
+`claude-code-guide`. When you want a role-tagged agent that already carries a
+sensible default tier, dispatch one of the tier/coder agents or domain
+specialists listed under Agents available.
 
 ## Exceptions — do NOT delegate (or escalate regardless)
 
@@ -143,18 +145,32 @@ Handoff format: [findings, patch summary, validation result, open questions]
 
 ## Agents available in this setup
 
-This Claude config ships no standalone domain specialists. Delegate to what
-actually exists:
+The `interactive-mcp` plugin ships these custom agents — dispatch via the Agent
+tool's `subagent_type`. The orchestrator sets the model tier at dispatch; each
+agent's frontmatter `model` is only a fallback default.
 
-- **Generic subagents** via the Agent tool — `Explore` (read-only fan-out
-  search), `Plan` (architecture/implementation plans), `general-purpose`
-  (multi-step research or edits), `claude-code-guide` (Claude Code / SDK / API
-  questions).
-- **Any other skill surfaced via skill-discovery** — invoke whatever installed
-  skill matches the task's domain.
+**Tier/coder agents** — generic implementation at a chosen tier:
 
-Route by need rather than a fixed domain list: read-heavy → `Explore`;
-design/planning → `Plan`; implementation or mixed research → `general-purpose`.
+- `top-tier-reasoner` (opus) — architecture, complex design, ambiguity,
+  safety-/security-critical.
+- `high-tier-coder` (opus) — complex implementation and multi-file refactors.
+- `mid-tier-coder` (sonnet) — everyday implementation and routine fixes.
+- `low-tier-fast` (haiku) — quick edits, simple refactors, small tasks.
+- `free-tier-coder` (haiku) — small, explicit, well-defined coding tasks.
+- `free-tier-maintainer` (haiku) — docs, hygiene, config tweaks, lightweight sync.
+- `free-tier-explorer` (haiku) — exploration, research, background context.
+
+**Domain specialists:**
+
+- `docs-maintainer` (sonnet) — keep owning docs/rules/skills aligned with changes.
+- `self-improve-specialist` (sonnet) — durable behavior/guidance changes across
+  rules + skills.
+- `wcag-a11y-aa-specialist` (sonnet) — WCAG 2.2 A/AA audit and remediation.
+
+Also available: the built-in generic subagents — `Explore` (read-only fan-out
+search), `Plan` (architecture/implementation plans), `general-purpose`
+(multi-step research or edits), `claude-code-guide` (Claude Code / SDK / API
+questions) — plus any skill surfaced via skill-discovery.
 
 ## References
 
