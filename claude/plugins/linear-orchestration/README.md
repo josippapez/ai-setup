@@ -12,7 +12,7 @@ run concurrently without collision.
 
 - `.mcp.json` bundles two self-contained MCP servers: the Linear MCP (`https://mcp.linear.app/mcp`, server name `linear`) and a **repo-docs** MCP (server name `repo-docs`, a local `node` runtime) exposing `find_docs`/`list_docs`/`read_doc`/`find_libs` + dependency-graph tools — both available on install.
 - `runtime/` — the bundled repo-docs MCP server, copied in so the plugin is self-contained (no dependency on any other plugin's MCP).
-- `hooks/` — a SessionStart hook that installs the repo-docs MCP's npm dependency (`@xenova/transformers`) into `CLAUDE_PLUGIN_DATA`.
+- `hooks/` — a SessionStart hook that installs the repo-docs MCP's npm dependency (`@huggingface/transformers`) into `CLAUDE_PLUGIN_DATA`.
 - `skills/` — `linear-orchestration` (the workflow) plus companion skills `grilling`, `domain-modeling`, `grill-with-docs`.
 - `agents/` — `linear-worker` (builds a chunk, then spawns its own `code-standards-checker` + a tier-by-complexity `linear-reviewer`), plus `linear-reviewer` and `code-standards-checker`. Subagents post their own Linear updates via the MCP (attempt-then-relay; the orchestrator posts anything a subagent couldn't). The skill engages via skill-discovery (its `description`); the only hook is the SessionStart dependency-install step for the bundled repo-docs MCP — not an auto-engage hook. The `code-standards-checker` uses the bundled repo-docs MCP to discover and check the repo's standards/guides, not just the ACs.
 
