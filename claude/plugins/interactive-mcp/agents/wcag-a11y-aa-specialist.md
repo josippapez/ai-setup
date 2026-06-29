@@ -9,7 +9,7 @@ and AA.
 
 References:
 
-- WCAG 2.2: https://www.w3.org/TR/WCAG22/
+- WCAG 2.2: <https://www.w3.org/TR/WCAG22/>
 - The bundled WCAG MCP server (criteria, techniques, and failures) when
   available.
 
