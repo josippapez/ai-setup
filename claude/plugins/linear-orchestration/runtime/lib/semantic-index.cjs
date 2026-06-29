@@ -7,14 +7,16 @@ const { relativePath } = require('./fs-utils.cjs');
 
 const CACHE_FILE_NAME = 'interactive-mcp-doc-embeddings.json';
 const MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+const MODEL_DTYPE = 'fp32';
+const CACHE_SCHEMA_VERSION = 2;
 const MAX_CHARS_PER_DOC = 2000;
 const QUERY_MAX_CHARS = 500;
 const SEMANTIC_THRESHOLD = 0.3;
 
 if (!isMainThread) {
   (async () => {
-    const { pipeline } = await import('@xenova/transformers');
-    const embed = await pipeline('feature-extraction', MODEL_ID);
+    const { pipeline } = await import('@huggingface/transformers');
+    const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
 
     parentPort.on('message', async (msg) => {
       if (msg.type !== 'embed') return;
@@ -127,9 +129,22 @@ function embedText(text) {
   });
 }
 
+const CURRENT_META = { model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: CACHE_SCHEMA_VERSION };
+
+function metaMatches(meta) {
+  return (
+    meta &&
+    meta.model === CURRENT_META.model &&
+    meta.dtype === CURRENT_META.dtype &&
+    meta.schemaVersion === CURRENT_META.schemaVersion
+  );
+}
+
 function loadCache(context) {
   try {
-    return JSON.parse(fs.readFileSync(cachePath(context), 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(cachePath(context), 'utf8'));
+    if (!metaMatches(raw._meta)) return {};
+    return raw;
   } catch {
     return {};
   }
@@ -138,7 +153,7 @@ function loadCache(context) {
 function saveCache(context, cache) {
   try {
     fs.mkdirSync(path.dirname(cachePath(context)), { recursive: true });
-    fs.writeFileSync(cachePath(context), JSON.stringify(cache));
+    fs.writeFileSync(cachePath(context), JSON.stringify({ ...cache, _meta: CURRENT_META }));
   } catch {}
 }
 
