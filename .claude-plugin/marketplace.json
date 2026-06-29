@@ -17,7 +17,7 @@
     },
     {
       "name": "linear-orchestration",
-      "description": "Linear-backed task orchestration: grill, decompose into a per-repo Linear project, dispatch worker/reviewer subagents (relayed), and drive statuses. Auto-engages via a UserPromptSubmit hook.",
+      "description": "Linear-backed task orchestration: grill, decompose into a per-repo Linear project, dispatch worker/reviewer subagents (relayed), and drive statuses. Engages via skill-discovery on matching non-trivial tasks.",
       "author": {
         "name": "Personal AI Setup"
       },
