@@ -153,7 +153,7 @@ function loadCache(context) {
 function saveCache(context, cache) {
   try {
     fs.mkdirSync(path.dirname(cachePath(context)), { recursive: true });
-    fs.writeFileSync(cachePath(context), JSON.stringify({ _meta: CURRENT_META, ...cache }));
+    fs.writeFileSync(cachePath(context), JSON.stringify({ ...cache, _meta: CURRENT_META }));
   } catch {}
 }
 
