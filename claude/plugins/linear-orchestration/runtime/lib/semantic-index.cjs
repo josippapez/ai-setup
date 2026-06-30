@@ -50,7 +50,7 @@ let msgId = 0;
 const pending = new Map();
 
 function cachePath(context) {
-  return path.join(context.root, '.opencode', CACHE_FILE_NAME);
+  return path.join(context.root, '.claude', 'repo-docs', CACHE_FILE_NAME);
 }
 
 function warmUp() {
@@ -158,7 +158,11 @@ function loadCache(context) {
 
 function saveCache(context, cache) {
   try {
-    fs.mkdirSync(path.dirname(cachePath(context)), { recursive: true });
+    const dir = path.dirname(cachePath(context));
+    fs.mkdirSync(dir, { recursive: true });
+    // Self-ignore so the embeddings cache is never committed to the host repo.
+    const gitignorePath = path.join(dir, '.gitignore');
+    if (!fs.existsSync(gitignorePath)) fs.writeFileSync(gitignorePath, '*\n');
     fs.writeFileSync(cachePath(context), JSON.stringify({ ...cache, _meta: CURRENT_META }));
   } catch {}
 }
