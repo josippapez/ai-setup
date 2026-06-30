@@ -10,7 +10,7 @@ run concurrently without collision.
 
 ## Layout
 
-- `.mcp.json` bundles two self-contained MCP servers: the Linear MCP (`https://mcp.linear.app/mcp`, server name `linear`) and a **repo-docs** MCP (server name `repo-docs`, a local `node` runtime) exposing `find_docs`/`list_docs`/`read_doc`/`find_libs` + dependency-graph tools — both available on install.
+- `.mcp.json` bundles two self-contained MCP servers: the Linear MCP (`https://mcp.linear.app/mcp`, server name `linear`) and a **repo-docs** MCP (server name `repo-docs`, a local `node` runtime) exposing `find_docs`/`list_docs`/`read_doc`/`find_libs` + dependency-graph tools — both available on install. `find_docs` indexes every Markdown file in the repo (vendor/build dirs pruned) and blends keyword scoring (whole-word, length-normalized) with semantic embeddings. To exclude folders/files from indexing, add a gitignore-lite `<repo>/.claude/repo-docs-ignore` (one glob per line, `#` comments; a bare name excludes that subtree at any depth). Rebuild the semantic index any time with `/reindex`.
 - `runtime/` — the bundled repo-docs MCP server, copied in so the plugin is self-contained (no dependency on any other plugin's MCP).
 - `hooks/` — a SessionStart hook that installs the repo-docs MCP's npm dependency (`@huggingface/transformers`) into `CLAUDE_PLUGIN_DATA`.
 - `skills/` — `linear-orchestration` (the workflow) plus companion skills `grilling`, `domain-modeling`, `grill-with-docs`.

@@ -42,18 +42,6 @@ const DIR_TOKEN_MAP = [
   },
 ];
 
-function countMatches(text, token, cap = 3) {
-  let idx = 0;
-  let count = 0;
-  while (count < cap) {
-    idx = text.indexOf(token, idx);
-    if (idx === -1) break;
-    count += 1;
-    idx += token.length || 1;
-  }
-  return count;
-}
-
 function compactText(input) {
   const compacted = String(input || "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
@@ -113,11 +101,23 @@ async function execute(args, context) {
     const rel = relativePath(context.root, filePath);
     const lowerPath = rel.toLowerCase();
     const lowerContent = content.toLowerCase();
-    let score = 0;
+
+    // Whole-word frequencies (same tokenizer as the query) — avoids substring
+    // noise like "closure" matching "sure" or "Firefox" matching "fire".
+    const contentTokens = tokenize(lowerContent);
+    const freq = new Map();
+    for (const token of contentTokens) freq.set(token, (freq.get(token) || 0) + 1);
+
+    let pathScore = 0;
+    let contentScore = 0;
     for (const token of tokens) {
-      if (lowerPath.includes(token)) score += 4;
-      score += Math.min(countMatches(lowerContent, token, 3), 3);
+      if (lowerPath.includes(token)) pathScore += 4;
+      contentScore += Math.min(freq.get(token) || 0, 3);
     }
+    // Length-normalize the keyword score so a very long doc can't out-accumulate
+    // a short, focused one just by mentioning more distinct query terms.
+    const lengthFactor = 1 / (1 + Math.log10(Math.max(1, contentTokens.length / 400)));
+    let score = pathScore + contentScore * lengthFactor;
     if (score <= 0) continue;
     const lines = content.split(/\r?\n/g);
 
