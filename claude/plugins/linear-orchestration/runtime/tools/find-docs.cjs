@@ -72,7 +72,7 @@ function compactText(input) {
 const definition = {
   name: "find_docs",
   description:
-    "Ranked search across the repo's Markdown docs (docs/**/*.md|.mdx and all README files) for a query. Use when you need to locate which doc covers a topic/term/feature before reading it — e.g. 'where are the routing docs', 'find the auth setup guide'. Returns a ranked list of relative paths with line numbers and a short matching snippet. Keyword scoring (path, H1 title, and standards/guides directory context weighted higher) augmented by semantic-embedding matches when the index is warm. limit defaults to 8 (max 20). Pair with read_doc to open a result.",
+    "Ranked search across every Markdown file in the repo (all *.md/*.mdx, excluding vendor/build dirs like node_modules and dist) for a query. Use when you need to locate which doc covers a topic/term/feature before reading it — e.g. 'where are the routing docs', 'find the auth setup guide'. Returns a ranked list of relative paths with line numbers and a short matching snippet. Keyword scoring (path, H1 title, and standards/guides directory context weighted higher) augmented by semantic-embedding matches when the index is warm. limit defaults to 12 (max 30). Pair with read_doc to open a result.",
   inputSchema: {
     type: "object",
     properties: {
@@ -84,9 +84,9 @@ const definition = {
       limit: {
         type: "integer",
         minimum: 1,
-        maximum: 20,
-        default: 8,
-        description: "Max results to return; default 8, range 1-20.",
+        maximum: 30,
+        default: 12,
+        description: "Max results to return; default 12, range 1-30.",
       },
     },
     required: ["query"],
@@ -96,7 +96,7 @@ const definition = {
 
 async function execute(args, context) {
   const query = String(args.query || "").trim();
-  const limit = clampInteger(args.limit, 8, 1, 20);
+  const limit = clampInteger(args.limit, 12, 1, 30);
   const tokens = tokenize(query);
   if (!query || tokens.length === 0) return "Please provide a non-empty query.";
 
