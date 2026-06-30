@@ -15,7 +15,13 @@ const SEMANTIC_THRESHOLD = 0.3;
 
 if (!isMainThread) {
   (async () => {
-    const { pipeline } = await import('@huggingface/transformers');
+    const { createRequire } = require('node:module');
+    const { pathToFileURL } = require('node:url');
+    // NODE_PATH is honored by CJS require.resolve but NOT by ESM import(); resolve
+    // the absolute entry via require, then import that file URL so the worker finds
+    // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
+    const entry = createRequire(__filename).resolve('@huggingface/transformers');
+    const { pipeline } = await import(pathToFileURL(entry).href);
     const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
 
     parentPort.on('message', async (msg) => {
