@@ -155,7 +155,7 @@ async function execute(args, context) {
     );
     const resultMap = new Map(matches.map(match => [match.rel, match]));
     for (const hit of semanticHits) {
-      const semanticScore = Math.round(hit.score * 14);
+      const semanticScore = Math.round(hit.score * 28);
       const existing = resultMap.get(hit.path);
       if (existing) {
         existing.score += semanticScore;
