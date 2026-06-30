@@ -68,6 +68,7 @@ Todo → In Progress (worker start) → In Review (worker requests review) → D
 - **Subagents write their own Linear updates; relay up only on a write error** — never silently drop one.
 - **No parent "epic" issue** — the epic is a **Milestone**. The per-repo **Project** is the long-lived container and is **never marked completed**.
 - Linear is the source of truth; on resume read the project's status update, then re-read open issues (statuses authoritative).
+- **A chunk's issue description IS its spec — keep it current.** When a mid-epic decision changes a chunk, UPDATE that issue's description, not only a milestone status-update or comment. The worker, `code-standards-checker`, and `linear-reviewer` read the issue body (not the comments); a stale description makes the standards-checker enforce the old spec and fail correct work as a false positive.
 - Nests inside the existing prompt loop; follows `agent-orchestration` delegation rules. Companion skills (`/grilling`, `/domain-modeling`, `/grill-with-docs`) are graceful, not required.
 
 ## Defaults

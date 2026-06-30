@@ -1,6 +1,6 @@
 {
   "name": "interactive-mcp",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Mirrors the OpenCode interactive MCP setup for Claude Code with repo docs/libs and dependency-graph tools, skills, rules, and custom agents.",
   "author": {
     "name": "Personal AI Setup"
