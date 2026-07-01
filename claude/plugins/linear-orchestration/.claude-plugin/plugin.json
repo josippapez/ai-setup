@@ -1,6 +1,6 @@
 {
   "name": "linear-orchestration",
-  "version": "0.15.2",
+  "version": "0.15.3",
   "description": "Linear-backed task orchestration: grill a task to a spec, set up a long-lived per-repo Linear project with the epic as a milestone and chunks as issues, then dispatch self-managing worker subagents that build their chunk, run their own code-standards + review loop (spawning a checker and a tier-by-complexity reviewer), and post their own Linear updates (attempt-then-relay; the orchestrator is writer of last resort). Everything addressed by explicit ID for concurrent multi-project safety. Engages via skill-discovery on matching non-trivial tasks.",
   "author": {
     "name": "Personal AI Setup"
