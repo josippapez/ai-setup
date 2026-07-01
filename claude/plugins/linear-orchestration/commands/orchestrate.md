@@ -11,4 +11,4 @@ Task to orchestrate: $ARGUMENTS
 
 If no task was provided above, ask the user what they want to orchestrate before doing anything else.
 
-The skill is the source of truth for the full workflow (gate → intake/grill → decompose → execute → relay/record → converge), status map, and invariants. Follow it exactly.
+The skill is the source of truth for the full workflow (gate → intake/grill → refine/council → decompose → execute → relay/record → converge), status map, and invariants. Follow it exactly.
