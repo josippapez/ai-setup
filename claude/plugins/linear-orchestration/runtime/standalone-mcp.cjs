@@ -3,7 +3,8 @@
 
 const readline = require('node:readline');
 const { createContext } = require('./lib/context.cjs');
-const { warmUp } = require('./lib/semantic-index.cjs');
+const { warmUp, buildSemanticIndex } = require('./lib/semantic-index.cjs');
+const { getDocFiles } = require('./lib/docs.cjs');
 const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
@@ -67,6 +68,9 @@ async function handleRequest(message) {
         'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup; find_libs to check installed packages and versions; get_file_dependencies / get_file_dependents / get_blast_radius before editing or deleting a module to gauge impact. Paths are repo-root-relative POSIX. Dependency tools track relative imports only (package/alias imports are not resolved).',
     });
     warmUp();
+    // Pre-embed docs in the background on connect (fire-and-forget, incremental
+    // via mtime cache) so the first find_docs doesn't pay the indexing cost.
+    buildSemanticIndex(context, getDocFiles(context)).catch(() => {});
     // Start building the dependency graph in the background on connect so the
     // index is ready (or observably in progress) before the first tool call.
     startDependencyIndex(context).catch(() => {});
