@@ -10,14 +10,19 @@ const { relativePath, walkDirectory } = require('./fs-utils.cjs');
 // `*` matches within a path segment, `**` across segments.
 const IGNORE_FILE = path.join('.claude', 'repo-docs-ignore');
 
+// Non-character sentinel used to fold `**` before the single-`*` pass so it
+// isn't re-processed. U+FFFF can't appear in a real path, so it never collides
+// with the pattern; written as an escape to keep this source pure ASCII.
+const GLOBSTAR = '\uFFFF';
+
 function globToRegExp(pattern) {
   const clean = pattern.replace(/\/+$/, '');
   const hasSlash = clean.includes('/');
   const body = clean
     .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, ' ')
+    .replace(/\*\*/g, GLOBSTAR)
     .replace(/\*/g, '[^/]*')
-    .replace(/ /g, '.*');
+    .replaceAll(GLOBSTAR, '.*');
   return new RegExp(`${hasSlash ? '^' : '^(?:.*/)?'}${body}(?:/.*)?$`);
 }
 
