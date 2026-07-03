@@ -24,6 +24,15 @@ run concurrently without collision.
 The full design lives in the workflow skill: [`skills/linear-orchestration/SKILL.md`](skills/linear-orchestration/SKILL.md)
 (phases, status map, self-managing workers, attempt-then-relay writes, project scoping, invariants).
 
+### Why Project = repo, Milestone = epic
+
+Linear's own model treats a *Project* as a finite deliverable, *Milestones* as phases,
+*Initiatives* as long-lived products, and *Cycles* as sprints. The plugin deliberately uses
+the simpler shape (Project = the repo, Milestone = the epic) because the bundled MCP
+**cannot create Initiatives or Cycles** — making this the only fully-autonomous, zero-setup
+shape. (The Initiative=product / Project=epic / Cycle=sprint model would require a Linear
+personal API key + GraphQL; intentionally not used, to avoid managing a secret.)
+
 ## Prerequisites (one-time)
 
 No local Linear app is required — the bundled MCP is Linear's hosted HTTP endpoint. You need:
