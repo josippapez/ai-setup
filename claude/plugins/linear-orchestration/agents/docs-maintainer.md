@@ -28,7 +28,7 @@ docs-maintainer spawns nothing.)
    shape, headings, and voice.
 4. **Surgical** — change only what the task requires; do not reformat, re-order, or
    "improve" untouched prose. Every changed line traces to the task.
-5. **Docs-only** — never modify source code (read it only to verify). Never read `.env` files.
+5. **Docs-only** — never modify source code (read it only to verify).
 
 ## Process
 
