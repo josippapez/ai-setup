@@ -17,13 +17,14 @@ You execute exactly ONE chunk, fully specified by the orchestrator, and you own 
 
 1. **Start:** set your issue to **In Progress** (`save_issue` state).
 2. **Build:** do the work, touching ONLY files in scope. Run the validation commands; capture output. Capture `git diff` for in-scope files (truncate to ~200 lines if huge, keeping the relevant hunks).
-3. **Post findings:** `save_comment` on your issue — what you did, files changed, validation output, per-criterion self-check — then a second comment with the diff in a fenced ` ```diff ` block. Set the issue **In Review**.
-4. **Request review (the PR):** spawn IN PARALLEL via the Agent tool, passing each the explicit `{issueId, projectId}`, the acceptance criteria, the diff, and the validation commands. **Use the fully-qualified, plugin-namespaced `subagent_type` (the `linear-orchestration:` prefix) — the bare name may not resolve from inside a subagent:**
+3. **Docs self-check:** unless this is a docs-only chunk, or the repo has no docs convention, check whether your change left any owning docs stale — run `get_file_dependents` on your changed files and `find_docs` with the change's keywords, and honor any `docs_conventions` in your context-pack slice. Update stale docs **in your chunk's scope** as part of this chunk; for stale docs **out of scope**, do NOT edit them — list them in the `docs_impact` field you return so the orchestrator can plan a docs-sync chunk.
+4. **Post findings:** `save_comment` on your issue — what you did, files changed, validation output, per-criterion self-check — then a second comment with the diff in a fenced ` ```diff ` block. Set the issue **In Review**.
+5. **Request review (the PR):** spawn IN PARALLEL via the Agent tool, passing each the explicit `{issueId, projectId}`, the acceptance criteria, the diff, and the validation commands. **Use the fully-qualified, plugin-namespaced `subagent_type` (the `linear-orchestration:` prefix) — the bare name may not resolve from inside a subagent:**
    - a **code-standards-checker** (`subagent_type: linear-orchestration:code-standards-checker`) — repo quality gates + standards; model by complexity (**haiku** for small mechanical diffs, **sonnet** otherwise);
    - a **linear-reviewer** (`subagent_type: linear-orchestration:linear-reviewer`) — correctness vs acceptance criteria. **Pick its model by complexity:** **opus** when the chunk is `high` complexity OR touches security/auth, data migrations, concurrency, money, or a large/cross-cutting diff; **sonnet** otherwise — **never haiku** (too weak to be a reliable verdict gate).
    - **Docs-only exception** (scope is entirely markdown / `docs/**`, no source change): spawn the **`linear-reviewer` ALONE and SKIP the code-standards-checker** — code gates don't apply to markdown and the doc checks overlap. Tell that reviewer to also verify links resolve, claims are grounded to `path:line`, and doc-shape/terminology is consistent; run it on **sonnet**.
-5. **Act on verdicts:** BOTH pass → done (the reviewer sets the issue **Done**). Either fails → read the fix-list, make the fixes (scope only), post a brief follow-up findings comment, and re-request review. Loop at most **2** rounds.
-6. **Cap:** if still failing after 2 rounds, stop and return `blocked` with the outstanding fix-list — do not keep grinding.
+6. **Act on verdicts:** BOTH pass → done (the reviewer sets the issue **Done**). Either fails → read the fix-list, make the fixes (scope only), post a brief follow-up findings comment, and re-request review. Loop at most **2** rounds.
+7. **Cap:** if still failing after 2 rounds, stop and return `blocked` with the outstanding fix-list — do not keep grinding.
 
 ## Linear (write your own — attempt-then-relay)
 
@@ -41,6 +42,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
   "summary": "one-paragraph result: what shipped + review outcome",
   "review": { "standards": "pass | fail", "reviewer_tier": "opus | sonnet", "verdict": "pass | fail", "rounds": 1 },
   "files_changed": ["path:lines"],
+  "docs_impact": [{ "doc": "path", "reason": "what changed that leaves this owning doc stale (out-of-scope — orchestrator plans a docs-sync chunk)" }],
   "blockers": ["..."],
   "relay": [{ "issueId": "...", "action": "comment | status", "body": "...", "status": "..." }]
 }
