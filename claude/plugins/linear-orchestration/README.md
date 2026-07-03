@@ -1,7 +1,9 @@
 # Linear Orchestration Claude Plugin
 
 Linear-backed task orchestration. On a non-trivial, multi-step task the main agent
-grills it to a spec, sets up a **long-lived per-repo Linear project** with the **epic as a
+grills it to a spec, scouts the repo into a **context pack** (read-only `repo-scout`
+agent — quick pass before grilling, deep pass before decomposing), sets up a
+**long-lived per-repo Linear project** with the **epic as a
 milestone** and its **chunks as issues**, then dispatches **self-managing** `linear-worker`
 subagents that build each chunk, run their own code-standards + review loop, and post their
 own Linear updates; the orchestrator drives convergence and statuses to Done / partial /
@@ -15,7 +17,7 @@ run concurrently without collision.
 - `hooks/` — a SessionStart hook that installs the repo-docs MCP's npm dependency (`@huggingface/transformers`) into `CLAUDE_PLUGIN_DATA`. Separately, the repo-docs MCP pre-embeds the repo's Markdown in the background when it connects (fire-and-forget, incremental via an mtime cache) so the first `find_docs` doesn't pay the indexing cost; `/reindex` remains the explicit rebuild.
 - `skills/` — `linear-orchestration` (the workflow) plus companion skills `grilling`, `domain-modeling`, `grill-with-docs`.
 - `commands/` — `/linear-orchestration [task]`, an explicit slash-command handle that invokes the workflow skill (use when you'd rather trigger it directly than rely on skill-discovery); `/reindex [repo-root]`, which rebuilds the repo-docs semantic index for the current repo (re-embeds all Markdown — run after adding/editing docs); and `/repo-docs-ignore [paths]`, which shows/edits the `.claude/repo-docs-ignore` exclude list interactively and offers to reindex. Both require a Claude Code surface (CLI, IDE extension, or Cowork); plugin commands/skills/subagents do **not** run in the Claude Desktop *chat* app — only the bundled MCP servers do.
-- `agents/` — `linear-worker` (builds a chunk, then spawns its own `code-standards-checker` + a tier-by-complexity `linear-reviewer`), plus `linear-reviewer` and `code-standards-checker`. Subagents post their own Linear updates via the MCP (attempt-then-relay; the orchestrator posts anything a subagent couldn't). The skill engages via skill-discovery (its `description`); the only hook is the SessionStart dependency-install step for the bundled repo-docs MCP — not an auto-engage hook. The `code-standards-checker` uses the bundled repo-docs MCP to discover and check the repo's standards/guides, not just the ACs.
+- `agents/` — `repo-scout` (read-only exploration; returns the context pack that grounds grilling, the council, and chunk file-scopes, and whose slices go into each issue spec), `linear-worker` (builds a chunk, then spawns its own `code-standards-checker` + a tier-by-complexity `linear-reviewer`), plus `linear-reviewer`, `code-standards-checker`, and `docs-maintainer`. Subagents post their own Linear updates via the MCP (attempt-then-relay; the orchestrator posts anything a subagent couldn't). The skill engages via skill-discovery (its `description`); the only hook is the SessionStart dependency-install step for the bundled repo-docs MCP — not an auto-engage hook. The `code-standards-checker` uses the bundled repo-docs MCP to discover and check the repo's standards/guides, not just the ACs.
 
 ## Design
 

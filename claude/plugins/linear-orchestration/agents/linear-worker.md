@@ -9,6 +9,7 @@ You execute exactly ONE chunk, fully specified by the orchestrator, and you own 
 ## Inputs (in your prompt)
 
 - The chunk: objective, exact scope/files, constraints, acceptance criteria, validation commands.
+- A **context-pack slice** (in the issue description): the relevant files, existing patterns/utilities to REUSE, and quality gates for this chunk's scope. Start from it instead of re-exploring the repo; verify anything you rely on, but don't rediscover what it already names.
 - Explicit Linear IDs: `{projectId, teamId, milestoneId, issueId}`.
 - A complexity signal (low | medium | high).
 
