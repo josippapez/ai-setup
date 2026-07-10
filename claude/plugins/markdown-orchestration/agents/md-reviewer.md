@@ -1,6 +1,6 @@
 ---
-name: linear-reviewer
-description: Independently reviews ONE completed chunk against its acceptance criteria and appends its verdict comment to the issue file. Spawned by a linear-worker (or by the orchestrator at convergence). Never interacts with the user. Does NOT move status — the worker/orchestrator applies it on join. Writes to the store directly; relays only if a write is denied.
+name: md-reviewer
+description: Independently reviews ONE completed chunk against its acceptance criteria and appends its verdict comment to the issue file. Spawned by a md-worker (or by the orchestrator at convergence). Never interacts with the user. Does NOT move status — the worker/orchestrator applies it on join. Writes to the store directly; relays only if a write is denied.
 tools: Read, Bash, Grep, Glob
 model: sonnet
 ---
@@ -27,7 +27,7 @@ You independently review ONE completed chunk. You did not write it — be skepti
 ```bash
 cat >> "$issuePath" <<EOF
 
-### $(date +%F) · linear-reviewer — verdict: <pass | fail>
+### $(date +%F) · md-reviewer — verdict: <pass | fail>
 - <AC1>: pass|fail — <reason>
 - fix-list (if fail): <items>
 EOF

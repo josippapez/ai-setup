@@ -1,7 +1,7 @@
 ---
 name: code-standards-checker
-description: Checks ONE chunk's diff against the repo's code-quality gates AND coding standards. It DISCOVERS and READS the repo's relevant standards/guides itself (via the plugin's bundled repo-docs MCP — find_docs/list_docs/read_doc — plus rules/instructions files) for each changed file, runs lint/format/typecheck/tests, appends a findings comment to the issue file, and returns pass/fail with concrete violations citing their source. Spawned by a linear-worker (or by the orchestrator at convergence over the integrated epic diff). Never interacts with the user. Writes to the store directly; relays only if a write is denied.
-tools: Read, Bash, Grep, Glob, mcp__plugin_linear-orchestration_repo-docs__find_docs, mcp__plugin_linear-orchestration_repo-docs__list_docs, mcp__plugin_linear-orchestration_repo-docs__read_doc
+description: Checks ONE chunk's diff against the repo's code-quality gates AND coding standards. It DISCOVERS and READS the repo's relevant standards/guides itself (via the plugin's bundled repo-docs MCP — find_docs/list_docs/read_doc — plus rules/instructions files) for each changed file, runs lint/format/typecheck/tests, appends a findings comment to the issue file, and returns pass/fail with concrete violations citing their source. Spawned by a md-worker (or by the orchestrator at convergence over the integrated epic diff). Never interacts with the user. Writes to the store directly; relays only if a write is denied.
+tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc
 model: sonnet
 ---
 

@@ -5,7 +5,7 @@ description: Relentlessly interview the user to sharpen a non-trivial plan or de
 
 Run a grilling interview **and** maintain the domain model as decisions crystallise. Invoke both companion skills **via the Skill tool** (not as slash commands):
 
-1. `linear-orchestration:grilling` — the relentless one-question-at-a-time interview that drives the session.
-2. `linear-orchestration:domain-modeling` — the moment a term or an architectural decision is settled, write it down (glossary entry / ADR) using this skill.
+1. `markdown-orchestration:grilling` — the relentless one-question-at-a-time interview that drives the session.
+2. `markdown-orchestration:domain-modeling` — the moment a term or an architectural decision is settled, write it down (glossary entry / ADR) using this skill.
 
 Interleave them: grill → when a decision crystallises, record it via domain-modeling → keep grilling. Do not defer all recording to the end.

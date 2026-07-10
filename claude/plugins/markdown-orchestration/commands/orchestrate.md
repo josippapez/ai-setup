@@ -5,7 +5,7 @@ argument-hint: [task to orchestrate]
 
 # Orchestration
 
-Invoke the `linear-orchestration:linear-orchestration` skill and follow it as the orchestrator and prompt-loop owner.
+Invoke the `markdown-orchestration:markdown-orchestration` skill and follow it as the orchestrator and prompt-loop owner.
 
 Task to orchestrate: $ARGUMENTS
 

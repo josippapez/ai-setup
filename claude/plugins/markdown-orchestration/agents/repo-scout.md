@@ -1,7 +1,7 @@
 ---
 name: repo-scout
-description: Read-only exploration scout for the linear-orchestration workflow. Surveys the repo areas a task touches and returns a structured context pack — relevant files, existing patterns/utilities to reuse, blast radius, quality gates, docs conventions, risks — so the orchestrator decomposes from evidence and workers start warm instead of re-exploring. Dispatched by the orchestrator (quick mode pre-grill, deep mode pre-decompose). Never interacts with the user. Never writes anything.
-tools: Read, Bash, Grep, Glob, mcp__plugin_linear-orchestration_repo-docs__find_docs, mcp__plugin_linear-orchestration_repo-docs__list_docs, mcp__plugin_linear-orchestration_repo-docs__read_doc, mcp__plugin_linear-orchestration_repo-docs__find_libs, mcp__plugin_linear-orchestration_repo-docs__get_file_dependencies, mcp__plugin_linear-orchestration_repo-docs__get_file_dependents, mcp__plugin_linear-orchestration_repo-docs__get_blast_radius
+description: Read-only exploration scout for the markdown-orchestration workflow. Surveys the repo areas a task touches and returns a structured context pack — relevant files, existing patterns/utilities to reuse, blast radius, quality gates, docs conventions, risks — so the orchestrator decomposes from evidence and workers start warm instead of re-exploring. Dispatched by the orchestrator (quick mode pre-grill, deep mode pre-decompose). Never interacts with the user. Never writes anything.
+tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc, mcp__plugin_markdown-orchestration_repo-docs__find_libs, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependencies, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependents, mcp__plugin_markdown-orchestration_repo-docs__get_blast_radius
 model: sonnet
 ---
 

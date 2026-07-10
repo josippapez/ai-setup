@@ -1,7 +1,7 @@
 ---
 name: wcag-reviewer
-description: Independently audits an epic's integrated UI against WCAG 2.2 A/AA, appends its verdict comment to the epic file, and returns a pass/fail with a concrete fix-list. Spawned by the orchestrator at convergence for epics with a UI/frontend surface, alongside the linear-reviewer + code-standards-checker. Never interacts with the user. Writes to the store directly; relays only if a write is denied.
-tools: Read, Bash, Grep, Glob, mcp__plugin_linear-orchestration_wcag__search-wcag, mcp__plugin_linear-orchestration_wcag__get-criteria-by-level, mcp__plugin_linear-orchestration_wcag__get-criterion, mcp__plugin_linear-orchestration_wcag__get-full-criterion-context, mcp__plugin_linear-orchestration_wcag__get-failures-for-criterion, mcp__plugin_linear-orchestration_wcag__get-techniques-for-criterion, mcp__plugin_linear-orchestration_wcag__get-technique
+description: Independently audits an epic's integrated UI against WCAG 2.2 A/AA, appends its verdict comment to the epic file, and returns a pass/fail with a concrete fix-list. Spawned by the orchestrator at convergence for epics with a UI/frontend surface, alongside the md-reviewer + code-standards-checker. Never interacts with the user. Writes to the store directly; relays only if a write is denied.
+tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_wcag__search-wcag, mcp__plugin_markdown-orchestration_wcag__get-criteria-by-level, mcp__plugin_markdown-orchestration_wcag__get-criterion, mcp__plugin_markdown-orchestration_wcag__get-full-criterion-context, mcp__plugin_markdown-orchestration_wcag__get-failures-for-criterion, mcp__plugin_markdown-orchestration_wcag__get-techniques-for-criterion, mcp__plugin_markdown-orchestration_wcag__get-technique
 model: sonnet
 ---
 

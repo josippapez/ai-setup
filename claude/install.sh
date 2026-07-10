@@ -61,15 +61,18 @@ else
   claude plugin install interactive-mcp@ai-setup --scope user
 fi
 
-# Install or update the linear-orchestration plugin.
-if claude plugin list 2>/dev/null | grep -q "linear-orchestration@ai-setup"; then
-  claude plugin update linear-orchestration@ai-setup
+# Remove the pre-rename plugin (linear-orchestration -> markdown-orchestration) if still installed.
+claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
+
+# Install or update the markdown-orchestration plugin.
+if claude plugin list 2>/dev/null | grep -q "markdown-orchestration@ai-setup"; then
+  claude plugin update markdown-orchestration@ai-setup
 else
-  claude plugin install linear-orchestration@ai-setup --scope user
+  claude plugin install markdown-orchestration@ai-setup --scope user
 fi
-# Remove loose files migrated into the linear-orchestration plugin (now plugin-provided).
+# Remove loose files migrated into the markdown-orchestration plugin (now plugin-provided).
 # Includes the grilling/domain-modeling/grill-with-docs skills relocated from skills/ into the plugin.
-rm -rf "$DEST/skills/linear-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/linear-worker.md" "$DEST/agents/linear-reviewer.md" "$DEST/rules/linear-orchestration.instructions.md"
+rm -rf "$DEST/skills/markdown-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/md-worker.md" "$DEST/agents/md-reviewer.md" "$DEST/rules/markdown-orchestration.instructions.md"
 # Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 # Remove rules migrated into the interactive-mcp plugin (now injected via its SessionStart
@@ -84,4 +87,4 @@ echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
 echo "  - skills/, agents/"
 echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
-echo "  - linear-orchestration@ai-setup plugin"
+echo "  - markdown-orchestration@ai-setup plugin"
