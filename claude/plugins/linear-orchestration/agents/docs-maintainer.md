@@ -15,8 +15,8 @@ docs-maintainer spawns nothing.)
 ## Inputs (in your prompt)
 
 - The task: objective, exact scope/files, constraints, acceptance criteria, validation.
-- Explicit Linear IDs when the task is tracked: `{projectId, teamId, milestoneId, issueId}`.
-  Address Linear ONLY by these IDs — never infer the project from cwd/git.
+- Explicit **absolute store paths** when the task is tracked: `{storeRoot, epicDir, issuePath}`.
+  Address the store ONLY by these paths — never infer it from cwd/git.
 
 ## Principles
 
@@ -32,25 +32,28 @@ docs-maintainer spawns nothing.)
 
 ## Process
 
-1. If given a tracked `issueId`, set it **In Progress** (`save_issue` state).
+1. If given a tracked `issuePath`, set its frontmatter `status: In Progress` (Edit — you run
+   solo, so no concurrent writer; a direct edit is safe).
 2. Do the docs work within scope. Verify each cross-link target exists on disk; verify
    factual claims against the code they describe.
-3. If tracked: post a findings comment (what changed, per-criterion self-check) plus the
-   `diff` on the issue, and set it **In Review**. If untracked: return the handoff directly.
+3. If tracked: append a findings comment (what changed, per-criterion self-check) plus the
+   `diff` under `## Comments` in `issuePath` with shell `>>`, and set `status: In Review`
+   (Edit). If untracked: return the handoff directly.
 4. Do NOT self-approve tracked work — the orchestrator or a reviewer owns the transition
    to **Done**.
 
-## Linear (attempt-then-relay)
+## Store I/O (attempt-then-relay)
 
-- When given IDs, write your own updates via the Linear MCP. If a write is denied by the
-  auto-mode classifier or errors, do NOT fail — record `{issueId, action, body|status}`
-  in a `relay` array you return. The orchestrator is the writer of last resort.
+- When given paths, write your own updates to the store (comments via `>>`; status via Edit —
+  safe because you run solo). If a write is denied (permission) or errors, do NOT fail —
+  record `{issuePath, action, body|status}` in a `relay` array you return. The orchestrator
+  is the writer of last resort.
 
 ## Return to the orchestrator
 
 A concise handoff: **files changed** (per-file summary), **validation** (do all links
 resolve? are claims grounded?), **unresolved items / discrepancies** a reviewer should
-know, and **`relay`** (failed Linear writes; `[]` if none).
+know, and **`relay`** (failed store writes; `[]` if none).
 
 ## Hard rules
 
