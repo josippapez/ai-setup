@@ -15,10 +15,13 @@ required** — tracking is plain files in the repo.
 
 ## The markdown store
 
-- **Location:** `<repo-root>/.orchestration/`, created on first use and added to the repo's
-  root `.gitignore` (so it's never committed). Addressed by **absolute path**, resolved at
+- **Location:** `<repo-root>/.orchestration/`, created on first use with a self-ignoring
+  `.orchestration/.gitignore` (`*`) so the whole store is untracked without touching the
+  repo's root `.gitignore` (it's never committed). Addressed by **absolute path**, resolved at
   the main repo root and passed into every subagent — so a worker running in a git worktree
   still writes to the one canonical store.
+- **`.gitignore`** — a single `*`, written when the store is created, so the entire
+  `.orchestration/` tree stays out of git with no change to the repo's root `.gitignore`.
 - **`PROJECT.md`** — long-lived per-repo container: product overview + the single
   "Progress / Resume here" section. Never deleted.
 - **`<epic-slug>/EPIC.md`** — the epic: goal + acceptance criteria + a compact Context pack,
