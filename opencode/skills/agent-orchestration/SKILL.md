@@ -45,8 +45,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 Sub-agents run in separate sessions and do NOT inherit the main agent's CLI extensions or context. Therefore:
 
 1. Include any doc paths or additional context received via repo tools in the delegation prompt's context section.
-2. Include relevant validation commands (e.g., `pnpm exec nx test <project>`) in the delegation prompt.
-3. When working in the the-monorepo NX monorepo, also consider the repo-specific specialist agents: `hcp-frontend-specialist`, `nx-test-specialist`, `docs-maintainer`, `fe-guardrails-auditor`, `dependency-update-specialist`, `wcag-a11y-aa-specialist`, `figma-layout-token-analyst`, `dockerfile-specialist`, and `self-improve-specialist`.
+2. Include relevant validation/test commands for the target repo in the delegation prompt.
 
 ## Context-efficient grounding
 

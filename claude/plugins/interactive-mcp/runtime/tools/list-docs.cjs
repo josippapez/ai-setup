@@ -6,7 +6,7 @@ const { clampInteger, relativePath } = require('../lib/fs-utils.cjs');
 const definition = {
   name: 'list_docs',
   description:
-    "Enumerate the repository's documentation files as relative paths, sorted alphabetically. Use when you want to browse what docs exist rather than search by topic — e.g. 'list the docs', 'what READMEs are in this repo'. source filters the set: 'all' (default), 'docs_only' (docs/ tree), or 'readmes_only'. Paginated via limit (default 200, max 5000) and offset; the result includes a count header and a next_offset when more remain.",
+    "Browse the repository's documentation files as relative paths, sorted alphabetically. USE to see WHAT docs exist rather than search by topic — e.g. 'list the docs', 'what guides/READMEs are in this repo', 'show the docs tree' — or to orient yourself before a find_docs search. Prefer it over assuming what documentation the repo has. source filters the set: 'all' (default), 'docs_only' (docs/ tree), or 'readmes_only'. Paginated via limit (default 200, max 5000) and offset; the result includes a count header and a next_offset when more remain.",
   inputSchema: {
     type: 'object',
     properties: {

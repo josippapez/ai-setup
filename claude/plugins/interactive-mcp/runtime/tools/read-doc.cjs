@@ -21,7 +21,7 @@ function compactText(input) {
 const definition = {
   name: 'read_doc',
   description:
-    'Read one repository file by its repo-relative path and return its full text minified (markdown syntax, images, and URLs stripped; whitespace collapsed) to save tokens. Use after find_docs/list_docs to open a specific doc, or whenever you already know the path. Not limited to docs — any text file inside the repo root works, but files over 512 KiB are rejected and paths escaping the root are blocked. Returns the minified contents or a clear not-found/too-large error string.',
+    'Open one repository file by its repo-relative path, returned minified (markdown syntax, images, and URLs stripped; whitespace collapsed) to save tokens. USE right after find_docs/list_docs to read a result, or whenever you already know the path — prefer this over answering from memory about this repo or reading a file blind. Not limited to docs — any text file inside the repo root works, but files over 512 KiB are rejected and paths escaping the root are blocked. Returns the minified contents or a clear not-found/too-large error string.',
   inputSchema: {
     type: 'object',
     properties: {

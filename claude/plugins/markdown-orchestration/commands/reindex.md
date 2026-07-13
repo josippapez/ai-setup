@@ -20,4 +20,4 @@ MODULES="$(ls -d "$BASE"/data/markdown-orchestration-*/node_modules 2>/dev/null 
 
 Where `$ARGUMENTS` is: $ARGUMENTS
 
-Report the `semantic_index updated=… unchanged=… skipped=… cache=…` line back to the user verbatim. First run may download the embedding model (~90 MB) before indexing.
+Report the `repo_docs_index updated=… skipped=… cache=…` line back to the user verbatim. First run downloads the embedding model (~90 MB) and builds a chunked hybrid index.
