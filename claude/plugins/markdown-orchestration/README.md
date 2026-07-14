@@ -25,9 +25,12 @@ required** — tracking is plain files in the repo.
 - **`PROJECT.md`** — long-lived per-repo container: product overview + the single
   "Progress / Resume here" section. Never deleted.
 - **`<epic-slug>/EPIC.md`** — the epic: goal + acceptance criteria + a compact Context pack,
-  plus (when they apply) the approved Design direction, ADRs, and accessibility scope.
+  plus (when they apply) the approved Design direction, ADRs, and accessibility scope. Its
+  frontmatter `sessions:` list records every `CLAUDE_CODE_SESSION_ID` the epic was worked in
+  (orchestrator appends the current id at Decompose and on each resume).
 - **`<epic-slug>/issues/NN-<slug>.md`** — one file per chunk: YAML frontmatter
-  (`status` / `labels` / `complexity`), a `## Description` (the spec), and an append-only
+  (`status` / `labels` / `complexity` / `sessions`, the last an append-only list of the
+  `CLAUDE_CODE_SESSION_ID`s that worked the chunk), a `## Description` (the spec), and an append-only
   `## Comments` thread. The worker, its code-standards-checker, and its md-reviewer all
   write into this one file — comments are **append-only** (`>>`, safe for the parallel
   reviewers), and the frontmatter `status:` is moved by a **single writer** (the worker on

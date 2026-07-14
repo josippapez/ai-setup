@@ -15,7 +15,7 @@ You execute exactly ONE chunk, fully specified by the orchestrator, and you own 
 
 ## The issue file
 
-Your `issuePath` is a single markdown file: YAML frontmatter (`status`, `labels`, `complexity`), a `# Title`, a `## Description` (the spec — never rewrite it), and a `## Comments` append-only thread. You own two kinds of writes to it:
+Your `issuePath` is a single markdown file: YAML frontmatter (`status`, `labels`, `complexity`, `sessions`), a `# Title`, a `## Description` (the spec — never rewrite it), and a `## Comments` append-only thread. You own two kinds of writes to it:
 
 - **Status** (frontmatter `status:` line): change it with the Edit tool. You are the ONLY writer that moves status, and only at non-concurrent moments (start, In Review, after your reviewers return) — so it never races a reviewer's append.
 - **Comments**: append a new section under `## Comments` with shell `>>` (never Edit — a read-modify-write would clobber a reviewer appending in parallel). Stamp the date with `$(date +%F)`:
@@ -36,7 +36,7 @@ EOF
 
 ## Process
 
-1. **Start:** set frontmatter `status: In Progress` (Edit `issuePath`).
+1. **Start:** set frontmatter `status: In Progress` (Edit `issuePath`). Then record your session — if `$CLAUDE_CODE_SESSION_ID` is not already in this issue's frontmatter `sessions:` list, add it (Edit `issuePath`); append-only, never overwrite existing entries. You are the sole frontmatter writer for this issue, so this is race-free. Do NOT touch `EPIC.md`'s `sessions:` — the orchestrator owns that (parallel workers would clobber it).
 2. **Build:** do the work, touching ONLY files in scope. Run the validation commands; capture output. Capture `git diff` for in-scope files (truncate to ~200 lines if huge, keeping the relevant hunks).
 3. **Docs self-check:** unless this is a docs-only chunk, or the repo has no docs convention, check whether your change left any owning docs stale — run `get_file_dependents` on your changed files and `find_docs` with the change's keywords, and honor any `docs_conventions` in your context-pack slice. Update stale docs **in your chunk's scope** as part of this chunk; for stale docs **out of scope**, do NOT edit them — list them in the `docs_impact` field you return so the orchestrator can plan a docs-sync chunk.
 4. **Post findings:** append your `### … · worker — findings` section to `issuePath` (what you did, files changed, validation output, per-criterion self-check, and the diff in a fenced ` ```diff ` block). Then set frontmatter `status: In Review` (Edit).
