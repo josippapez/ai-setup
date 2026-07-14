@@ -38,6 +38,8 @@ Before writing, stop at the first rung that solves it:
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
+- Don't bundle speculative fixes: fix only the confirmed problem; don't patch code that "might" be broken without evidence.
+- No "while I'm here" changes riding along with a fix — no preemptive refactors, renames, or hardening you weren't asked for.
 - If you write 200 lines and it could be 50, rewrite it.
 
 Guardrail: never simplify away security, input validation at trust boundaries, error handling that prevents data loss, accessibility, or explicitly requested behavior.

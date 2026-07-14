@@ -23,13 +23,28 @@ Before implementing:
 
 ## 2. Simplicity first
 
-Minimum code that solves the problem. Nothing speculative.
+Minimum code that solves the problem. Nothing speculative. **Follow YAGNI; prefer one-liner solutions.**
+
+Before writing, stop at the first rung that solves it:
+
+1. Does this need to exist at all? (YAGNI — skip speculative needs.)
+2. Does the standard library cover it?
+3. Is there a native platform/runtime feature?
+4. Is it already an installed dependency? Use that before custom code.
+5. Can it be one line?
+6. Only then write the minimum working code.
 
 - No features beyond what was asked.
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
+- Don't bundle speculative fixes: fix only the confirmed problem; don't patch code that "might" be broken without evidence.
+- No "while I'm here" changes riding along with a fix — no preemptive refactors, renames, or hardening you weren't asked for.
 - If you write 200 lines and it could be 50, rewrite it.
+
+Guardrail: never simplify away security, input validation at trust boundaries, error handling that prevents data loss, accessibility, or explicitly requested behavior.
+
+When you deliberately ship a simpler-than-ideal solution, mark it with a `debt:` comment naming the ceiling and upgrade path (e.g. `// debt: O(n²) scan — fine under ~1k rows; add an index if it grows`).
 
 Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
