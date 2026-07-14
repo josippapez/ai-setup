@@ -4,7 +4,7 @@
 // reports hit@1 / hit@3 / MRR against a gold set of {query, path} pairs.
 //
 // Usage:
-//   NODE_PATH="$HOME/.claude/plugins/data/interactive-mcp-inline/node_modules" \
+//   NODE_PATH="$HOME/.claude/plugins/data/interactive-mcp-ai-setup/node_modules" \
 //   node docs/superpowers/evals/repo-docs-retrieval.mjs \
 //     <repoRootToIndex> <gold.json> [pluginRuntimeDir]
 //
