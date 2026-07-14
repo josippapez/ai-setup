@@ -11,7 +11,7 @@
 // pluginRuntimeDir defaults to the interactive-mcp runtime in THIS repo.
 // gold.json: [{ "query": "...", "path": "docs/..." }, ...] — path is repo-relative.
 //
-// RECORDED BASELINE (a real client docs repo (, 82 docs / ~1007 chunks,
+// RECORDED BASELINE (a real client docs repo, 82 docs / ~1007 chunks,
 // 36 paraphrased NL queries, shipped hybridWeights text:0.2/vector:0.8):
 //   ~81% hit@1, ~94% hit@3, ~0.88 MRR.
 // Gate: no hit@1 regression vs this baseline on the same gold set.
