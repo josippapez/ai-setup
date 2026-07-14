@@ -58,9 +58,14 @@ module.exports = {
   createIndex: () => orama().then(createIndex),
   addChunks: (db, records) => orama().then(o => addChunks(o, db, records)),
   hybridSearch: (db, args) => orama().then(o => hybridSearch(o, db, args)),
-  saveIndex: (db, filePath) => orama().then(o => o.persistToFile(db, 'binary', filePath)),
+  // 'json' (not 'binary'): the binary format uses msgpack (maxDepth 100), which
+  // throws "Too deep objects in depth 101" when a doc contains a long unbroken
+  // token (e.g. a 400-char rule/hash) — Orama's text index is a radix tree that
+  // nests one level per character. JSON has no depth cap; the 1500-char chunk
+  // limit bounds token depth well within JSON's limits.
+  saveIndex: (db, filePath) => orama().then(o => o.persistToFile(db, 'json', filePath)),
   loadIndex: (filePath) => orama().then(async o => {
-    try { const fs = require('node:fs'); if (!fs.existsSync(filePath)) return null; return await o.restoreFromFile('binary', filePath); }
+    try { const fs = require('node:fs'); if (!fs.existsSync(filePath)) return null; return await o.restoreFromFile('json', filePath); }
     catch { return null; }
   }),
 };

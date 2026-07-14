@@ -11,7 +11,7 @@ const { createIndex, addChunks, saveIndex } = require('../lib/doc-index.cjs');
 const MAX_FILE_BYTES = 1_000_000;
 const SCHEMA_VERSION = 1;
 
-function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.msp'); }
+function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json'); }
 
 function ensureGitignore(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -44,6 +44,8 @@ async function buildDocIndex(context) {
   ensureGitignore(dir);
   // Orphan the legacy per-file embedding cache from the old design.
   fs.rmSync(path.join(dir, 'interactive-mcp-doc-embeddings.json'), { force: true });
+  // Drop the stale binary index from before the json-persist fix.
+  fs.rmSync(path.join(dir, 'repo-docs-index.msp'), { force: true });
   fs.writeFileSync(path.join(dir, 'repo-docs-index.meta.json'), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
   await saveIndex(db, indexPath(context));
   return { updated, skipped, cache: indexPath(context) };
