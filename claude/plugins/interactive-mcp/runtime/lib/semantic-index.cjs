@@ -19,7 +19,12 @@ if (!isMainThread) {
     // the absolute entry via require, then import that file URL so the worker finds
     // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
-    const { pipeline } = await import(pathToFileURL(entry).href);
+    const { pipeline, env } = await import(pathToFileURL(entry).href);
+    // Shared model cache across both plugins so each model is downloaded once,
+    // not per plugin data dir. Defaults to ~/.claude/repo-docs-models; override
+    // with the REPO_DOCS_MODELS_DIR env var.
+    env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
+      || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
     const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
     // Some model configs ship model_max_length as Infinity, so the pipeline's
     // hardcoded `truncation: true` never clips and docs over 512 tokens crash the

@@ -146,7 +146,9 @@ chunks → cross-encoder rerank → collapse to files → format.
 `CHUNK_TOKENS≈400`, `CHUNK_OVERLAP_CHARS≈200`, `RERANK_CANDIDATES≈10`,
 `RESULT_LIMIT_DEFAULT=12/max=30`, `MODEL_ID` (dense), `QUERY_PREFIX`,
 `RERANKER_ID`, `MODEL_DTYPE`, `SCHEMA_VERSION`, `MAX_FILE_BYTES≈1MB`,
-`MAX_CHUNKS_PER_FILE≈200`, `RRF_K=60`.
+`MAX_CHUNKS_PER_FILE≈200`, `RRF_K=60`. Models cache to a shared dir
+(`env.REPO_DOCS_MODELS_DIR`, default `~/.claude/repo-docs-models`) so both
+plugins share one copy of each model instead of downloading per plugin data dir.
 
 ## 9. Model choice (evidence)
 
