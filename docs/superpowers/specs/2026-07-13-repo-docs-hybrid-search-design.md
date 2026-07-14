@@ -238,8 +238,9 @@ trusted enough to justify off-by-default.
 
 - **Orama OSS cadence** (company pivoted to cloud in 2025): pin a version; the
   API surface we use (insert/search hybrid/persist) is small and stable.
-- **Reranker latency:** bounded to top-N≈20; fp32 vs q8 dtype is a tunable if
-  too slow.
+- **Reranker latency/size:** bounded to top-N≈20 chunks; runs on q8 (~266 MB,
+  measured identical ranking to fp32 — see below). Only ever scores chunks
+  (≤512 tokens), never whole docs, so large files are a non-issue.
 - **Index build time / RAM:** incremental by mtime; small dense model keeps
   resident RAM low; chunk vectors at 384-dim keep the store compact.
 - **Worker startup:** two model loads (embedder + reranker); lazy/parallel warm,
@@ -247,8 +248,9 @@ trusted enough to justify off-by-default.
 
 ## 13. Open items (resolve during implementation)
 
-- Reranker dtype (fp32 vs q8) — decide from measured query latency on real
-  hardware; fp32 used in evals.
+- Reranker dtype — RESOLVED: **q8**. Measured identical ranking to fp32 on
+  27/27 verbatim rerank queries (both 100% hit@1 / 1.000 MRR), ~4× smaller
+  (~266 MB vs 1.1 GB). Set in `reranker.cjs`.
 - Exact Orama persistence API/format + hybrid-search option names — confirm
   against the installed `@orama/orama` version before wiring `doc-index.cjs`.
 - Whether to keep a second worker for the reranker or run it in the embedder

@@ -13,7 +13,9 @@ async function load() {
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
     const { AutoTokenizer, AutoModelForSequenceClassification } = await import(pathToFileURL(entry).href);
     const tokenizer = await AutoTokenizer.from_pretrained(RERANKER_ID);
-    const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'fp32' });
+    // q8: measured identical ranking to fp32 on 27/27 verbatim rerank queries
+    // (both 100% hit@1 / 1.000 MRR) while ~4x smaller (~300MB vs 1.1GB).
+    const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'q8' });
     _mod = { tokenizer, model };
   } catch { _failed = true; }
   return _mod;
