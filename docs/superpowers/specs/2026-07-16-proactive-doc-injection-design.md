@@ -1,7 +1,7 @@
 # Proactive Doc-Context Injection — Design
 
 **Date:** 2026-07-16
-**Status:** Draft (awaiting user review)
+**Status:** Implemented (2026-07-16)
 **Plugin:** `interactive-mcp` (Claude Code first; OpenCode parity deferred)
 
 ## Problem
@@ -90,8 +90,8 @@ Agent runs tools …
 
 Optional tuning via ambient env (read by the server/hooks if present, else defaults):
 
-- `REPO_DOCS_INJECT_THRESHOLD` — prompt-hook threshold (default from calibration).
-- `REPO_DOCS_INJECT_THRESHOLD_PROGRESS` — higher threshold for the progress hook.
+- `REPO_DOCS_INJECT_THRESHOLD` — prompt-hook threshold (default **0.80**, calibrated to surface repo-relevant queries).
+- `REPO_DOCS_INJECT_THRESHOLD_PROGRESS` — higher threshold for the progress hook (default **0.86**, more selective mid-turn).
 - `REPO_DOCS_INJECT_LIMIT` — max pointers (default 3).
 - `REPO_DOCS_INJECT_TIMEOUT_MS` — socket connect timeout (default 300).
 - `REPO_DOCS_INJECT_EVENTS` — `prompt,batch` (turn off the mid-turn trigger with `prompt`).
