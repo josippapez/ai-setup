@@ -4,6 +4,7 @@ const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { rankDocs } = require('./doc-search.cjs');
+const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
 
 const MAX_SNIPPET_CHARS = 180;
 
@@ -23,7 +24,7 @@ function snippet(content) {
 // Host the injection query socket. No-op unless REPO_DOCS_INJECT=1. First server
 // to bind wins; a second (the other byte-identical plugin runtime) sees EADDRINUSE
 // and resolves null. Reuses the caller's warm embedder via rankDocs.
-async function startInjectServer(context, { rank = rankDocs } = {}) {
+async function startInjectServer(context, { rank = rankDocs, build = buildDocIndex } = {}) {
   if (process.env.REPO_DOCS_INJECT !== '1') return null;
   const sockPath = injectSocketPath(context.root);
   fs.mkdirSync(path.dirname(sockPath), { recursive: true });
@@ -36,6 +37,13 @@ async function startInjectServer(context, { rank = rankDocs } = {}) {
       if (nl === -1) return;
       let req;
       try { req = JSON.parse(buf.slice(0, nl)); } catch { conn.end(); return; }
+      // Mid-session refresh: re-embed changed docs using the warm worker
+      // (incremental via mtime cache, so typically just the one edited file).
+      if (req.op === 'reindex') {
+        try { await build(context); conn.end(JSON.stringify({ reindexed: true }) + '\n'); }
+        catch { conn.end(JSON.stringify({ reindexed: false }) + '\n'); }
+        return;
+      }
       try {
         const hits = await rank(context, {
           query: String(req.query || ''),

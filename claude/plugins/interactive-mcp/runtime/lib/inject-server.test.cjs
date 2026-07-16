@@ -44,3 +44,22 @@ test('inject server returns ranked hits over the socket, gated by env', async ()
   await new Promise(r => server.close(r));
   delete process.env.REPO_DOCS_INJECT;
 });
+
+test('inject server handles a reindex op by invoking the incremental build', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'inject-reindex-'));
+  fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
+  const context = { root, maxFileSizeBytes: 1e6 };
+
+  process.env.REPO_DOCS_INJECT = '1';
+  let builds = 0;
+  const build = async () => { builds += 1; return { updated: 1, unchanged: 0, skipped: 0 }; };
+  const server = await startInjectServer(context, { rank: async () => [], build });
+  assert.ok(server, 'server should start when enabled');
+
+  const res = await ask(injectSocketPath(root), { op: 'reindex' });
+  assert.strictEqual(res.reindexed, true);
+  assert.strictEqual(builds, 1, 'reindex op must invoke the build once');
+
+  await new Promise(r => server.close(r));
+  delete process.env.REPO_DOCS_INJECT;
+});
