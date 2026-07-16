@@ -2,7 +2,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { queryInject, formatBlock } = require('./lib/inject-client.cjs');
+const { queryInject, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
 
 const readStdin = async () => {
   const chunks = [];
@@ -40,11 +40,12 @@ const main = async () => {
   const root = event?.cwd || process.cwd();
   const query = lastUserText(event?.transcript_path);
   if (query.replace(/[^a-zA-Z]/g, '').length < 8) process.exit(0);
+  if (isConversationalFiller(query)) process.exit(0);
 
   const res = await queryInject(root, {
     query,
     limit: num(process.env.REPO_DOCS_INJECT_LIMIT, 3),
-    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD_PROGRESS, num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0)),
+    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD_PROGRESS, num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0.86)),
   }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
   if (!res || !res.injected || !res.hits || !res.hits.length) process.exit(0);
 

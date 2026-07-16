@@ -7,8 +7,11 @@ const { indexPath } = require('../tools/build-semantic-index.cjs');
 const CAND = 60;
 
 // Shared ranking core for find_docs and the injection socket: embed the query,
-// hybrid-search, collapse to the best chunk per file, filter by threshold, cap.
-async function rankDocs(context, { query, limit = 12, threshold = 0 } = {}) {
+// hybrid-search, filter by threshold, then (unless collapse:false) collapse to
+// the best chunk per file, and cap. collapse:false is for callers (the find_docs
+// rerank path) that need to rerank the raw threshold-filtered candidates first
+// and collapse afterwards, matching the original pre-rerank ordering semantics.
+async function rankDocs(context, { query, limit = 12, threshold = 0, collapse = true } = {}) {
   const q = String(query || '').trim();
   if (!q || !isReady()) return [];
   const db = await loadIndex(indexPath(context));
@@ -17,6 +20,9 @@ async function rankDocs(context, { query, limit = 12, threshold = 0 } = {}) {
   if (!qvec) return [];
 
   const hits = await hybridSearch(db, { term: q, vector: qvec, limit: CAND });
+  if (!collapse) {
+    return hits.filter((h) => h.score >= threshold).slice(0, limit);
+  }
   const seen = new Set();
   const files = [];
   for (const h of hits) {

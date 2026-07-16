@@ -5,7 +5,7 @@ const net = require('node:net');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { injectSocketPath, queryInject, formatBlock } = require('./inject-client.cjs');
+const { injectSocketPath, queryInject, formatBlock, isConversationalFiller } = require('./inject-client.cjs');
 
 function tmpRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'inject-client-'));
@@ -56,4 +56,16 @@ test('formatBlock renders path:line and read_doc guidance', () => {
 test('formatBlock returns empty string for no hits', () => {
   assert.strictEqual(formatBlock([]), '');
   assert.strictEqual(formatBlock(null), '');
+});
+
+test('isConversationalFiller true for unmistakable filler', () => {
+  for (const t of ['hello', 'thanks that looks good', 'ok', 'lgtm', 'hey there thanks']) {
+    assert.strictEqual(isConversationalFiller(t), true, `expected filler: ${t}`);
+  }
+});
+
+test('isConversationalFiller false for real questions/content', () => {
+  for (const t of ['how does auth work', 'what are the orchestration rules', 'explain the injection socket']) {
+    assert.strictEqual(isConversationalFiller(t), false, `expected not filler: ${t}`);
+  }
 });

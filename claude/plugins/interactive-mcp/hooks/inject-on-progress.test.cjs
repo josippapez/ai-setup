@@ -101,3 +101,49 @@ test('silent when batch events are disabled via REPO_DOCS_INJECT_EVENTS', async 
     server.close();
   }
 });
+
+test('silent for chit-chat filler even when the stub server would return hits', async () => {
+  const root = tmpRoot();
+  const server = await startStub(root, { hits: [{ path: 'docs/z.md', startLine: 1, score: 0.99 }], injected: true });
+  const transcript = writeTranscript(root, 'thanks that looks good');
+  try {
+    const out = await runHook({ cwd: root, session_id: 's3', transcript_path: transcript, hook_event_name: 'PostToolBatch' });
+    assert.strictEqual(out, '');
+  } finally {
+    server.close();
+  }
+});
+
+test('uses default progress threshold 0.86 when no env override is set', async () => {
+  const root = tmpRoot();
+  let captured = null;
+  const sock = injectSocketPath(root);
+  fs.mkdirSync(path.dirname(sock), { recursive: true });
+  try { fs.rmSync(sock, { force: true }); } catch {}
+  const server = net.createServer((conn) => {
+    let buf = '';
+    conn.on('data', (d) => {
+      buf += d;
+      const nl = buf.indexOf('\n');
+      if (nl === -1) return;
+      try { captured = JSON.parse(buf.slice(0, nl)); } catch {}
+      conn.end(JSON.stringify({ hits: [], injected: false }) + '\n');
+    });
+    conn.on('error', () => {});
+  });
+  await new Promise((resolve) => server.listen(sock, resolve));
+  const transcript = writeTranscript(root, 'explain the caching strategy in detail');
+  try {
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.REPO_DOCS_INJECT_THRESHOLD;
+    delete cleanEnv.REPO_DOCS_INJECT_THRESHOLD_PROGRESS;
+    await runHook(
+      { cwd: root, session_id: 's4', transcript_path: transcript, hook_event_name: 'PostToolBatch' },
+      cleanEnv,
+    );
+    assert.ok(captured, 'expected the hook to reach the stub server');
+    assert.strictEqual(captured.threshold, 0.86);
+  } finally {
+    server.close();
+  }
+});

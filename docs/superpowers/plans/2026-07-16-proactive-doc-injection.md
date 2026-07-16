@@ -578,7 +578,7 @@ const main = async () => {
   const res = await queryInject(root, {
     query: prompt,
     limit: num(process.env.REPO_DOCS_INJECT_LIMIT, 3),
-    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0),
+    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0.80),
   }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
 
   if (!res || !res.injected || !res.hits?.length) process.exit(0);
@@ -709,7 +709,7 @@ const main = async () => {
   const res = await queryInject(root, {
     query,
     limit: num(process.env.REPO_DOCS_INJECT_LIMIT, 3),
-    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD_PROGRESS, num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0)),
+    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD_PROGRESS, num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0.86)),
   }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
   if (!res || !res.injected || !res.hits?.length) process.exit(0);
 

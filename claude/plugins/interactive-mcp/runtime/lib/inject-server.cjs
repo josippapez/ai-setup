@@ -54,12 +54,7 @@ async function startInjectServer(context, { rank = rankDocs } = {}) {
   });
 
   return await new Promise((resolve) => {
-    server.once('error', (err) => {
-      if (err.code === 'EADDRINUSE') { resolve(null); return; }
-      // Stale socket from a crashed server: unlink and retry once.
-      if (err.code === 'EADDRINUSE' || err.code === 'EEXIST') { try { fs.rmSync(sockPath, { force: true }); } catch {} }
-      resolve(null);
-    });
+    server.once('error', () => { resolve(null); });
     // Proactively clear a stale socket file before binding.
     try { fs.rmSync(sockPath, { force: true }); } catch {}
     server.listen(sockPath, () => resolve(server));

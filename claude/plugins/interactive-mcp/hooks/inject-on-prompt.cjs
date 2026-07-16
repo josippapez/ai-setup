@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-const { queryInject, formatBlock } = require('./lib/inject-client.cjs');
+const { queryInject, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
 
 const readStdin = async () => {
   const chunks = [];
@@ -15,11 +15,12 @@ const main = async () => {
   const prompt = String(event?.prompt || '').trim();
   const root = event?.cwd || process.cwd();
   if (prompt.replace(/[^a-zA-Z]/g, '').length < 8) process.exit(0); // skip trivial
+  if (isConversationalFiller(prompt)) process.exit(0);
 
   const res = await queryInject(root, {
     query: prompt,
     limit: num(process.env.REPO_DOCS_INJECT_LIMIT, 3),
-    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0),
+    threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0.80),
   }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
 
   if (!res || !res.injected || !res.hits || !res.hits.length) process.exit(0);

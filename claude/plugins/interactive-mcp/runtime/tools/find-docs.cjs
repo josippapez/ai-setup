@@ -62,8 +62,12 @@ async function execute(args, context) {
   if (!isReady()) return `Semantic index not ready yet — retry shortly.`;
 
   const wantRerank = args.rerank === true || isRerankEnabled();
-  // Over-fetch candidates when reranking so the cross-encoder has material.
-  let files = await rankDocs(context, { query, limit: wantRerank ? CAND : limit, threshold: 0 });
+  // Over-fetch candidates when reranking so the cross-encoder has material. The
+  // rerank path defers the one-per-file collapse until after reranking (collapse:
+  // false), matching the original rerank-then-collapse ordering semantics.
+  let files = await rankDocs(context, wantRerank
+    ? { query, limit: CAND, threshold: 0, collapse: false }
+    : { query, limit, threshold: 0 });
   if (files.length === 0) {
     // Distinguish "no index" from "no hits" to keep the existing messages.
     const db = await loadIndex(indexPath(context));
@@ -73,6 +77,16 @@ async function execute(args, context) {
   if (wantRerank && files.length > 1) {
     const orderIdx = await rerank(query, files.map(h => ({ text: h.content })));
     files = orderIdx.map(i => files[i]);
+    // One-per-file collapse, now on the reranked order, then cap to limit.
+    const seen = new Set();
+    const collapsed = [];
+    for (const h of files) {
+      if (seen.has(h.path)) continue;
+      seen.add(h.path);
+      collapsed.push(h);
+      if (collapsed.length >= limit) break;
+    }
+    files = collapsed;
   }
   files = files.slice(0, limit);
 
