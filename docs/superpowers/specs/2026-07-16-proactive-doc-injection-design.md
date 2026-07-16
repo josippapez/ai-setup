@@ -109,12 +109,26 @@ PATH B — mid-turn, before next model call  (PostToolBatch→PostToolUse → in
         ─▶ fresh hits ─▶ additionalContext → injected before next model call
                         (docs for what the agent JUST said it will do / just touched)
 
+MID-SESSION REFRESH — after a Markdown edit  (PostToolUse → reindex-on-edit.cjs)
+  Write/Edit/MultiEdit on a .md/.mdx ?
+        ─▶ cross-process debounce lock (.claude/repo-docs/reindex.lock, ~2s)
+        ─▶ socket {op:"reindex"} ─▶ server runs buildDocIndex() incrementally
+                                    (warm worker; mtime cache → just the edited file)
+        ─▶ edited doc is injectable within ~1s, no reconnect  (fail-safe if no socket)
+
 WORDING (both paths): "[repo-docs] Relevant local documentation — consult these
 with read_doc before relying on general knowledge:"
 
 INVARIANTS: one warm model (shared with find_docs) · self-contained in the plugin ·
 one toggle (REPO_DOCS_INJECT, on by default) · fail-safe · silent unless relevant.
 ```
+
+### Index freshness
+
+The index refreshes at three points, all incremental (mtime cache, so only changed docs re-embed):
+1. **On connect** — the MCP server runs `buildDocIndex()` in the background on `initialize`.
+2. **On Markdown edit (mid-session)** — the `reindex-on-edit.cjs` `PostToolUse` hook asks the server (over the socket) to re-embed after any `.md`/`.mdx` `Write`/`Edit`/`MultiEdit`, so edits made during a session become injectable without reconnecting. Registered in **both** claude plugins with a shared debounce lock so a single edit triggers exactly one reindex even though both plugins' hooks fire. The socket `reindex` op is served by whichever server hosts the socket (interactive-mcp).
+3. **Manual** — `/reindex` (the `markdown-orchestration:reindex` skill) forces a full incremental rebuild.
 
 ## Configuration
 
