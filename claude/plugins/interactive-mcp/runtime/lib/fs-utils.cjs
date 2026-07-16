@@ -7,6 +7,7 @@ const SKIP_DIRS = new Set([
   '.git',
   '.nx',
   '.opencode',
+  '.orchestration',
   '.vscode',
   'coverage',
   'dist',
