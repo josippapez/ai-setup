@@ -5,6 +5,7 @@ const readline = require('node:readline');
 const { createContext } = require('./lib/context.cjs');
 const { warmUp } = require('./lib/semantic-index.cjs');
 const { startDependencyIndex } = require('./lib/dependency-index.cjs');
+const { buildDocIndex } = require('./tools/build-semantic-index.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
@@ -79,6 +80,9 @@ async function handleRequest(message) {
       process.stderr.write(`ensureOpenCodeServer error: ${err.message}\n`),
     );
     warmUp();
+    // Pre-embed docs in the background on connect (fire-and-forget, incremental
+    // via mtime cache) so the first find_docs doesn't pay the indexing cost.
+    buildDocIndex(context).catch(() => {});
     // Start building the dependency graph in the background on connect so the
     // index is ready (or observably in progress) before the first tool call.
     startDependencyIndex(context).catch(() => {});

@@ -15,7 +15,7 @@ Personal backup of global OpenCode setup.
 This repository intentionally excludes dependency folders, environment files, and secret-like filenames.
 `opencode/opencode.json` mirrors the global config shape but replaces secret values with environment placeholders such as `${FIGMA_API_KEY}`.
 `opencode/plugins/interactive-mcp/` is the source-owned copy of the custom OpenCode plugin; the global folder should be updated from this mirror.
-Semantic docs search is built with `node ~/.config/opencode/plugins/interactive-mcp/tools/build-semantic-index.cjs <repo-root>`; generated `interactive-mcp-doc-embeddings.json` files are intentionally ignored.
+Semantic docs search uses a chunked/Orama vector engine (see `opencode/plugins/interactive-mcp/lib/semantic-index.cjs`), indexing docs to `.opencode/repo-docs/` on session start. Indexing is automatic and incremental (only re-indexes changed files).
 `claude/` mirrors `~/.claude/` and includes a local Claude marketplace (repo-root `.claude-plugin/marketplace.json`) with two plugins: `interactive-mcp` (mirrors the OpenCode MCP tools and skills) and `markdown-orchestration`.
 `claude/install.sh` performs the global install, copying `CLAUDE.md`, `RTK.md`, `settings.json`, and `hooks/scripts/` into `~/.claude/`, then registering/updating the marketplace and installing both plugins.
 Always-on rules are no longer copied loose into `~/.claude/rules/`: the `interactive-mcp` plugin bundles them under `claude/plugins/interactive-mcp/rules/` and injects them each session via its SessionStart hook (`inject-rules.cjs`). `install.sh` prunes any previously-installed loose copies.
