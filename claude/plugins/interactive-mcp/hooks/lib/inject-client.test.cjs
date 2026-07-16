@@ -51,6 +51,7 @@ test('formatBlock renders path:line and read_doc guidance', () => {
   assert.match(out, /docs\/a\.md:12/);
   assert.match(out, /read_doc/);
   assert.match(out, /Setup/);
+  assert.match(out, /Relevant local documentation — consult these with read_doc before relying on general knowledge/);
 });
 
 test('formatBlock returns empty string for no hits', () => {

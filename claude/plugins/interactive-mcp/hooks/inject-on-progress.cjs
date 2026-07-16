@@ -11,20 +11,48 @@ const readStdin = async () => {
 };
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
-function lastUserText(transcriptPath) {
-  let text = '';
+// Build the mid-turn query from the transcript. Primary signal: the agent's
+// latest output text (what it just said it will do). Thin-fallback: the last
+// user message when the assistant text is too short (agent made mostly tool
+// calls). Plus light tool-target tokens (edited file basenames / command head)
+// from the latest assistant message's tool_use blocks. Kept focused on purpose —
+// a long concatenation dilutes the embedding and worsens threshold precision.
+function rows(transcriptPath) {
   try {
-    const lines = fs.readFileSync(transcriptPath, 'utf8').split(/\r?\n/).filter(Boolean);
-    for (const line of lines) {
-      let row; try { row = JSON.parse(line); } catch { continue; }
-      const msg = row.message || row;
-      if (msg && (msg.role === 'user' || row.type === 'user')) {
-        const c = msg.content;
-        text = typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => (p && p.text) || '').join(' ') : text;
-      }
-    }
-  } catch {}
-  return text.trim();
+    return fs.readFileSync(transcriptPath, 'utf8').split(/\r?\n/).filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch { return []; }
+}
+function roleOf(row) { const m = row.message || row; return (m && m.role) || row.type; }
+function textOf(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.filter((p) => p && p.type === 'text' && p.text).map((p) => p.text).join(' ');
+  return '';
+}
+function base(p) { return String(p || '').split(/[\\/]/).pop(); }
+function toolTargets(content) {
+  if (!Array.isArray(content)) return '';
+  const parts = [];
+  for (const b of content) {
+    if (!b || b.type !== 'tool_use' || !b.input) continue;
+    if (b.input.file_path) parts.push(base(b.input.file_path));
+    if (b.input.path) parts.push(base(b.input.path));
+    if (typeof b.input.command === 'string') parts.push(b.input.command.split(/\s+/).slice(0, 4).join(' '));
+  }
+  return parts.join(' ');
+}
+function progressQuery(transcriptPath) {
+  const all = rows(transcriptPath);
+  let lastAssistant = null, lastUser = '';
+  for (const r of all) {
+    const role = roleOf(r);
+    if (role === 'assistant') lastAssistant = (r.message || r).content;
+    else if (role === 'user') lastUser = textOf((r.message || r).content) || lastUser;
+  }
+  let q = textOf(lastAssistant).trim();
+  if (q.replace(/[^a-zA-Z]/g, '').length < 12) q = `${q} ${lastUser}`.trim(); // thin-fallback
+  const combined = `${q} ${toolTargets(lastAssistant)}`.trim().replace(/\s+/g, ' ');
+  return combined.slice(0, 400); // keep focused
 }
 function statePath(root, session) {
   return path.join(root, '.claude', 'repo-docs', 'inject-state', `${session || 'default'}.json`);
@@ -38,7 +66,7 @@ const main = async () => {
   let event;
   try { event = JSON.parse(await readStdin()); } catch { process.exit(0); }
   const root = event?.cwd || process.cwd();
-  const query = lastUserText(event?.transcript_path);
+  const query = progressQuery(event?.transcript_path);
   if (query.replace(/[^a-zA-Z]/g, '').length < 8) process.exit(0);
   if (isConversationalFiller(query)) process.exit(0);
 

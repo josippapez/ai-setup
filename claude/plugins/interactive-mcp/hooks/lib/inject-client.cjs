@@ -52,7 +52,7 @@ function formatBlock(hits) {
     const anchor = h.heading ? ` › ${h.heading}` : '';
     return `${i + 1}) ${h.path}:${h.startLine}${anchor} — ${h.snippet}`;
   });
-  return `[repo-docs] Possibly relevant local docs — open with read_doc if useful:\n${lines.join('\n')}`;
+  return `[repo-docs] Relevant local documentation — consult these with read_doc before relying on general knowledge:\n${lines.join('\n')}`;
 }
 
 module.exports = { injectSocketPath, queryInject, formatBlock, isConversationalFiller };

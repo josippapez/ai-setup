@@ -59,11 +59,11 @@ Small Node scripts under `claude/hooks/scripts/`, modeled on the existing `promp
 **Bundled in the plugin (self-contained):** the hook scripts live in `claude/plugins/interactive-mcp/hooks/` (as `.cjs`, matching the existing `inject-rules.cjs`) and are registered in the plugin's **own** `hooks/hooks.json` via `${CLAUDE_PLUGIN_ROOT}`. Installing the plugin auto-registers them — **no `claude/settings.json` edit, nothing manual outside the plugin.**
 
 - **`inject-on-prompt.cjs` (`UserPromptSubmit`):** query = the submitted prompt text.
-- **`inject-on-progress.cjs` (`PostToolBatch`, fallback `PostToolUse`):** query = derived from `transcript_path` — the latest user message (captures topic drift mid-turn). Applies a **higher threshold** than the prompt hook and **per-session dedup** so the same doc isn't re-injected repeatedly.
+- **`inject-on-progress.cjs` (`PostToolBatch`, fallback `PostToolUse`):** query = `progressQuery(transcriptPath)` — primary signal is the **agent's latest output text** (what it just said it will do), with a **thin-fallback** to the last user message when that text is too short (agent emitted mostly tool calls), plus light **tool-input target** tokens (edited file basenames / command head) from the latest assistant message's `tool_use` blocks. Kept focused (≤400 chars, no full-history concatenation — that dilutes the embedding and worsens threshold precision). Applies a **higher threshold** than the prompt hook and **per-session dedup** so the same doc isn't re-injected repeatedly.
 
 **Injection format (compact):**
 ```
-[repo-docs] Possibly relevant local docs — open with read_doc if useful:
+[repo-docs] Relevant local documentation — consult these with read_doc before relying on general knowledge:
 1) path/to/doc.md:42 › Section heading — short snippet…
 2) …
 ```
@@ -80,8 +80,40 @@ User prompt
         └─ additionalContext ──▶ agent sees pointers ──▶ (maybe) read_doc
 
 Agent runs tools …
-  └─ PostToolBatch hook ──(socket)──▶ inject-socket ──▶ hits ≥ (higher) threshold, minus already-injected
+  └─ PostToolBatch hook: query = agent's latest output text (+ thin-fallback to last
+     user msg + tool-input targets) ──(socket)──▶ inject-socket ──▶ hits ≥ (higher)
+     threshold, minus already-injected
         └─ additionalContext ──▶ injected before next model call
+```
+
+## Behavior
+
+```
+STARTUP (per session, on MCP server "initialize")
+  warmUp() bge-small worker · buildDocIndex() incremental · startInjectServer()
+     └─ REPO_DOCS_INJECT=1 ? ── binds .claude/repo-docs/inject.sock (EADDRINUSE→backoff)
+                              └─ else: no socket → hooks stay silent
+
+PATH A — every user prompt  (UserPromptSubmit → inject-on-prompt.cjs)
+  prompt ─▶ trivial? / conversational-filler? ─yes▶ exit 0 (silent)
+         ─▶ socket query, threshold 0.80 ─▶ hits? ─▶ additionalContext (top 3 doc pointers)
+            (socket absent/timeout/error ─▶ inject nothing — fail-safe)
+         ─▶ agent sees pointers BEFORE it answers → may read_doc
+
+PATH B — mid-turn, before next model call  (PostToolBatch→PostToolUse → inject-on-progress.cjs)
+  query = AGENT'S LATEST OUTPUT  (+ thin-fallback to last user msg if too short)
+          + tool targets (edited file basenames / command head)
+          e.g. "I'll use React Hook Form … authForm.tsx"
+        ─▶ filler? ─yes▶ exit 0
+        ─▶ socket query, threshold 0.86 (stricter) ─▶ per-session dedup (drop already-injected)
+        ─▶ fresh hits ─▶ additionalContext → injected before next model call
+                        (docs for what the agent JUST said it will do / just touched)
+
+WORDING (both paths): "[repo-docs] Relevant local documentation — consult these
+with read_doc before relying on general knowledge:"
+
+INVARIANTS: one warm model (shared with find_docs) · self-contained in the plugin ·
+one toggle (REPO_DOCS_INJECT, on by default) · fail-safe · silent unless relevant.
 ```
 
 ## Configuration
