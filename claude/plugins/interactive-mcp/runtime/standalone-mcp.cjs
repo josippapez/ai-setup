@@ -6,6 +6,7 @@ const { createContext } = require('./lib/context.cjs');
 const { warmUp } = require('./lib/semantic-index.cjs');
 const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { buildDocIndex } = require('./tools/build-semantic-index.cjs');
+const { startInjectServer } = require('./lib/inject-server.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
@@ -71,6 +72,9 @@ async function handleRequest(message) {
     // Pre-embed docs in the background on connect (fire-and-forget, incremental
     // via mtime cache) so the first find_docs doesn't pay the indexing cost.
     buildDocIndex(context).catch(() => {});
+    // Host the proactive-injection query socket (no-op unless REPO_DOCS_INJECT=1;
+    // first server to bind wins, so the sibling plugin runtime backs off).
+    startInjectServer(context).catch(() => {});
     // Start building the dependency graph in the background on connect so the
     // index is ready (or observably in progress) before the first tool call.
     startDependencyIndex(context).catch(() => {});
