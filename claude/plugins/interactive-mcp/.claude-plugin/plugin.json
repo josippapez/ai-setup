@@ -1,11 +1,17 @@
 {
   "name": "interactive-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Mirrors the OpenCode interactive MCP setup for Claude Code with repo docs/libs and dependency-graph tools, skills, rules, and custom agents.",
   "author": {
     "name": "Personal AI Setup"
   },
   "license": "MIT",
-  "keywords": ["mcp", "docs", "skills", "rtk", "opencode"],
+  "keywords": [
+    "mcp",
+    "docs",
+    "skills",
+    "rtk",
+    "opencode"
+  ],
   "mcpServers": "./.mcp.json"
 }

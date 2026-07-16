@@ -1,0 +1,26 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert');
+const os = require('node:os');
+const fs = require('node:fs');
+const path = require('node:path');
+const { walkDirectory } = require('./fs-utils.cjs');
+
+test('walkDirectory skips the .orchestration store and other noise dirs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'skipdirs-'));
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  fs.mkdirSync(path.join(root, '.orchestration', 'epic', 'issues'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'node_modules', 'pkg'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'docs', 'real.md'), '# real');
+  fs.writeFileSync(path.join(root, '.orchestration', 'PROJECT.md'), '# store');
+  fs.writeFileSync(path.join(root, '.orchestration', 'epic', 'issues', '01.md'), '# chunk');
+  fs.writeFileSync(path.join(root, 'node_modules', 'pkg', 'readme.md'), '# dep');
+
+  const seen = [];
+  walkDirectory(root, (p) => seen.push(path.relative(root, p)));
+
+  assert.ok(seen.includes(path.join('docs', 'real.md')), 'real doc should be visited');
+  assert.ok(!seen.some((p) => p.startsWith('.orchestration')), '.orchestration must be skipped');
+  assert.ok(!seen.some((p) => p.startsWith('node_modules')), 'node_modules must be skipped');
+});
