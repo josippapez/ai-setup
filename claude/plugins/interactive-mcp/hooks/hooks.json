@@ -27,6 +27,9 @@
     "PostToolUse": [
       { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-on-progress.cjs\"" } ] },
       { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/reindex-on-edit.cjs\"" } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/reap-mcp-on-exit.cjs\"" } ] }
     ]
   }
 }
