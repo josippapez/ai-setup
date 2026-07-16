@@ -390,6 +390,8 @@ git commit -m "feat(repo-docs): MCP server hosts the injection socket on initial
 
 ---
 
+> **⚠️ SUPERSEDED — Tasks 4–7 (hooks + wiring): read the epic issue `03-hooks` for the authoritative version.** Per the user's self-contained + on-by-default decision, the hooks are bundled INSIDE the plugin: `.cjs` scripts in `claude/plugins/interactive-mcp/hooks/` (+ `hooks/lib/`), registered in the plugin's own `hooks/hooks.json` via `${CLAUDE_PLUGIN_ROOT}` — **`claude/settings.json` is NOT modified**. Activation is **socket-presence** (hooks don't read `REPO_DOCS_INJECT`; the single toggle is the server's `.mcp.json` flag, shipped `=1`). The query/dedup LOGIC below still applies; only the file locations (`.cjs` in the plugin), the registration target (`hooks.json` not `settings.json`), and the removal of the hook-side env gate change. Tasks 1–3, 8–10 are unchanged except test paths (see Task 10).
+
 ### Task 4: Shared hook client helper (inline, dependency-free)
 
 Hooks must not import plugin node_modules, so the socket client is a tiny inline helper duplicated into each hook is avoided by a single **`.mjs`** helper in the hooks dir (hooks import a sibling `.mjs`, still `node:`-only).
@@ -883,7 +885,7 @@ git commit -m "docs(repo-docs): document proactive doc-injection + bump plugin v
 export NODE_PATH=/Users/josippapez/.claude/plugins/data/interactive-mcp-ai-setup/node_modules
 export REPO_DOCS_MODELS_DIR=$HOME/.claude/repo-docs-models
 node --test claude/plugins/interactive-mcp/runtime/lib/*.test.cjs claude/plugins/interactive-mcp/runtime/tools/*.test.cjs
-node --test claude/hooks/scripts/lib/*.test.mjs claude/hooks/scripts/*.test.mjs
+node --test claude/plugins/interactive-mcp/hooks/lib/*.test.cjs claude/plugins/interactive-mcp/hooks/*.test.cjs
 ```
 Expected: all pass.
 

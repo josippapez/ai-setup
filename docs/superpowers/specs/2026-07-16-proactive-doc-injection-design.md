@@ -53,11 +53,13 @@ Small Node scripts under `claude/hooks/scripts/`, modeled on the existing `promp
 
 1. Parses the event JSON from stdin (gets `transcript_path`, prompt/tool data).
 2. Derives a query (below).
-3. Connects to the socket (short timeout, e.g. 300 ms). **If the socket is absent or times out → exit 0, inject nothing** (never spawn the model inline; never block the turn).
+3. Connects to the socket (short timeout, e.g. 300 ms). **If the socket is absent or times out → exit 0, inject nothing** (never spawn the model inline; never block the turn). **Socket-presence IS the activation gate** — the hooks do NOT read an enable env (they can't see the server's `.mcp.json` env anyway). Server hosting the socket ⇔ injection live.
 4. If `injected` and hits present → prints a compact `hookSpecificOutput.additionalContext` block. Else exit 0.
 
-- **`inject-on-prompt.mjs` (`UserPromptSubmit`):** query = the submitted prompt text.
-- **`inject-on-progress.mjs` (`PostToolBatch`, fallback `PostToolUse`):** query = derived from `transcript_path` — the latest user message concatenated with the most recent assistant text (captures topic drift mid-turn). Applies a **higher threshold** than the prompt hook and **per-session dedup** so the same doc isn't re-injected repeatedly.
+**Bundled in the plugin (self-contained):** the hook scripts live in `claude/plugins/interactive-mcp/hooks/` (as `.cjs`, matching the existing `inject-rules.cjs`) and are registered in the plugin's **own** `hooks/hooks.json` via `${CLAUDE_PLUGIN_ROOT}`. Installing the plugin auto-registers them — **no `claude/settings.json` edit, nothing manual outside the plugin.**
+
+- **`inject-on-prompt.cjs` (`UserPromptSubmit`):** query = the submitted prompt text.
+- **`inject-on-progress.cjs` (`PostToolBatch`, fallback `PostToolUse`):** query = derived from `transcript_path` — the latest user message (captures topic drift mid-turn). Applies a **higher threshold** than the prompt hook and **per-session dedup** so the same doc isn't re-injected repeatedly.
 
 **Injection format (compact):**
 ```
@@ -82,15 +84,17 @@ Agent runs tools …
         └─ additionalContext ──▶ injected before next model call
 ```
 
-## Configuration (opt-in)
+## Configuration
 
-Via env (set in `claude/settings.json` hook env) — **disabled by default**:
+**Single activation toggle — `REPO_DOCS_INJECT` in the plugin's `.mcp.json`** (reaches the MCP server, which hosts the socket). **On by default** (shipped `=1`): the server hosts the socket, the bundled hooks detect it, injection is live out of the box. Set it to `0`/unset to disable — no socket → hooks silently no-op.
 
-- `REPO_DOCS_INJECT=1` — master enable.
-- `REPO_DOCS_INJECT_THRESHOLD` — prompt-hook threshold (default TBD after calibration).
+Optional tuning via ambient env (read by the server/hooks if present, else defaults):
+
+- `REPO_DOCS_INJECT_THRESHOLD` — prompt-hook threshold (default from calibration).
 - `REPO_DOCS_INJECT_THRESHOLD_PROGRESS` — higher threshold for the progress hook.
 - `REPO_DOCS_INJECT_LIMIT` — max pointers (default 3).
-- `REPO_DOCS_INJECT_EVENTS` — `prompt,batch` (allows turning off the mid-turn trigger).
+- `REPO_DOCS_INJECT_TIMEOUT_MS` — socket connect timeout (default 300).
+- `REPO_DOCS_INJECT_EVENTS` — `prompt,batch` (turn off the mid-turn trigger with `prompt`).
 
 ## Threshold calibration
 
@@ -112,8 +116,8 @@ Orama hybrid scores are not cleanly normalized to 0–1, so the default threshol
 
 ## Deploy
 
-- New hook scripts in `claude/hooks/scripts/`; wiring in `claude/settings.json` (`UserPromptSubmit`, `PostToolBatch` or `PostToolUse`). No `SessionStart` spawn — the MCP server hosts the socket on its own `initialize`.
-- Socket server module `lib/inject-server.cjs` in the runtime (mirrored to both claude copies for byte-identity); `REPO_DOCS_INJECT=1` in `interactive-mcp`'s `.mcp.json`. Plugin version bump (version-keyed cache).
+- **Fully self-contained in the plugin.** Hook scripts in `claude/plugins/interactive-mcp/hooks/` (`.cjs`), registered in the plugin's own `hooks/hooks.json` (`${CLAUDE_PLUGIN_ROOT}`). **No `claude/settings.json` change** — installing the plugin registers everything. No `SessionStart` spawn — the MCP server hosts the socket on its own `initialize`.
+- Socket server module `lib/inject-server.cjs` in the runtime (mirrored to both claude copies for byte-identity); `REPO_DOCS_INJECT=1` shipped in `interactive-mcp`'s `.mcp.json` (on by default). Runtime deps already auto-install into the plugin data dir. Plugin version bump (version-keyed cache).
 - docs-sync: document the feature + config in the plugin README / `docs/**`.
 
 ## Risks / open items
