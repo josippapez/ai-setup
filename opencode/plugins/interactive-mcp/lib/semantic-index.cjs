@@ -1,20 +1,37 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
 const { Worker, isMainThread, parentPort } = require('node:worker_threads');
-const { relativePath } = require('./fs-utils.cjs');
 
-const CACHE_FILE_NAME = 'interactive-mcp-doc-embeddings.json';
-const MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
-const MAX_CHARS_PER_DOC = 2000;
-const QUERY_MAX_CHARS = 500;
-const SEMANTIC_THRESHOLD = 0.3;
+const MODEL_ID = 'Xenova/bge-small-en-v1.5';
+const MODEL_DTYPE = 'fp32';
+// bge-small's context ceiling. It ships model_max_length as Infinity, so the
+// pipeline's hardcoded `truncation: true` never clips — see the worker below.
+const MODEL_MAX_TOKENS = 512;
+const EMBED_DIM = 384;
+// bge-small wants the retrieval instruction on QUERIES only (not documents).
+const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 
 if (!isMainThread) {
   (async () => {
-    const { pipeline } = await import('@xenova/transformers');
-    const embed = await pipeline('feature-extraction', MODEL_ID);
+    const { createRequire } = require('node:module');
+    const { pathToFileURL } = require('node:url');
+    // NODE_PATH is honored by CJS require.resolve but NOT by ESM import(); resolve
+    // the absolute entry via require, then import that file URL so the worker finds
+    // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
+    const entry = createRequire(__filename).resolve('@huggingface/transformers');
+    const { pipeline, env } = await import(pathToFileURL(entry).href);
+    // Shared model cache across both plugins so each model is downloaded once,
+    // not per plugin data dir. Defaults to ~/.claude/repo-docs-models; override
+    // with the REPO_DOCS_MODELS_DIR env var.
+    env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
+      || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
+    const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
+    // Some model configs ship model_max_length as Infinity, so the pipeline's
+    // hardcoded `truncation: true` never clips and docs over 512 tokens crash the
+    // ONNX model (position-embedding broadcast mismatch). Pin the tokenizer's
+    // ceiling to the model's real context so a rare token-dense chunk truncates
+    // instead of crashing.
+    embed.tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
 
     parentPort.on('message', async (msg) => {
       if (msg.type !== 'embed') return;
@@ -37,13 +54,8 @@ if (!isMainThread) {
 let worker = null;
 let workerReady = false;
 let workerFailed = false;
-let buildingCache = false;
 let msgId = 0;
 const pending = new Map();
-
-function cachePath(context) {
-  return path.join(context.root, '.opencode', CACHE_FILE_NAME);
-}
 
 function warmUp() {
   if (worker || workerFailed) return;
@@ -127,130 +139,22 @@ function embedText(text) {
   });
 }
 
-function loadCache(context) {
-  try {
-    return JSON.parse(fs.readFileSync(cachePath(context), 'utf8'));
-  } catch {
-    return {};
-  }
+async function embedQuery(text) {
+  return embedText(QUERY_PREFIX + String(text || ''));
 }
 
-function saveCache(context, cache) {
-  try {
-    fs.mkdirSync(path.dirname(cachePath(context)), { recursive: true });
-    fs.writeFileSync(cachePath(context), JSON.stringify(cache));
-  } catch {}
-}
-
-function cosine(a, b) {
-  let dot = 0;
-  for (let index = 0; index < a.length; index += 1) dot += a[index] * b[index];
-  return dot;
-}
-
-async function indexFiles(context, docFiles, onlyMissing) {
-  const cache = loadCache(context);
-  let updated = 0;
-  let unchanged = 0;
-  let skipped = 0;
-
-  for (const filePath of docFiles) {
-    if (!workerReady) break;
-
-    let stat;
-    let content;
-    try {
-      stat = fs.statSync(filePath);
-      if (!stat.isFile() || stat.size > context.maxFileSizeBytes) {
-        skipped += 1;
-        continue;
-      }
-      content = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      skipped += 1;
-      continue;
-    }
-
-    const key = relativePath(context.root, filePath);
-    const cached = cache[key];
-    if (onlyMissing && cached && cached.mtime === stat.mtimeMs) {
-      unchanged += 1;
-      continue;
-    }
-
-    const vector = await embedText(content.slice(0, MAX_CHARS_PER_DOC));
-    if (!vector) {
-      skipped += 1;
-      continue;
-    }
-
-    cache[key] = { mtime: stat.mtimeMs, vector };
-    updated += 1;
-  }
-
-  saveCache(context, cache);
-  return { cachePath: cachePath(context), skipped, unchanged, updated };
-}
-
-async function buildCacheBackground(context, uncachedFiles) {
-  if (buildingCache) return;
-  buildingCache = true;
-  try {
-    await indexFiles(context, uncachedFiles, true);
-  } finally {
-    buildingCache = false;
-  }
-}
-
-async function buildSemanticIndex(context, docFiles) {
-  const ready = await waitUntilReady();
-  if (!ready) return { cachePath: cachePath(context), skipped: docFiles.length, unchanged: 0, updated: 0 };
-  return indexFiles(context, docFiles, true);
-}
-
-async function findSemantic(context, query, docFiles, limit) {
-  if (!workerReady) return [];
-
-  const queryVector = await embedText(query.slice(0, QUERY_MAX_CHARS));
-  if (!queryVector) return [];
-
-  const cache = loadCache(context);
-  const results = [];
-  const uncachedFiles = [];
-
-  for (const filePath of docFiles) {
-    let stat;
-    try {
-      stat = fs.statSync(filePath);
-      if (!stat.isFile() || stat.size > context.maxFileSizeBytes) continue;
-    } catch {
-      continue;
-    }
-
-    const key = relativePath(context.root, filePath);
-    const cached = cache[key];
-    if (cached && cached.mtime === stat.mtimeMs) {
-      const score = cosine(queryVector, cached.vector);
-      if (score > SEMANTIC_THRESHOLD) results.push({ path: key, score });
-      continue;
-    }
-
-    uncachedFiles.push(filePath);
-  }
-
-  if (uncachedFiles.length > 0) {
-    setImmediate(() => buildCacheBackground(context, uncachedFiles).catch(() => {}));
-  }
-
-  results.sort((a, b) => b.score - a.score);
-  return results.slice(0, limit);
+async function embedDocument(text) {
+  return embedText(String(text || ''));
 }
 
 module.exports = {
-  buildSemanticIndex,
-  findSemantic,
-  isReady,
-  shutdown,
   warmUp,
   waitUntilReady,
+  isReady,
+  shutdown,
+  embedQuery,
+  embedDocument,
+  MODEL_ID,
+  MODEL_DTYPE,
+  EMBED_DIM,
 };

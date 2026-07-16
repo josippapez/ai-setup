@@ -1,115 +1,97 @@
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const { getDocFiles } = require('../lib/docs.cjs');
-const { clampInteger, relativePath, tokenize } = require('../lib/fs-utils.cjs');
-const { findSemantic, isReady } = require('../lib/semantic-index.cjs');
+const { clampInteger } = require("../lib/fs-utils.cjs");
+const { loadIndex, hybridSearch } = require("../lib/doc-index.cjs");
+const { isReady, embedQuery } = require("../lib/semantic-index.cjs");
+const { isRerankEnabled, rerank } = require("../lib/reranker.cjs");
+const { indexPath } = require("./build-semantic-index.cjs");
 
 const MAX_SNIPPET_CHARS = 180;
 
 function compactText(input) {
-  const compacted = String(input || '')
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+  const compacted = String(input || "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .split(/\r?\n/g)
-    .filter((line) => !line.trim().startsWith('!['))
-    .join(' ')
-    .replace(/[!`*_>#~|[\]()]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .filter(line => !line.trim().startsWith("!["))
+    .join(" ")
+    .replace(/[!`*_>#~|[\]()]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
   return compacted
     .split(/\s+/g)
-    .filter((word) => !word.startsWith('http://') && !word.startsWith('https://'))
-    .join(' ');
+    .filter(word => !word.startsWith("http://") && !word.startsWith("https://"))
+    .join(" ");
 }
 
 const definition = {
-  name: 'find_docs',
+  name: "find_docs",
   description:
-    "Ranked search across the repo's Markdown docs (docs/**/*.md|.mdx and all README files) for a query. Use when you need to locate which doc covers a topic/term/feature before reading it — e.g. 'where are the routing docs', 'find the auth setup guide'. Returns a ranked list of relative paths with line numbers and a short matching snippet. Keyword scoring (path matches weighted higher) augmented by semantic-embedding matches when the index is warm. limit defaults to 8 (max 20). Pair with read_doc to open a result.",
+    "PRIMARY way to find anything in THIS repository's documentation — reach for it BEFORE answering any question about how this project works, its conventions, setup, architecture, features, or where a topic is documented, and prefer it over guessing or web search for repo-specific questions. Ranked hybrid search (semantic embeddings + BM25 keyword) over every Markdown file (*.md/*.mdx, excluding vendor/build dirs like node_modules and dist). Typical triggers: 'how does X work here', 'where are the routing/auth/testing docs', \"what's our convention for Y\", 'find the setup guide', or any repo-specific how/where/why. Returns ranked file:line results, each with its nearest section heading (anchor) and a short matching snippet, one result per file (best-matching chunk). limit defaults to 12 (max 30). Set rerank:true for exact-term/literal lookups (applies a cross-encoder to top candidates; off by default because it can hurt paraphrased queries). Then open a result with read_doc.",
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       query: {
-        type: 'string',
+        type: "string",
         description:
-          'Topic, term, feature, or phrase to search docs for (keyword + semantic). Required, non-empty.',
+          "Topic, term, feature, or phrase to search docs for (keyword + semantic). Required, non-empty.",
       },
       limit: {
-        type: 'integer',
+        type: "integer",
         minimum: 1,
-        maximum: 20,
-        default: 8,
-        description: 'Max results to return; default 8, range 1-20.',
+        maximum: 30,
+        default: 12,
+        description: "Max results to return; default 12, range 1-30.",
+      },
+      rerank: {
+        type: "boolean",
+        default: false,
+        description:
+          "Apply a cross-encoder reranker to the top candidates. Helps exact-term/literal queries; may hurt paraphrased ones. Off by default.",
       },
     },
-    required: ['query'],
+    required: ["query"],
     additionalProperties: false,
   },
 };
 
 async function execute(args, context) {
-  const query = String(args.query || '').trim();
-  const limit = clampInteger(args.limit, 8, 1, 20);
-  const tokens = tokenize(query);
-  if (!query || tokens.length === 0) return 'Please provide a non-empty query.';
+  const query = String(args.query || "").trim();
+  const limit = clampInteger(args.limit, 12, 1, 30);
+  if (!query) return "Please provide a non-empty query.";
+  if (!isReady()) return `Semantic index not ready yet — retry shortly.`;
 
-  const matches = [];
-  for (const filePath of getDocFiles(context)) {
-    let content = '';
-    try {
-      const stat = fs.statSync(filePath);
-      if (!stat.isFile() || stat.size > context.maxFileSizeBytes) continue;
-      content = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      continue;
-    }
-    const rel = relativePath(context.root, filePath);
-    const lowerPath = rel.toLowerCase();
-    const lowerContent = content.toLowerCase();
-    let score = 0;
-    for (const token of tokens) {
-      if (lowerPath.includes(token)) score += 4;
-      if (lowerContent.includes(token)) score += 1;
-    }
-    if (score <= 0) continue;
-    const lines = content.split(/\r?\n/g);
-    const lineIndex = lines.findIndex((line) =>
-      tokens.some((token) => line.toLowerCase().includes(token)),
-    );
-    matches.push({
-      rel,
-      score,
-      lineIndex,
-      snippet: lineIndex >= 0 ? lines[lineIndex].trim() : '',
-    });
+  const db = await loadIndex(indexPath(context));
+  if (!db) return `Index not built yet — it builds automatically on first connect; retry shortly, or run the reindex command.`;
+
+  const qvec = await embedQuery(query);
+  if (!qvec) return `Could not embed the query.`;
+
+  // Over-fetch chunk hits, optionally rerank, then collapse to best chunk per file.
+  const CAND = 60;
+  let hits = await hybridSearch(db, { term: query, vector: qvec, limit: CAND });
+  const wantRerank = args.rerank === true || isRerankEnabled();
+  if (wantRerank && hits.length > 1) {
+    const orderIdx = await rerank(query, hits.map(h => ({ text: h.content })));
+    hits = orderIdx.map(i => hits[i]);
   }
 
-  if (isReady()) {
-    const semanticHits = await findSemantic(context, query, getDocFiles(context), limit * 2);
-    const resultMap = new Map(matches.map((match) => [match.rel, match]));
-    for (const hit of semanticHits) {
-      const semanticScore = Math.round(hit.score * 14);
-      const existing = resultMap.get(hit.path);
-      if (existing) {
-        existing.score += semanticScore;
-        continue;
-      }
-      matches.push({ rel: hit.path, score: semanticScore, lineIndex: -1, snippet: 'semantic match' });
-      resultMap.set(hit.path, matches[matches.length - 1]);
-    }
+  const seen = new Set();
+  const files = [];
+  for (const h of hits) {
+    if (seen.has(h.path)) continue;
+    seen.add(h.path);
+    files.push(h);
+    if (files.length >= limit) break;
   }
+  if (files.length === 0) return `No docs for "${query}".`;
 
-  if (matches.length === 0) return `No docs for "${query}".`;
-  matches.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));
   const parts = [`docs "${query}"`];
-  for (const [index, item] of matches.slice(0, limit).entries()) {
-    const location = item.lineIndex >= 0 ? `:${item.lineIndex + 1}` : '';
-    const snippet = item.snippet
-      ? ` ${compactText(item.snippet).slice(0, MAX_SNIPPET_CHARS)}`
-      : '';
-    parts.push(`${index + 1}) ${item.rel}${location}${snippet}`);
-  }
-  return parts.join('; ');
+  files.forEach((h, i) => {
+    const anchor = h.heading ? ` › ${h.heading}` : "";
+    const snippet = compactText(h.content).slice(0, MAX_SNIPPET_CHARS);
+    parts.push(`${i + 1}) ${h.path}:${h.startLine}${anchor} — ${snippet}`);
+  });
+  return parts.join("; ");
 }
 
 module.exports = { findDocsTool: { definition, execute } };
