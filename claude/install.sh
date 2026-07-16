@@ -79,7 +79,7 @@ rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
 # hook). Deleting the loose copies prevents them double-loading alongside the plugin's.
 rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md" "$DEST/rules/user-interaction.instructions.md"
 
-# interactive-mcp runtime deps (@xenova/transformers) auto-install via the plugin's
+# interactive-mcp runtime deps (@huggingface/transformers) auto-install via the plugin's
 # SessionStart hook into ${CLAUDE_PLUGIN_DATA}/node_modules on first session — no manual
 # npm step here, and the same mechanism works for any consumer who installs the plugin.
 
