@@ -128,7 +128,9 @@ one toggle (REPO_DOCS_INJECT, on by default) · fail-safe · silent unless relev
 The index refreshes at three points, all incremental (mtime cache, so only changed docs re-embed):
 1. **On connect** — the MCP server runs `buildDocIndex()` in the background on `initialize`.
 2. **On Markdown edit (mid-session)** — the `reindex-on-edit.cjs` `PostToolUse` hook asks the server (over the socket) to re-embed after any `.md`/`.mdx` `Write`/`Edit`/`MultiEdit`, so edits made during a session become injectable without reconnecting. Registered in **both** claude plugins with a shared debounce lock so a single edit triggers exactly one reindex even though both plugins' hooks fire. The socket `reindex` op is served by whichever server hosts the socket (interactive-mcp).
-3. **Manual** — `/reindex` (the `markdown-orchestration:reindex` skill) forces a full incremental rebuild.
+3. **Manual** — `/reindex` (the `markdown-orchestration:reindex` skill) forces a full incremental rebuild (bypasses the debounce; still respects the build lock).
+
+**Concurrency safety (multiple servers share one index file).** Both claude plugins run byte-identical MCP servers, and several sessions may be open, so many processes could otherwise build/write `.claude/repo-docs/repo-docs-index.json` at once — the failure mode behind a runaway-CPU incident (interleaved writes → partial JSON → each reader treats the cache as empty → perpetual full re-embeds). `buildDocIndex` is guarded by: (a) **atomic writes** — persist to a temp file then `rename`, so a reader never sees a half-written index; (b) a **single-writer lock** (`index-build.lock`, exclusive-create with stale-takeover) — only one process builds at a time, others back off; (c) a **debounce** (`index-build.stamp`, ~5s) — bursts of triggers coalesce to one build. `force` (manual reindex) skips the debounce but not the lock.
 
 ## Configuration
 
