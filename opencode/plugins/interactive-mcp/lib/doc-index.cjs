@@ -65,7 +65,17 @@ module.exports = {
   // token (e.g. a 400-char rule/hash) — Orama's text index is a radix tree that
   // nests one level per character. JSON has no depth cap; the 1500-char chunk
   // limit bounds token depth well within JSON's limits.
-  saveIndex: (db, filePath) => orama().then(o => o.persistToFile(db, 'json', filePath)),
+  // Atomic write: persist to a per-process temp file then rename over the target.
+  // rename() is atomic on the same filesystem, so a concurrent reader (another
+  // MCP server's loadIndex, or loadPriorCache) never observes a half-written
+  // index — which would otherwise parse-fail, look like "no cache", and trigger a
+  // wasteful full re-embed. This is the core guard against the multi-server thrash.
+  saveIndex: (db, filePath) => orama().then(async o => {
+    const fs = require('node:fs');
+    const tmp = `${filePath}.tmp.${process.pid}`;
+    await o.persistToFile(db, 'json', tmp);
+    fs.renameSync(tmp, filePath);
+  }),
   loadIndex: (filePath) => orama().then(async o => {
     try { const fs = require('node:fs'); if (!fs.existsSync(filePath)) return null; return await o.restoreFromFile('json', filePath); }
     catch { return null; }

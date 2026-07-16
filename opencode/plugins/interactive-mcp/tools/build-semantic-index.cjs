@@ -16,12 +16,44 @@ const SCHEMA_VERSION = 2;
 // OpenCode-namespaced index location (claude uses .claude/repo-docs/).
 function indexPath(context) { return path.join(context.root, '.opencode', 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
+function lockPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.lock'); }
+function stampPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.stamp'); }
+
+// A build shouldn't outlast this; a lock older than it is treated as a crashed
+// build and taken over. Comfortably above a full cold rebuild of this corpus.
+const BUILD_LOCK_STALE_MS = 15 * 60 * 1000;
+// Coalesce bursts of rebuild triggers (e.g. many reindex ops from rapid .md
+// edits, or several sessions connecting at once) into at most one build per window.
+const BUILD_DEBOUNCE_MS = 5000;
 
 function ensureGitignore(dir) {
   fs.mkdirSync(dir, { recursive: true });
   const gi = path.join(dir, '.gitignore');
   if (!fs.existsSync(gi)) fs.writeFileSync(gi, '*\n');
 }
+
+// Single-writer guard: only one process builds the shared index at a time. Two
+// byte-identical MCP servers (interactive-mcp + markdown-orchestration), times N
+// sessions, otherwise write the same repo-docs-index.json concurrently. Exclusive
+// create wins the lock; a stale lock (crashed build) is taken over.
+function acquireBuildLock(context) {
+  const lock = lockPath(context);
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  try { fs.writeFileSync(lock, String(process.pid), { flag: 'wx' }); return true; }
+  catch {
+    let stale = false;
+    try { stale = Date.now() - fs.statSync(lock).mtimeMs > BUILD_LOCK_STALE_MS; }
+    catch { stale = true; } // lock vanished between the failed create and here
+    if (!stale) return false;
+    try { fs.writeFileSync(lock, String(process.pid)); return true; } catch { return false; }
+  }
+}
+function releaseBuildLock(context) { try { fs.rmSync(lockPath(context), { force: true }); } catch {} }
+function recentlyBuilt(context) {
+  try { return Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')) < BUILD_DEBOUNCE_MS; }
+  catch { return false; }
+}
+function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
 // Groups the prior persisted index's records by path, keyed to their mtime, so
 // buildDocIndex can reuse cached chunks verbatim for files whose mtime hasn't
@@ -56,9 +88,27 @@ function loadPriorCache(context) {
   return byPath;
 }
 
-async function buildDocIndex(context) {
+// force=true bypasses the debounce (manual /reindex should always rebuild); it
+// still respects the single-writer lock so it never races an in-progress build.
+async function buildDocIndex(context, { force = false } = {}) {
   const ready = await waitUntilReady();
   if (!ready) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context) };
+  ensureGitignore(path.dirname(indexPath(context))); // dir must exist for the lock
+  if (!force && recentlyBuilt(context)) {
+    return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), debounced: true };
+  }
+  if (!acquireBuildLock(context)) {
+    return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), locked: true };
+  }
+  try {
+    return await runBuild(context);
+  } finally {
+    markBuilt(context);
+    releaseBuildLock(context);
+  }
+}
+
+async function runBuild(context) {
   const db = await createIndex();
   const priorCache = loadPriorCache(context);
   let updated = 0, unchanged = 0, skipped = 0;
@@ -94,8 +144,10 @@ async function buildDocIndex(context) {
   fs.rmSync(path.join(context.root, '.opencode', 'interactive-mcp-doc-embeddings.json'), { force: true });
   // Drop the stale binary index from before the json-persist fix.
   fs.rmSync(path.join(dir, 'repo-docs-index.msp'), { force: true });
-  fs.writeFileSync(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
+  // Write the index (atomic rename) FIRST, then the meta. A reader that sees
+  // schemaVersion===current in meta is then guaranteed a complete matching index.
   await saveIndex(db, indexPath(context));
+  fs.writeFileSync(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
@@ -104,8 +156,9 @@ module.exports = { buildDocIndex, indexPath };
 if (require.main === module) {
   (async () => {
     const context = createContext(process.argv[2] || process.cwd());
-    const r = await buildDocIndex(context);
-    process.stdout.write(`repo_docs_index updated=${r.updated} unchanged=${r.unchanged} skipped=${r.skipped} cache=${r.cache}\n`);
+    const r = await buildDocIndex(context, { force: true }); // manual run always rebuilds
+    const note = r.locked ? ' (skipped: another build in progress)' : '';
+    process.stdout.write(`repo_docs_index updated=${r.updated} unchanged=${r.unchanged} skipped=${r.skipped} cache=${r.cache}${note}\n`);
     await shutdown();
   })().catch((e) => { process.stderr.write(`repo_docs_index error: ${e.message}\n`); process.exit(1); });
 }
