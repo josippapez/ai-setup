@@ -26,7 +26,9 @@ async function orama() {
 // Confirmed in Task 1 smoke test — adjust if the installed version differs.
 function createIndex(o) {
   return o.create({
-    schema: { path: 'string', heading: 'string', content: 'string', startLine: 'number', embedding: `vector[${EMBED_DIM}]` },
+    // mtime powers the incremental cache in build-semantic-index.cjs (not returned
+    // by hybridSearch — callers don't need it).
+    schema: { path: 'string', heading: 'string', content: 'string', startLine: 'number', mtime: 'number', embedding: `vector[${EMBED_DIM}]` },
   });
 }
 
