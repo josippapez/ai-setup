@@ -6,7 +6,7 @@ const { clampInteger } = require('../lib/fs-utils.cjs');
 const definition = {
   name: 'get_blast_radius',
   description:
-    "Compute the transitive dependents (the 'blast radius') of one or more files via breadth-first traversal of the import graph — every file that directly or indirectly imports the given paths. Use to estimate the full impact of a change/refactor/deletion: 'what's affected if I change these files'. paths is required (>=1 repo-relative path). maxDepth defaults to 3 (0-10), limit caps total nodes at 60 (max 200). Returns each reached file tagged with its distance (d1, d2...) and the 'via' file it was reached through. Relative-import edges only — chains crossing package-alias imports are cut, so a truncated result is not proof of a small blast radius.",
+    "Compute the transitive dependents (the 'blast radius') of one or more files via breadth-first traversal of the prebuilt repo import graph — every file that directly OR indirectly imports the given paths. RUN THIS before any non-trivial refactor, move, rename, deletion, or public-API/signature change to size the full impact up front — it is the authoritative impact check and resolves both relative imports and tsconfig `paths` aliases (e.g. @scope/pkg), so alias importers grep would miss are included; only bare third-party imports stay external. paths is required (>=1 repo-relative path). maxDepth defaults to 3 (0-10), limit caps total nodes at 60 (max 200). Returns each reached file tagged with its distance (d1, d2...) and the 'via' file it was reached through. A truncated result (hitting the node limit) is not proof of a small blast radius — raise limit/maxDepth to be sure.",
   inputSchema: {
     type: 'object',
     properties: {

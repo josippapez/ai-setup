@@ -68,7 +68,7 @@ async function handleRequest(message) {
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
       instructions:
-        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup; find_libs to check installed packages and versions; get_file_dependencies / get_file_dependents / get_blast_radius before editing or deleting a module to gauge impact. Paths are repo-root-relative POSIX. Dependency tools track relative imports only (package/alias imports are not resolved).',
+        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup; find_libs to check installed packages and versions; and ALWAYS run get_file_dependents / get_blast_radius before you move, rename, delete, or change the public API of any module (and get_file_dependencies before editing a file) — they are faster and more reliable than grepping imports because they resolve both relative imports and tsconfig `paths` aliases (only bare third-party imports stay external). Paths are repo-root-relative POSIX.',
     });
     // Ensure the OpenCode server is reachable; if not, start it in the
     // background at the configured port so tools that rely on it work without

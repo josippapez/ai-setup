@@ -5,7 +5,7 @@ const { ensureDependencyIndex } = require('../lib/dependency-index.cjs');
 const definition = {
   name: 'get_file_dependents',
   description:
-    "List the direct (one-hop) dependents of a JS/TS file — i.e. every source file that imports it. Use to assess immediate impact before changing or deleting a module: 'who imports this', 'what breaks if I change this file'. Input is a repo-relative path; returns one line per importing file with its relative import specifier, or 'none'. Only relative imports are tracked, so importers that reference the file via a package/path alias won't appear. For transitive (multi-hop) impact use get_blast_radius.",
+    "List the direct (one-hop) importers of a JS/TS file from the prebuilt repo import graph — every source file that imports it. ALWAYS run this before you rename, move, delete, or change the exports/signature of a module: it is the fast, authoritative way to answer 'who imports this' / 'what breaks if I change this file', and it beats grep because it resolves both relative imports and tsconfig `paths` aliases (e.g. @scope/pkg) — alias importers a text search would miss are included. Input is a repo-relative path; returns one line per importing file with its import specifier, or 'none'. Bare third-party imports are not resolved. For transitive (multi-hop) impact, follow up with get_blast_radius.",
   inputSchema: {
     type: 'object',
     properties: {

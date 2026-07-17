@@ -28,9 +28,123 @@ function getSourceFiles(context) {
   return files;
 }
 
-function resolveImportPath(context, fromFile, specifier) {
-  if (!specifier.startsWith('.')) return null;
-  const base = path.resolve(path.dirname(fromFile), specifier);
+// Names of tsconfig files to look at for `compilerOptions.paths`, in priority
+// order. Nx repos keep the alias map in tsconfig.base.json.
+const TSCONFIG_CANDIDATES = ['tsconfig.base.json', 'tsconfig.json'];
+
+// Minimal JSONC parser: strips // line and /* */ block comments (respecting
+// double-quoted strings) plus trailing commas, then JSON.parse. tsconfig files
+// commonly carry comments, so a plain JSON.parse would throw on them.
+function parseJsonc(text) {
+  let out = '';
+  let inString = false;
+  let inLine = false;
+  let inBlock = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (inLine) {
+      if (char === '\n') {
+        inLine = false;
+        out += char;
+      }
+      continue;
+    }
+    if (inBlock) {
+      if (char === '*' && next === '/') {
+        inBlock = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (inString) {
+      out += char;
+      if (char === '\\') {
+        out += next ?? '';
+        i += 1;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      out += char;
+      continue;
+    }
+    if (char === '/' && next === '/') {
+      inLine = true;
+      i += 1;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      inBlock = true;
+      i += 1;
+      continue;
+    }
+    out += char;
+  }
+  return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'));
+}
+
+// Turns a `compilerOptions.paths` map into ordered match entries. TypeScript
+// resolves the most specific pattern first, so exact keys are tried before
+// wildcards, and wildcards by longest static prefix.
+function buildAliasEntries(paths) {
+  const entries = [];
+  for (const [key, rawTargets] of Object.entries(paths || {})) {
+    const targets = Array.isArray(rawTargets) ? rawTargets : [rawTargets];
+    const starIndex = key.indexOf('*');
+    if (starIndex === -1) {
+      entries.push({ wildcard: false, key, prefix: key, suffix: '', targets });
+      continue;
+    }
+    entries.push({
+      wildcard: true,
+      prefix: key.slice(0, starIndex),
+      suffix: key.slice(starIndex + 1),
+      targets,
+    });
+  }
+  entries.sort((a, b) => {
+    if (a.wildcard !== b.wildcard) return a.wildcard ? 1 : -1;
+    return b.prefix.length - a.prefix.length;
+  });
+  return entries;
+}
+
+// Reads the repo's tsconfig alias map once and caches it on the context, so
+// package-alias imports (e.g. "@scope/pkg") resolve to real files instead of
+// being dropped as external. Falls back to no aliases (relative-only) when no
+// tsconfig or paths map is present.
+function loadAliasConfig(context) {
+  if (context.aliasConfig) return context.aliasConfig;
+  const config = { baseUrl: context.root, entries: [] };
+  for (const name of TSCONFIG_CANDIDATES) {
+    const file = path.join(context.root, name);
+    let raw = '';
+    try {
+      raw = fs.readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    try {
+      const options = parseJsonc(raw).compilerOptions || {};
+      config.baseUrl = path.resolve(context.root, options.baseUrl || '.');
+      config.entries = buildAliasEntries(options.paths);
+    } catch {
+      // Unparseable tsconfig — leave aliases empty (relative-only resolution).
+    }
+    break;
+  }
+  context.aliasConfig = config;
+  return config;
+}
+
+// Resolves a bare specifier (module target) that already points at an absolute
+// filesystem base to the first existing source file — trying the path as-is,
+// then with each source extension, then as a directory index.
+function resolveFileTarget(context, base) {
   const candidates = [
     base,
     ...Array.from(SOURCE_EXTENSIONS, (ext) => `${base}${ext}`),
@@ -45,6 +159,47 @@ function resolveImportPath(context, fromFile, specifier) {
     }
   }
   return null;
+}
+
+// Resolves a package-alias specifier via the tsconfig paths map. Returns the
+// repo-relative file it points at, or null for bare third-party imports that
+// match no alias.
+function resolveAlias(context, specifier) {
+  const { baseUrl, entries } = loadAliasConfig(context);
+  for (const entry of entries) {
+    if (!entry.wildcard) {
+      if (entry.key !== specifier) continue;
+      for (const target of entry.targets) {
+        const hit = resolveFileTarget(context, path.resolve(baseUrl, target));
+        if (hit) return hit;
+      }
+      continue;
+    }
+    if (specifier.length < entry.prefix.length + entry.suffix.length) continue;
+    if (!specifier.startsWith(entry.prefix)) continue;
+    if (!specifier.endsWith(entry.suffix)) continue;
+    const captured = specifier.slice(
+      entry.prefix.length,
+      specifier.length - entry.suffix.length,
+    );
+    for (const target of entry.targets) {
+      const hit = resolveFileTarget(
+        context,
+        path.resolve(baseUrl, target.replace('*', captured)),
+      );
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+function resolveImportPath(context, fromFile, specifier) {
+  if (specifier.startsWith('.'))
+    return resolveFileTarget(
+      context,
+      path.resolve(path.dirname(fromFile), specifier),
+    );
+  return resolveAlias(context, specifier);
 }
 
 function parseDependencies(context, filePath) {

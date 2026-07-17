@@ -5,7 +5,7 @@ const { ensureDependencyIndex } = require('../lib/dependency-index.cjs');
 const definition = {
   name: 'get_file_dependencies',
   description:
-    "List the outgoing imports/requires of a single JS/TS source file — i.e. what that file depends on. Use when tracing 'what does this module pull in' or before editing a file to see its imports. Input is a repo-relative path. Returns each edge as import|external + the source file + the resolved repo path (for relative imports) or the raw specifier (for package/alias imports, marked external). Relative-only resolution; bare and aliased imports stay unresolved. 'none' if the file has no imports or isn't in the graph.",
+    "Map what a JS/TS file imports (its outgoing dependencies) from the prebuilt repo import graph. REACH FOR THIS instead of grepping imports by hand whenever you need to understand a file before editing it, trace what a module pulls in, or confirm a dependency exists — it is faster and more accurate than a text search. Input is a repo-relative path. Returns each edge as import|external + the source file + the resolved repo path (for relative or tsconfig-alias imports) or the raw specifier (for bare third-party imports, marked external). Resolves relative imports AND tsconfig `paths` aliases (e.g. @scope/pkg); only bare third-party imports stay external. 'none' if the file has no imports or isn't in the graph.",
   inputSchema: {
     type: 'object',
     properties: {
