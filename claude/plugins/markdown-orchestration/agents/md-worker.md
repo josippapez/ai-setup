@@ -41,8 +41,8 @@ EOF
 3. **Docs self-check:** unless this is a docs-only chunk, or the repo has no docs convention, check whether your change left any owning docs stale — run `get_file_dependents` on your changed files and `find_docs` with the change's keywords, and honor any `docs_conventions` in your context-pack slice. Update stale docs **in your chunk's scope** as part of this chunk; for stale docs **out of scope**, do NOT edit them — list them in the `docs_impact` field you return so the orchestrator can plan a docs-sync chunk.
 4. **Post findings:** append your `### … · worker — findings` section to `issuePath` (what you did, files changed, validation output, per-criterion self-check, and the diff in a fenced ` ```diff ` block). Then set frontmatter `status: In Review` (Edit).
 5. **Request review (the PR):** spawn IN PARALLEL via the Agent tool, passing each the explicit `{issuePath, epicDir}`, the acceptance criteria, the diff, and the validation commands. **Use the fully-qualified, plugin-namespaced `subagent_type` (the `markdown-orchestration:` prefix) — the bare name may not resolve from inside a subagent:**
-   - a **code-standards-checker** (`subagent_type: markdown-orchestration:code-standards-checker`) — repo quality gates + standards; model by complexity (**haiku** for small mechanical diffs, **sonnet** otherwise);
-   - a **md-reviewer** (`subagent_type: markdown-orchestration:md-reviewer`) — correctness vs acceptance criteria. **Pick its model by complexity:** **opus** when the chunk is `high` complexity OR touches security/auth, data migrations, concurrency, money, or a large/cross-cutting diff; **sonnet** otherwise — **never haiku** (too weak to be a reliable verdict gate).
+   - a **code-standards-checker** (`subagent_type: markdown-orchestration:code-standards-checker`) — repo quality gates + standards; model by complexity (**haiku** for small mechanical diffs, **sonnet** otherwise; **opus**/**fable** only for a large or high-risk diff);
+   - a **md-reviewer** (`subagent_type: markdown-orchestration:md-reviewer`) — correctness vs acceptance criteria. **Pick its model by complexity:** **opus** when the chunk is `high` complexity OR touches security/auth, data migrations, concurrency, money, or a large/cross-cutting diff — **fable** for the highest-stakes of these; **sonnet** otherwise — **never haiku** (too weak to be a reliable verdict gate).
    - Each **appends its own verdict comment** to `issuePath`; neither moves status — that's your job on join.
    - **Docs-only exception** (scope is entirely markdown / `docs/**`, no source change): spawn the **`md-reviewer` ALONE and SKIP the code-standards-checker** — code gates don't apply to markdown and the doc checks overlap. Tell that reviewer to also verify links resolve, claims are grounded to `path:line`, and doc-shape/terminology is consistent; run it on **sonnet**.
 6. **Apply status on join:** once BOTH reviewers have returned, YOU set the frontmatter status (single writer — no concurrent append is in flight): both pass → **Done**; either fails → **In Progress**. Then append a `### … · worker — <result>` follow-up comment.
@@ -63,7 +63,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
   "status": "done | blocked | partial",
   "issuePath": "...",
   "summary": "one-paragraph result: what shipped + review outcome",
-  "review": { "standards": "pass | fail", "reviewer_tier": "opus | sonnet", "verdict": "pass | fail", "rounds": 1 },
+  "review": { "standards": "pass | fail", "reviewer_tier": "fable | opus | sonnet", "verdict": "pass | fail", "rounds": 1 },
   "files_changed": ["path:lines"],
   "docs_impact": [{ "doc": "path", "reason": "what changed that leaves this owning doc stale (out-of-scope — orchestrator plans a docs-sync chunk)" }],
   "blockers": ["..."],
