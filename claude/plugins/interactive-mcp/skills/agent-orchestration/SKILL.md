@@ -29,7 +29,13 @@ and prompt-loop owner; subagents never talk to the user directly.
    delegation where a spawned subagent dispatches its own reviewers/checkers
    for a DIFFERENT objective (e.g. an orchestration worker spawning its own
    code-standards-checker + reviewer to review what it built). That is
-   permitted and expected.
+   permitted and expected. Nested spawning IS platform-supported: subagents
+   inherit the Agent tool by default and may nest to a fixed depth of 5 (a
+   subagent granted the Agent tool — e.g. `md-worker` with all tools — can
+   spawn its reviewers). A spawn that fails or is denied is a local/config
+   issue to relay or retry — NEVER conclude the platform forbids nested
+   spawning, and never rationalize a failed spawn into a general capability
+   limit.
 7. If no meaningful progress remains after allowed attempts, the main agent
    MUST stop delegating, execute directly, validate, and report why.
 8. For independent work that can run while the main loop continues, the main
