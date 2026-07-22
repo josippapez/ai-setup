@@ -24,7 +24,12 @@ and prompt-loop owner; subagents never talk to the user directly.
 5. After follow-up, the main agent MAY relaunch at most one new agent for that
    same unresolved objective.
 6. The main agent MUST NOT create recursive new-agent spawning loops for the
-   same unresolved objective.
+   same unresolved objective. This bans re-spawning against the SAME
+   unresolved objective — it does NOT forbid a bounded, single-level
+   delegation where a spawned subagent dispatches its own reviewers/checkers
+   for a DIFFERENT objective (e.g. an orchestration worker spawning its own
+   code-standards-checker + reviewer to review what it built). That is
+   permitted and expected.
 7. If no meaningful progress remains after allowed attempts, the main agent
    MUST stop delegating, execute directly, validate, and report why.
 8. For independent work that can run while the main loop continues, the main

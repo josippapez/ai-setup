@@ -14,7 +14,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 3. Delegation prompts MUST include a full context pack in one message: objective, scope, constraints, validation commands, and handoff format.
 4. For empty/partial output on the same unresolved objective, the main agent MUST follow up with the same agent first before launching a new agent.
 5. After follow-up, the main agent MAY relaunch at most one new agent for that same unresolved objective.
-6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective.
+6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective. This bans re-spawning against the SAME unresolved objective — it does NOT forbid a bounded, single-level delegation where a spawned custom agent dispatches its own reviewers/checkers for a DIFFERENT objective (e.g. an orchestration worker spawning its own code-standards-checker + reviewer to review what it built). That is permitted and expected.
 7. If no meaningful progress remains after allowed attempts, the main agent MUST stop delegating, execute directly, validate, and report why.
 
 ## Model-tier-aware routing
