@@ -2,8 +2,9 @@
 // SessionStart hook: inject the plugin-bundled always-on rules as session context.
 // Claude Code has no native plugin "rules" loader, so a SessionStart hook emitting
 // `additionalContext` is the supported way to ship standing guidance with a plugin.
-// Runs on every SessionStart event (startup/resume/clear/compact) so the rules
-// survive context compaction.
+// Runs on every SessionStart event (startup/resume/clear/compact/fork) so the rules
+// survive context compaction (source="compact") — the only compaction-adjacent hook
+// that can re-inject context; PostCompact is side-effect only (no context injection).
 const fs = require("node:fs");
 const path = require("node:path");
 

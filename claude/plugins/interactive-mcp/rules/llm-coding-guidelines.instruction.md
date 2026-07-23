@@ -86,4 +86,13 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Root cause over symptoms
+
+Fix the underlying cause, not the surface symptom. A patch that only hides the symptom leaves the bug live.
+
+- Before fixing, trace the failure to its source — reproduce it, follow it to the exact line/condition that causes it. Don't stop where it surfaces.
+- No symptom-masking: don't swallow errors, wrap a bug in defensive `try/catch`, add retries, sprinkle `?.`/null-guards, bump timeouts, or insert sleeps to paper over a race — unless the root cause is genuinely external and outside your control (say so explicitly).
+- If you can only treat the symptom now, name the real root cause and mark the stopgap with a `debt:` comment (or a follow-up) so it isn't mistaken for a real fix.
+- The fix isn't done until you can explain WHY the bug happened — not just that it stopped reproducing.
+
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

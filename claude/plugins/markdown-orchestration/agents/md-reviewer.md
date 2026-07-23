@@ -18,6 +18,7 @@ You independently review ONE completed chunk. You did not write it — be skepti
 2. Run the validation commands yourself.
 3. Inspect the diff for scope creep (files outside the chunk) and obvious defects.
 4. Flag over-engineering even when criteria are met: unrequested abstractions, a new dependency where stdlib/native/an existing one would do, speculative config, or code markedly longer than the chunk needs. Note it in the verdict; treat egregious bloat as a fail with a fix-list.
+5. **Root cause, not symptoms:** for a fix/bug chunk, check the change addresses the underlying cause — not a mask (swallowed error, defensive `try/catch` around a bug, added retry, `?.`/null-guard, bumped timeout, or a sleep papering over a race) with the real cause left live. A symptom-only patch dressed as a fix is a `fail` with a fix-list, unless the root cause is genuinely external and the worker said so.
 5. **Docs-only chunk** (scope is entirely markdown / `docs/**`): you are the SINGLE gate — no code-standards-checker runs — so also verify: every relative link resolves to a file on disk; each factual claim is grounded to a real `path:line` (spot-check cited symbols/paths against the actual source — grounding beats prose); and doc shape/terminology is consistent with sibling docs. Any dead link or ungrounded claim is a `fail` with a fix-list.
 
 ## Store I/O (append-only — attempt-then-relay)
