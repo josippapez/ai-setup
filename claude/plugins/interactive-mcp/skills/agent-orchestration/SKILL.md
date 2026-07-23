@@ -28,14 +28,16 @@ and prompt-loop owner; subagents never talk to the user directly.
    unresolved objective — it does NOT forbid a bounded, single-level
    delegation where a spawned subagent dispatches its own reviewers/checkers
    for a DIFFERENT objective (e.g. an orchestration worker spawning its own
-   code-standards-checker + reviewer to review what it built). That is
-   permitted and expected. Nested spawning IS platform-supported: subagents
-   inherit the Agent tool by default and may nest to a fixed depth of 5 (a
-   subagent granted the Agent tool — e.g. `md-worker` with all tools — can
-   spawn its reviewers). A spawn that fails or is denied is a local/config
-   issue to relay or retry — NEVER conclude the platform forbids nested
-   spawning, and never rationalize a failed spawn into a general capability
-   limit.
+   code-standards-checker + reviewer to review what it built). **Whether a
+   subagent CAN spawn depends on config, not on the objective:** as of Claude
+   Code v2.1.217 nested spawning is **OFF by default** — a subagent does not
+   receive the `Agent` tool unless `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` is set
+   (this repo sets it to `2` in `settings.json`, which is what lets a worker
+   spawn its reviewers; when enabled, nesting is capped at depth 5). So: with
+   the env var set, a spawned worker CAN spawn its reviewers; if it's unset, the
+   subagent genuinely lacks the spawn tool (only `TaskStop`/`SendMessage`/
+   `EnterWorktree` surface) and must relay the work to the orchestrator rather
+   than retry — that's the real platform default, not a bug.
 7. If no meaningful progress remains after allowed attempts, the main agent
    MUST stop delegating, execute directly, validate, and report why.
 8. For independent work that can run while the main loop continues, the main
