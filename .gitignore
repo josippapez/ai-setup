@@ -9,3 +9,4 @@ node_modules/
 !opencode/agents/figma-layout-token-analyst.md
 *.log
 **/interactive-mcp-doc-embeddings.json
+/docs
