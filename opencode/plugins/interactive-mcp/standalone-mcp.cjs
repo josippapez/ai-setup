@@ -3,7 +3,7 @@
 
 const readline = require('node:readline');
 const { createContext } = require('./lib/context.cjs');
-const { warmUp } = require('./lib/semantic-index.cjs');
+const { warmUp, shutdown } = require('./lib/semantic-index.cjs');
 const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { buildDocIndex } = require('./tools/build-semantic-index.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
@@ -18,6 +18,7 @@ const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
 const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
 const { manageMemoriesTool } = require('./tools/manage-memories.cjs');
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
+const { startInjectServer } = require('./lib/inject-server.cjs');
 
 const SERVER_INFO = { name: 'interactive-mcp-standalone', version: '0.1.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
@@ -37,6 +38,15 @@ const registeredTools = [
 const toolsByName = new Map(
   registeredTools.map((tool) => [tool.definition.name, tool]),
 );
+let injectServer = null;
+
+async function stopBackgroundWork() {
+  if (injectServer) {
+    await new Promise((resolve) => injectServer.close(resolve)).catch(() => {});
+    injectServer = null;
+  }
+  await shutdown();
+}
 
 function writeMessage(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -83,12 +93,18 @@ async function handleRequest(message) {
     // Pre-embed docs in the background on connect (fire-and-forget, incremental
     // via mtime cache) so the first find_docs doesn't pay the indexing cost.
     buildDocIndex(context).catch(() => {});
+    // Reuse this process's warm model for incremental reindex requests from the
+    // OpenCode plugin after Markdown edits.
+    startInjectServer(context)
+      .then((server) => { injectServer = server; })
+      .catch(() => {});
     // Start building the dependency graph in the background on connect so the
     // index is ready (or observably in progress) before the first tool call.
     startDependencyIndex(context).catch(() => {});
     return;
   }
   if (method === 'shutdown') {
+    await stopBackgroundWork();
     writeResult(id, null);
     return;
   }
@@ -132,10 +148,12 @@ rl.on('line', (line) => {
       process.stderr.write(`handler error: ${err.message}\n`),
     );
   } else if (message?.method === 'exit') {
-    process.exit(0);
+    stopBackgroundWork().finally(() => process.exit(0));
   }
 });
-rl.on('close', () => process.exit(0));
+rl.on('close', () => stopBackgroundWork().finally(() => process.exit(0)));
 rl.on('error', (err) =>
   process.stderr.write(`readline error: ${err.message}\n`),
 );
+process.on('SIGINT', () => stopBackgroundWork().finally(() => process.exit(0)));
+process.on('SIGTERM', () => stopBackgroundWork().finally(() => process.exit(0)));

@@ -14,7 +14,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 3. Delegation prompts MUST include a full context pack in one message: objective, scope, constraints, validation commands, and handoff format.
 4. For empty/partial output on the same unresolved objective, the main agent MUST follow up with the same agent first before launching a new agent.
 5. After follow-up, the main agent MAY relaunch at most one new agent for that same unresolved objective.
-6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective. This bans re-spawning against the SAME unresolved objective — it does NOT forbid a bounded, single-level delegation where a spawned custom agent dispatches its own reviewers/checkers for a DIFFERENT objective (e.g. an orchestration worker spawning its own code-standards-checker + reviewer to review what it built). **Whether a subagent CAN spawn depends on config, not on the objective:** as of Claude Code v2.1.217 nested spawning is **OFF by default** — a subagent does not receive the `Agent` tool unless `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` is set (this setup sets it to `2`, which is what lets a worker spawn its reviewers; when enabled, nesting is capped at depth 5). So: with the env var set, a spawned worker CAN spawn its reviewers; if it's unset, the subagent genuinely lacks the spawn tool (only `TaskStop`/`SendMessage`/`EnterWorktree` surface) and must relay the work to the orchestrator rather than retry — that's the real platform default, not a bug.
+6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective. This does not forbid one bounded review layer: an orchestration worker may use OpenCode's native `task` tool to dispatch checkers/reviewers for the distinct review objective. If `task` is unavailable to that worker, it must relay the review request to the orchestrator rather than retrying or pretending review passed.
 7. If no meaningful progress remains after allowed attempts, the main agent MUST stop delegating, execute directly, validate, and report why.
 
 ## Model-tier-aware routing
@@ -51,12 +51,12 @@ Sub-agents run in separate sessions and do NOT inherit the main agent's CLI exte
 
 Before delegating or answering repo-specific questions, the main agent MUST prefer `interactive-mcp-standalone` plugin tools over broad file reads or web searches:
 
-- Repo docs: `find_docs`, `list_docs`, `read_doc`
-- Package versions: `find_libs`
-- Dependency and impact analysis: `get_file_dependencies`, `get_file_dependents`, `get_blast_radius`
-- Graph readiness: `get_repository_index_status`
+- Repo docs: `interactive-mcp-standalone_find_docs`, `interactive-mcp-standalone_list_docs`, `interactive-mcp-standalone_read_doc`
+- Package versions: `interactive-mcp-standalone_find_libs`
+- Dependency and impact analysis: `interactive-mcp-standalone_get_file_dependencies`, `interactive-mcp-standalone_get_file_dependents`, `interactive-mcp-standalone_get_blast_radius`
+- Graph readiness: `interactive-mcp-standalone_get_repository_index_status`
 - Subagent spawning: use the native `task` tool in a TUI session; the `interactive-mcp-standalone` plugin is for repo grounding tools only.
-- Persistent context: `manage_memories`
+- Persistent context: `interactive-mcp-standalone_manage_memories`
 
 These tools are registered by the `interactive-mcp-standalone` plugin in `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). Use them to ground decisions in repo conventions without loading large amounts of source code into context.
 

@@ -20,11 +20,13 @@ if (!isMainThread) {
     // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
     const { pipeline, env } = await import(pathToFileURL(entry).href);
-    // Shared model cache across both plugins so each model is downloaded once,
-    // not per plugin data dir. Defaults to ~/.claude/repo-docs-models; override
-    // with the REPO_DOCS_MODELS_DIR env var.
+    // Shared OpenCode model cache so each model is downloaded once.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
-      || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
+      || require('node:path').join(
+        process.env.XDG_CONFIG_HOME || require('node:path').join(require('node:os').homedir(), '.config'),
+        'opencode',
+        'repo-docs-models',
+      );
     const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
     // Some model configs ship model_max_length as Infinity, so the pipeline's
     // hardcoded `truncation: true` never clips and docs over 512 tokens crash the

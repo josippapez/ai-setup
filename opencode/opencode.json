@@ -13,7 +13,7 @@
     "./plugins/interactive-mcp/interactive-mcp.js"
   ],
   "skills": {
-    "paths": [".github/skills/"]
+    "paths": ["./skills"]
   },
   "permission": {
     "websearch": "allow",
@@ -38,31 +38,17 @@
       "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
       "timeout": 120000
     },
-    "electron-mcp": {
-      "type": "local",
-      "command": ["npx", "-y", "@iflow-mcp/electron-mcp-server"],
-      "timeout": 120000
-    },
     "Framelink Figma": {
       "type": "local",
       "command": ["npx", "-y", "figma-developer-mcp", "--stdio"],
       "environment": {
-        "FIGMA_API_KEY": "${FIGMA_API_KEY}"
+        "FIGMA_API_KEY": "{env:FIGMA_API_KEY}"
       },
       "timeout": 120000
     },
-    "interactive": {
-      "command": [
-        "npx",
-        "-y",
-        "@rawwee/interactive-mcp",
-        "-t",
-        "1200",
-        "--disable-tools",
-        "message_complete_notification"
-      ],
-      "type": "local",
-      "timeout": 1210000
+    "storybook-web-components": {
+      "type": "remote",
+      "url": "http://localhost:6006/mcp"
     }
   }
 }

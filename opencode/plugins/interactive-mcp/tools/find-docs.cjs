@@ -1,10 +1,11 @@
 "use strict";
 
 const { clampInteger } = require("../lib/fs-utils.cjs");
-const { loadIndex, hybridSearch } = require("../lib/doc-index.cjs");
-const { isReady, embedQuery } = require("../lib/semantic-index.cjs");
+const { loadIndex } = require("../lib/doc-index.cjs");
+const { isReady } = require("../lib/semantic-index.cjs");
 const { isRerankEnabled, rerank } = require("../lib/reranker.cjs");
 const { indexPath } = require("./build-semantic-index.cjs");
+const { rankDocs, CAND } = require("../lib/doc-search.cjs");
 
 const MAX_SNIPPET_CHARS = 180;
 
@@ -60,30 +61,29 @@ async function execute(args, context) {
   if (!query) return "Please provide a non-empty query.";
   if (!isReady()) return `Semantic index not ready yet — retry shortly.`;
 
-  const db = await loadIndex(indexPath(context));
-  if (!db) return `Index not built yet — it builds automatically on first connect; retry shortly, or run the reindex command.`;
-
-  const qvec = await embedQuery(query);
-  if (!qvec) return `Could not embed the query.`;
-
-  // Over-fetch chunk hits, optionally rerank, then collapse to best chunk per file.
-  const CAND = 60;
-  let hits = await hybridSearch(db, { term: query, vector: qvec, limit: CAND });
   const wantRerank = args.rerank === true || isRerankEnabled();
-  if (wantRerank && hits.length > 1) {
-    const orderIdx = await rerank(query, hits.map(h => ({ text: h.content })));
-    hits = orderIdx.map(i => hits[i]);
+  let files = await rankDocs(context, wantRerank
+    ? { query, limit: CAND, threshold: 0, collapse: false }
+    : { query, limit, threshold: 0 });
+  if (files.length === 0) {
+    const db = await loadIndex(indexPath(context));
+    if (!db) return `Index not built yet — it builds automatically on first connect; retry shortly, or run the reindex command.`;
+    return `No docs for "${query}".`;
   }
-
-  const seen = new Set();
-  const files = [];
-  for (const h of hits) {
-    if (seen.has(h.path)) continue;
-    seen.add(h.path);
-    files.push(h);
-    if (files.length >= limit) break;
+  if (wantRerank && files.length > 1) {
+    const orderIdx = await rerank(query, files.map(h => ({ text: h.content })));
+    files = orderIdx.map(i => files[i]);
+    const seen = new Set();
+    const collapsed = [];
+    for (const h of files) {
+      if (seen.has(h.path)) continue;
+      seen.add(h.path);
+      collapsed.push(h);
+      if (collapsed.length >= limit) break;
+    }
+    files = collapsed;
   }
-  if (files.length === 0) return `No docs for "${query}".`;
+  files = files.slice(0, limit);
 
   const parts = [`docs "${query}"`];
   files.forEach((h, i) => {

@@ -31,11 +31,11 @@ The agent MUST NOT apply tier-aware routing in these cases:
 
 The agent MUST rely heavily on the `interactive-mcp-standalone` plugin tools to ground answers in repo conventions without loading large amounts of source code into context:
 
-- Repo docs: `find_docs`, `list_docs`, `read_doc`
-- Package versions: `find_libs`
-- Dependency and impact analysis: `get_file_dependencies`, `get_file_dependents`, `get_blast_radius`
-- Graph readiness: `get_repository_index_status`
+- Repo docs: `interactive-mcp-standalone_find_docs`, `interactive-mcp-standalone_list_docs`, `interactive-mcp-standalone_read_doc`
+- Package versions: `interactive-mcp-standalone_find_libs`
+- Dependency and impact analysis: `interactive-mcp-standalone_get_file_dependencies`, `interactive-mcp-standalone_get_file_dependents`, `interactive-mcp-standalone_get_blast_radius`
+- Graph readiness: `interactive-mcp-standalone_get_repository_index_status`
 - Subagent spawning: use the native `task` tool in a TUI session; the `interactive-mcp-standalone` plugin is for repo grounding tools only.
-- Persistent context: `manage_memories`
+- Persistent context: `interactive-mcp-standalone_manage_memories`
 
 These tools are registered by the `interactive-mcp-standalone` plugin located at `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). The agent SHOULD prefer these tools over broad file reads or web searches for repo-specific conventions.
