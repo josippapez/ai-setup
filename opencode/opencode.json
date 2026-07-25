@@ -16,6 +16,7 @@
   "skills": {
     "paths": ["./skills"]
   },
+  "subagent_depth": 2,
   "permission": {
     "websearch": "allow",
     "glob": "allow",
