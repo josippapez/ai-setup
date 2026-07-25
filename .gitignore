@@ -10,3 +10,4 @@ node_modules/
 *.log
 **/interactive-mcp-doc-embeddings.json
 /docs
+logs
