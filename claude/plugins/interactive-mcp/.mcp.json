@@ -16,10 +16,5 @@
     "type": "stdio",
     "command": "npx",
     "args": ["-y", "chrome-devtools-mcp@latest", "--autoConnect"]
-  },
-  "wcag": {
-    "type": "stdio",
-    "command": "npx",
-    "args": ["-y", "wcag-guidelines-mcp"]
   }
 }
