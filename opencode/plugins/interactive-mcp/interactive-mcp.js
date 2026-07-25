@@ -3,10 +3,34 @@ import net from 'node:net';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import injectClient from './lib/inject-client.cjs';
 import reindexDebounce from './lib/reindex-debounce.cjs';
 
 const pluginDirectory = dirname(fileURLToPath(import.meta.url));
+const { formatBlock, isConversationalFiller, queryInject } = injectClient;
 const { claimReindex } = reindexDebounce;
+const latestPrompts = new Map();
+const pendingQueries = new Map();
+const seenProgressDocs = new Map();
+
+function numberFromEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function messageText(parts) {
+  return parts
+    .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join(' ')
+    .trim();
+}
+
+function toolQuery(input) {
+  const args = input.args || {};
+  const target = args.filePath || args.file_path || args.path || args.command || '';
+  return `${input.tool || ''} ${target}`.trim();
+}
 
 function requestsMarkdownReindex(input) {
   const tool = String(input.tool || '').toLowerCase();
@@ -34,7 +58,9 @@ function requestReindex(repositoryRoot) {
  * @typedef {{ type: 'remote', url: string, enabled?: boolean, timeout?: number }} RemoteMcpConfig
  * @typedef {{ mcp?: Record<string, LocalMcpConfig | RemoteMcpConfig> }} OpenCodeConfig
  * @typedef {{
+ *   event: (input: { event?: { type?: string, properties?: { info?: { id?: string } } } }) => Promise<void>,
  *   config: (config: OpenCodeConfig) => void | Promise<void>,
+ *   'chat.message': (input: { sessionID: string }, output: { parts: Array<{ type?: string, text?: string }> }) => Promise<void>,
  *   'tool.execute.after': (input: { tool?: string, args?: Record<string, unknown> }) => Promise<void>,
  *   'shell.env': (input: { sessionID?: string }, output: { env: Record<string, string> }) => Promise<void>,
  *   'experimental.chat.system.transform': (input: { sessionID?: string }, output: { system: string[] }) => Promise<void>
@@ -73,6 +99,14 @@ export default async function interactiveMcpPlugin({
   }
 
   return {
+    event: async ({ event }) => {
+      if (event?.type !== 'session.deleted') return;
+      const sessionID = event.properties?.info?.id;
+      if (!sessionID) return;
+      latestPrompts.delete(sessionID);
+      pendingQueries.delete(sessionID);
+      seenProgressDocs.delete(sessionID);
+    },
     config: async (config) => {
       config.mcp = {
         ...config.mcp,
@@ -90,8 +124,19 @@ export default async function interactiveMcpPlugin({
         },
       };
     },
+    'chat.message': async (input, output) => {
+      const prompt = messageText(output.parts || []);
+      if (prompt.replace(/[^a-zA-Z]/g, '').length < 8 || isConversationalFiller(prompt)) return;
+      latestPrompts.set(input.sessionID, prompt);
+      pendingQueries.set(input.sessionID, { query: prompt, progress: false });
+    },
     'tool.execute.after': async (input) => {
       if (requestsMarkdownReindex(input)) requestReindex(repositoryRoot);
+      const prompt = latestPrompts.get(input.sessionID) || '';
+      const query = `${prompt} ${toolQuery(input)}`.trim().replace(/\s+/g, ' ').slice(0, 400);
+      if (query.replace(/[^a-zA-Z]/g, '').length >= 8 && !isConversationalFiller(query)) {
+        pendingQueries.set(input.sessionID, { query, progress: true });
+      }
     },
     'shell.env': async (input, output) => {
       if (input.sessionID) output.env.OPENCODE_SESSION_ID = input.sessionID;
@@ -99,6 +144,27 @@ export default async function interactiveMcpPlugin({
     'experimental.chat.system.transform': async (input, output) => {
       if (input.sessionID) {
         output.system.push(`Current OpenCode session ID: ${input.sessionID}. It is also available to shell commands as OPENCODE_SESSION_ID.`);
+        const pending = pendingQueries.get(input.sessionID);
+        if (!pending) return;
+        pendingQueries.delete(input.sessionID);
+        const threshold = pending.progress
+          ? numberFromEnv('REPO_DOCS_INJECT_THRESHOLD_PROGRESS', numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.86))
+          : numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.80);
+        const result = await queryInject(repositoryRoot, {
+          query: pending.query,
+          limit: numberFromEnv('REPO_DOCS_INJECT_LIMIT', 3),
+          threshold,
+        }, numberFromEnv('REPO_DOCS_INJECT_TIMEOUT_MS', 300));
+        if (!result?.injected || !result.hits?.length) return;
+        let hits = result.hits;
+        if (pending.progress) {
+          const seen = seenProgressDocs.get(input.sessionID) || new Set();
+          hits = hits.filter((hit) => !seen.has(hit.path));
+          hits.forEach((hit) => seen.add(hit.path));
+          seenProgressDocs.set(input.sessionID, seen);
+        }
+        const block = formatBlock(hits);
+        if (block) output.system.push(block);
       }
     },
   };

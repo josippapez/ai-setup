@@ -16,7 +16,10 @@ const {
 const { fileDependenciesTool } = require('./tools/get-file-dependencies.cjs');
 const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
 const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
-const { manageMemoriesTool } = require('./tools/manage-memories.cjs');
+const {
+  ensureMemoryStorage,
+  manageMemoriesTool,
+} = require('./tools/manage-memories.cjs');
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
 const { startInjectServer } = require('./lib/inject-server.cjs');
 
@@ -73,6 +76,7 @@ async function handleToolCall(name, args) {
 async function handleRequest(message) {
   const { id, method, params } = message;
   if (method === 'initialize') {
+    ensureMemoryStorage(context);
     writeResult(id, {
       protocolVersion: SUPPORTED_PROTOCOL_VERSION,
       capabilities: { tools: {} },

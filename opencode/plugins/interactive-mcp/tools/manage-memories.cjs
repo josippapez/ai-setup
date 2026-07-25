@@ -6,7 +6,7 @@ const path = require('node:path');
 const definition = {
   name: 'manage_memories',
   description:
-    "Create, list, update, or delete persistent repo-local memory notes stored in .opencode/interactive-mcp-memories.json. Use to remember durable facts/decisions across sessions — 'remember that we use pnpm', 'note this gotcha', 'list saved memories', 'forget memory X'. action is required; create/update need content; update/delete need the memory id. scope is 'project' (default) or 'global'. Returns the affected memory record (or full list for action=list) as JSON.",
+    "Create, list, update, or delete persistent repo-local memory notes stored in the self-ignored .opencode/memories/ folder. Use to remember durable facts/decisions across sessions — 'remember that we use pnpm', 'note this gotcha', 'list saved memories', 'forget memory X'. action is required; create/update need content; update/delete need the memory id. scope is 'project' (default) or 'global'. Returns the affected memory record (or full list for action=list) as JSON.",
   inputSchema: {
     type: 'object',
     properties: {
@@ -38,17 +38,34 @@ const definition = {
   },
 };
 
+function ensureMemoryStorage(context) {
+  const directory = path.dirname(context.memoriesPath);
+  fs.mkdirSync(directory, { recursive: true });
+  const ignorePath = path.join(directory, '.gitignore');
+  if (!fs.existsSync(ignorePath)) fs.writeFileSync(ignorePath, '*\n', 'utf8');
+}
+
 function readMemories(context) {
+  ensureMemoryStorage(context);
   try {
     const parsed = JSON.parse(fs.readFileSync(context.memoriesPath, 'utf8'));
     return Array.isArray(parsed.memories) ? parsed.memories : [];
+  } catch {}
+
+  if (!context.legacyMemoriesPath) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(context.legacyMemoriesPath, 'utf8'));
+    const memories = Array.isArray(parsed.memories) ? parsed.memories : [];
+    writeMemories(context, memories);
+    fs.rmSync(context.legacyMemoriesPath, { force: true });
+    return memories;
   } catch {
     return [];
   }
 }
 
 function writeMemories(context, memories) {
-  fs.mkdirSync(path.dirname(context.memoriesPath), { recursive: true });
+  ensureMemoryStorage(context);
   fs.writeFileSync(
     context.memoriesPath,
     `${JSON.stringify({ memories }, null, 2)}\n`,
@@ -100,4 +117,7 @@ function execute(args, context) {
   return `Unknown action: ${action}`;
 }
 
-module.exports = { manageMemoriesTool: { definition, execute } };
+module.exports = {
+  ensureMemoryStorage,
+  manageMemoriesTool: { definition, execute },
+};

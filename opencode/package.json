@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@opencode-ai/plugin": "1.4.6",

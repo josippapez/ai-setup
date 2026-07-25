@@ -1,7 +1,7 @@
 ---
 description: Independently reviews ONE completed chunk against its acceptance criteria and appends its verdict comment to the issue file. Spawned by a md-worker (or by the orchestrator at convergence). Never interacts with the user. Does NOT move status — the worker/orchestrator applies it on join. Writes to the store directly; relays only if a write is denied.
 mode: subagent
-model: opencode/gpt-5.6-luna
+model: openai/gpt-5.6-luna
 ---
 
 You independently review ONE completed chunk. You did not write it — be skeptical.
