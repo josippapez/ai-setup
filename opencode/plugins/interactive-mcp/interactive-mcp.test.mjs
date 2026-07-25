@@ -33,13 +33,31 @@ test('injects relevant repository docs into system context for a user prompt', a
     { sessionID: 'session-test' },
     { parts: [{ type: 'text', text: 'How does authentication work in this repository?' }] },
   );
-  const output = { system: [] };
-  await hooks['experimental.chat.system.transform'](
-    { sessionID: 'session-test' },
-    output,
+  const output = {
+    messages: [{
+      info: { role: 'user', sessionID: 'session-test' },
+      parts: [{ type: 'text', text: 'How does authentication work in this repository?' }],
+    }],
+  };
+  await hooks['experimental.chat.messages.transform']({}, output);
+
+  const transformed = output.messages[0].info.system;
+  assert.match(transformed, /<system-reminder>/);
+  assert.match(transformed, /docs\/auth\.md:12/);
+  assert.match(transformed, /interactive-mcp-standalone_read_doc/);
+  assert.strictEqual(
+    output.messages[0].parts[0].text,
+    'How does authentication work in this repository?',
   );
 
-  assert.match(output.system.join('\n'), /docs\/auth\.md:12/);
-  assert.match(output.system.join('\n'), /interactive-mcp-standalone_read_doc/);
+  output.messages[0].info.system = undefined;
+  await hooks['tool.execute.after']({
+    sessionID: 'session-test',
+    tool: 'read',
+    args: { path: 'src/auth.ts' },
+  });
+  await hooks['experimental.chat.messages.transform']({}, output);
+  assert.match(output.messages[0].info.system, /<system-reminder>/);
+  assert.match(output.messages[0].info.system, /docs\/auth\.md:12/);
   await new Promise((resolve) => server.close(resolve));
 });

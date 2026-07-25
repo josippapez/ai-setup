@@ -4,12 +4,32 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const { rankDocs } = require('./doc-search.cjs');
+const { isReady } = require('./semantic-index.cjs');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
 
 const MAX_SNIPPET_CHARS = 180;
 
 function injectSocketPath(root) {
   return path.join(root, '.opencode', 'repo-docs', 'inject.sock');
+}
+
+function socketIsActive(socketPath, timeoutMs = 200) {
+  return new Promise((resolve) => {
+    const connection = net.connect(socketPath);
+    const timer = setTimeout(() => {
+      connection.destroy();
+      resolve(false);
+    }, timeoutMs);
+    connection.once('connect', () => {
+      clearTimeout(timer);
+      connection.end();
+      resolve(true);
+    });
+    connection.once('error', () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+  });
 }
 
 function snippet(content) {
@@ -23,11 +43,12 @@ function snippet(content) {
 
 async function startInjectServer(
   context,
-  { rank = rankDocs, build = buildDocIndex } = {},
+  { rank = rankDocs, build = buildDocIndex, ready = isReady } = {},
 ) {
   if (process.env.REPO_DOCS_INJECT !== '1') return null;
   const socketPath = injectSocketPath(context.root);
   fs.mkdirSync(path.dirname(socketPath), { recursive: true });
+  if (fs.existsSync(socketPath) && await socketIsActive(socketPath)) return null;
 
   const server = net.createServer((connection) => {
     let buffer = '';
@@ -49,6 +70,10 @@ async function startInjectServer(
         } catch {
           connection.end(`${JSON.stringify({ reindexed: false })}\n`);
         }
+        return;
+      }
+      if (!ready()) {
+        connection.end(`${JSON.stringify({ hits: [], injected: false, warming: true })}\n`);
         return;
       }
       try {
@@ -73,6 +98,11 @@ async function startInjectServer(
     try {
       fs.rmSync(socketPath, { force: true });
     } catch {}
+    server.once('close', () => {
+      try {
+        fs.rmSync(socketPath, { force: true });
+      } catch {}
+    });
     server.listen(socketPath, () => resolve(server));
   });
 }

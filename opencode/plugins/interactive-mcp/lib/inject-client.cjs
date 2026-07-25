@@ -45,6 +45,21 @@ function queryInject(root, request, timeoutMs = 300) {
   });
 }
 
+async function queryInjectWithRetry(
+  root,
+  request,
+  { attempts = 30, delayMs = 100, timeoutMs = 750 } = {},
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const result = await queryInject(root, request, timeoutMs);
+    if (result && !result.warming) return result;
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return null;
+}
+
 function isConversationalFiller(text) {
   const value = String(text || '').trim().toLowerCase().replace(/[!.?,\s]+$/g, '');
   if (!value) return true;
@@ -69,4 +84,10 @@ function formatBlock(hits) {
   return `[repo-docs] Relevant local documentation. Read these with interactive-mcp-standalone_read_doc before relying on general knowledge:\n${lines.join('\n')}`;
 }
 
-module.exports = { formatBlock, injectSocketPath, isConversationalFiller, queryInject };
+module.exports = {
+  formatBlock,
+  injectSocketPath,
+  isConversationalFiller,
+  queryInject,
+  queryInjectWithRetry,
+};

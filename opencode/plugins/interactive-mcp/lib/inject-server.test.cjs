@@ -43,7 +43,7 @@ test('socket is environment-gated and returns ranked hits', async () => {
     startLine: 1,
     score: 0.9,
   }];
-  const server = await startInjectServer(context, { rank });
+  const server = await startInjectServer(context, { rank, ready: () => true });
   const result = await ask(injectSocketPath(context.root), { query: 'auth' });
   assert.strictEqual(result.injected, true);
   assert.strictEqual(result.hits[0].path, 'docs/auth.md');
@@ -58,12 +58,29 @@ test('reindex requests reuse the running server', async () => {
   process.env.REPO_DOCS_INJECT = '1';
   let builds = 0;
   const build = async () => { builds += 1; };
-  const server = await startInjectServer(context, { rank: async () => [], build });
+  const server = await startInjectServer(context, {
+    rank: async () => [],
+    build,
+    ready: () => true,
+  });
 
   const result = await ask(injectSocketPath(context.root), { op: 'reindex' });
   assert.strictEqual(result.reindexed, true);
   assert.strictEqual(builds, 1);
 
   await new Promise((resolve) => server.close(resolve));
+  delete process.env.REPO_DOCS_INJECT;
+});
+
+test('reuses an active socket instead of replacing it', async () => {
+  const context = { root: createRoot(), maxFileSizeBytes: 1e6 };
+  process.env.REPO_DOCS_INJECT = '1';
+  const first = await startInjectServer(context, { rank: async () => [], ready: () => true });
+  const second = await startInjectServer(context, { rank: async () => [], ready: () => true });
+
+  assert.strictEqual(second, null);
+  assert.strictEqual(fs.existsSync(injectSocketPath(context.root)), true);
+
+  await new Promise((resolve) => first.close(resolve));
   delete process.env.REPO_DOCS_INJECT;
 });

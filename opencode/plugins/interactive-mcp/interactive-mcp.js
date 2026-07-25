@@ -7,11 +7,17 @@ import injectClient from './lib/inject-client.cjs';
 import reindexDebounce from './lib/reindex-debounce.cjs';
 
 const pluginDirectory = dirname(fileURLToPath(import.meta.url));
-const { formatBlock, isConversationalFiller, queryInject } = injectClient;
+const { formatBlock, isConversationalFiller, queryInjectWithRetry } = injectClient;
 const { claimReindex } = reindexDebounce;
 const latestPrompts = new Map();
 const pendingQueries = new Map();
 const seenProgressDocs = new Map();
+
+function debugInjection(message) {
+  if (process.env.REPO_DOCS_INJECT_DEBUG === '1') {
+    process.stderr.write(`[repo-docs-inject] ${message}\n`);
+  }
+}
 
 function numberFromEnv(name, fallback) {
   const value = Number(process.env[name]);
@@ -30,6 +36,15 @@ function toolQuery(input) {
   const args = input.args || {};
   const target = args.filePath || args.file_path || args.path || args.command || '';
   return `${input.tool || ''} ${target}`.trim();
+}
+
+function appendSystemContext(output, context) {
+  if (!context) return;
+  if (output.system.length === 0) {
+    output.system.push(context);
+    return;
+  }
+  output.system[0] = `${output.system[0]}\n\n${context}`;
 }
 
 function requestsMarkdownReindex(input) {
@@ -63,6 +78,7 @@ function requestReindex(repositoryRoot) {
  *   'chat.message': (input: { sessionID: string }, output: { parts: Array<{ type?: string, text?: string }> }) => Promise<void>,
  *   'tool.execute.after': (input: { tool?: string, args?: Record<string, unknown> }) => Promise<void>,
  *   'shell.env': (input: { sessionID?: string }, output: { env: Record<string, string> }) => Promise<void>,
+ *   'experimental.chat.messages.transform': (input: {}, output: { messages: Array<{ info?: { role?: string, sessionID?: string, system?: string }, parts?: Array<{ type?: string, text?: string }> }> }) => Promise<void>,
  *   'experimental.chat.system.transform': (input: { sessionID?: string }, output: { system: string[] }) => Promise<void>
  * }} PluginHooks
  */
@@ -98,6 +114,33 @@ export default async function interactiveMcpPlugin({
     environment.OPENCODE_SERVER_USERNAME = process.env.OPENCODE_SERVER_USERNAME;
   }
 
+  async function resolvePendingContext(sessionID) {
+    const pending = pendingQueries.get(sessionID);
+    debugInjection(`messages.transform session=${sessionID} pending=${Boolean(pending)}`);
+    if (!pending) return '';
+    pendingQueries.delete(sessionID);
+    const threshold = pending.progress
+      ? numberFromEnv('REPO_DOCS_INJECT_THRESHOLD_PROGRESS', numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.86))
+      : numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.80);
+    const result = await queryInjectWithRetry(repositoryRoot, {
+      query: pending.query,
+      limit: numberFromEnv('REPO_DOCS_INJECT_LIMIT', 3),
+      threshold,
+    }, {
+      timeoutMs: numberFromEnv('REPO_DOCS_INJECT_TIMEOUT_MS', 750),
+    });
+    debugInjection(`query result injected=${Boolean(result?.injected)} hits=${result?.hits?.length || 0}`);
+    if (!result?.injected || !result.hits?.length) return '';
+    let hits = result.hits;
+    if (pending.progress) {
+      const seen = seenProgressDocs.get(sessionID) || new Set();
+      hits = hits.filter((hit) => !seen.has(hit.path));
+      hits.forEach((hit) => seen.add(hit.path));
+      seenProgressDocs.set(sessionID, seen);
+    }
+    return formatBlock(hits);
+  }
+
   return {
     event: async ({ event }) => {
       if (event?.type !== 'session.deleted') return;
@@ -126,6 +169,7 @@ export default async function interactiveMcpPlugin({
     },
     'chat.message': async (input, output) => {
       const prompt = messageText(output.parts || []);
+      debugInjection(`chat.message session=${input.sessionID} chars=${prompt.length}`);
       if (prompt.replace(/[^a-zA-Z]/g, '').length < 8 || isConversationalFiller(prompt)) return;
       latestPrompts.set(input.sessionID, prompt);
       pendingQueries.set(input.sessionID, { query: prompt, progress: false });
@@ -141,30 +185,25 @@ export default async function interactiveMcpPlugin({
     'shell.env': async (input, output) => {
       if (input.sessionID) output.env.OPENCODE_SESSION_ID = input.sessionID;
     },
+    'experimental.chat.messages.transform': async (_input, output) => {
+      const lastUser = [...(output.messages || [])]
+        .reverse()
+        .find((message) => message.info?.role === 'user');
+      const sessionID = lastUser?.info?.sessionID;
+      if (!sessionID) return;
+      const block = await resolvePendingContext(sessionID);
+      if (!block) return;
+      const reminder = `<system-reminder>\n${block}\n</system-reminder>`;
+      lastUser.info.system = lastUser.info.system
+        ? `${lastUser.info.system}\n\n${reminder}`
+        : reminder;
+    },
     'experimental.chat.system.transform': async (input, output) => {
       if (input.sessionID) {
-        output.system.push(`Current OpenCode session ID: ${input.sessionID}. It is also available to shell commands as OPENCODE_SESSION_ID.`);
-        const pending = pendingQueries.get(input.sessionID);
-        if (!pending) return;
-        pendingQueries.delete(input.sessionID);
-        const threshold = pending.progress
-          ? numberFromEnv('REPO_DOCS_INJECT_THRESHOLD_PROGRESS', numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.86))
-          : numberFromEnv('REPO_DOCS_INJECT_THRESHOLD', 0.80);
-        const result = await queryInject(repositoryRoot, {
-          query: pending.query,
-          limit: numberFromEnv('REPO_DOCS_INJECT_LIMIT', 3),
-          threshold,
-        }, numberFromEnv('REPO_DOCS_INJECT_TIMEOUT_MS', 300));
-        if (!result?.injected || !result.hits?.length) return;
-        let hits = result.hits;
-        if (pending.progress) {
-          const seen = seenProgressDocs.get(input.sessionID) || new Set();
-          hits = hits.filter((hit) => !seen.has(hit.path));
-          hits.forEach((hit) => seen.add(hit.path));
-          seenProgressDocs.set(input.sessionID, seen);
-        }
-        const block = formatBlock(hits);
-        if (block) output.system.push(block);
+        appendSystemContext(
+          output,
+          `Current OpenCode session ID: ${input.sessionID}. It is also available to shell commands as OPENCODE_SESSION_ID.`,
+        );
       }
     },
   };
