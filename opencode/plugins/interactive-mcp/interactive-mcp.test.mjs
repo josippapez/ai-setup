@@ -28,23 +28,40 @@ test('injects relevant repository docs into system context for a user prompt', a
   const hooks = await interactiveMcpPlugin({
     directory: root,
     serverUrl: new URL('http://localhost:4096'),
-  });
+  }, { injectDebug: true });
+  const chatOutput = {
+    message: { id: 'message-test' },
+    parts: [{ type: 'text', text: 'How does authentication work in this repository?' }],
+  };
   await hooks['chat.message'](
     { sessionID: 'session-test' },
-    { parts: [{ type: 'text', text: 'How does authentication work in this repository?' }] },
+    chatOutput,
   );
+  assert.match(chatOutput.message.system, /<system-reminder>/);
+  assert.match(chatOutput.message.system, /docs\/auth\.md:12/);
   const output = {
     messages: [{
-      info: { role: 'user', sessionID: 'session-test' },
+      info: {
+        id: 'message-test',
+        role: 'user',
+        sessionID: 'session-test',
+        system: chatOutput.message.system,
+      },
       parts: [{ type: 'text', text: 'How does authentication work in this repository?' }],
     }],
   };
   await hooks['experimental.chat.messages.transform']({}, output);
+  const systemOutput = { system: ['BASE_SYSTEM'] };
+  await hooks['experimental.chat.system.transform'](
+    { sessionID: 'session-test' },
+    systemOutput,
+  );
 
   const transformed = output.messages[0].info.system;
   assert.match(transformed, /<system-reminder>/);
   assert.match(transformed, /docs\/auth\.md:12/);
   assert.match(transformed, /interactive-mcp-standalone_read_doc/);
+  assert.doesNotMatch(systemOutput.system[0], /docs\/auth\.md:12/);
   assert.strictEqual(
     output.messages[0].parts[0].text,
     'How does authentication work in this repository?',
@@ -57,7 +74,31 @@ test('injects relevant repository docs into system context for a user prompt', a
     args: { path: 'src/auth.ts' },
   });
   await hooks['experimental.chat.messages.transform']({}, output);
-  assert.match(output.messages[0].info.system, /<system-reminder>/);
-  assert.match(output.messages[0].info.system, /docs\/auth\.md:12/);
+  const progressSystem = { system: ['BASE_SYSTEM'] };
+  await hooks['experimental.chat.system.transform'](
+    { sessionID: 'session-test' },
+    progressSystem,
+  );
+  assert.match(progressSystem.system[0], /<system-reminder>/);
+  assert.match(progressSystem.system[0], /docs\/auth\.md:12/);
+
+  const directOutput = {
+    messages: [{
+      info: { id: 'message-direct', role: 'user', sessionID: 'session-direct' },
+      parts: [{ type: 'text', text: 'Where are authentication rules documented?' }],
+    }],
+  };
+  await hooks['experimental.chat.messages.transform']({}, directOutput);
+  const directSystem = { system: ['BASE_SYSTEM'] };
+  await hooks['experimental.chat.system.transform'](
+    { sessionID: 'session-direct' },
+    directSystem,
+  );
+  assert.match(directSystem.system[0], /<system-reminder>/);
+  assert.match(directSystem.system[0], /docs\/auth\.md:12/);
+  assert.match(
+    fs.readFileSync(path.join(root, '.opencode', 'repo-docs', 'inject-debug.log'), 'utf8'),
+    /query result injected=true hits=1/,
+  );
   await new Promise((resolve) => server.close(resolve));
 });

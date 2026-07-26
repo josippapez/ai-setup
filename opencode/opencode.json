@@ -11,13 +11,14 @@
     "./plugins/format-lint-edited-files.js",
     "./plugins/prompt-loop-reminder.js",
     "./plugins/git-move-guard.js",
-    "./plugins/interactive-mcp/interactive-mcp.js"
+    ["./plugins/interactive-mcp/interactive-mcp.js", { "injectDebug": true }]
   ],
   "skills": {
     "paths": ["./skills"]
   },
   "subagent_depth": 2,
   "permission": {
+    "question": "allow",
     "websearch": "allow",
     "glob": "allow",
     "grep": "allow"
