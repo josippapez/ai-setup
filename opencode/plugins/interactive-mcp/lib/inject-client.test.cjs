@@ -24,6 +24,8 @@ test('skips conversational filler but keeps substantive prompts', () => {
 test('formats namespaced repository-doc references', () => {
   const block = formatBlock([{ path: 'docs/auth.md', startLine: 7, heading: 'Tokens', snippet: 'Refresh tokens.' }]);
   assert.match(block, /interactive-mcp-standalone_read_doc/);
+  assert.match(block, /automatically injected/);
+  assert.match(block, /never say no injection occurred/);
   assert.match(block, /docs\/auth\.md:7 > Tokens/);
 });
 

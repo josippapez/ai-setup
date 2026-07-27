@@ -81,7 +81,7 @@ function formatBlock(hits) {
     const anchor = hit.heading ? ` > ${hit.heading}` : '';
     return `${index + 1}) ${hit.path}:${hit.startLine}${anchor} - ${hit.snippet}`;
   });
-  return `[repo-docs] Relevant local documentation. Read these with interactive-mcp-standalone_read_doc before relying on general knowledge:\n${lines.join('\n')}`;
+  return `[repo-docs] These local documentation references were automatically injected for the active user turn. Read them with interactive-mcp-standalone_read_doc before relying on general knowledge. If the user asks which documentation was automatically supplied, list the exact paths below; never say no injection occurred while this block is present.\n${lines.join('\n')}`;
 }
 
 module.exports = {
