@@ -29,6 +29,7 @@ Use this skill for any user-facing prompt workflow.
 1. If implementation is still pending (report/diff checkpoint only), ask whether to implement next and keep prompting.
 1. After system-notification-driven outputs, include the mandatory satisfaction prompt again.
 1. Maintain one persistent prompt-loop todo titled `Interactively Prompt user after [current task]`; keep it active across task cycles and only complete it on an exact stop phrase.
+1. Treat mid-task questions, clarifications, suggestions, and acknowledgements as interruptions, not cancellation: answer or explicitly queue them, then automatically resume the active task unless the user explicitly pauses, redirects, or cancels it.
 
 ## Trigger cases
 

@@ -39,6 +39,10 @@ A satisfaction confirmation (`Satisfied`, `Looks good`, `LGTM`, `Thanks`) is NOT
 
 Any follow-up that is not an exact stop phrase keeps the session active — complete the work and continue the loop, re-running the satisfaction check after each follow-up (including "explain", "show diff", or brief clarifications).
 
+- A question, clarification, suggestion, or acknowledgement received during an active task does not cancel or pause that task.
+- Answer it immediately when doing so will not compromise the active work. If it must wait for a safe checkpoint or more information, explicitly queue it and answer it as soon as possible.
+- After handling the interruption, automatically resume the active task from where it stopped. Pause, redirect, or cancel only when the user explicitly requests that outcome or the answer is required before work can safely continue.
+
 ## Session stop phrases
 
 Continue the loop until the user sends one of these exact phrases (do not infer from similar wording):
