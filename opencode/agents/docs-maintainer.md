@@ -57,6 +57,7 @@ know, and **`relay`** (failed store writes; `[]` if none).
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - Never talk to the user. Never spawn sub-agents.
 - Docs-only; source is read-only. Local-only unless the task explicitly says to commit.
 - No unrequested restructuring or new dependencies; the shortest correct diff wins.

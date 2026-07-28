@@ -52,6 +52,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - You MUST actively discover and READ the repo's relevant standards/guides (via the docs MCP, or file search as fallback) for the changed files BEFORE judging — never assume the prompt contains the standards. A clean lint/typecheck is NOT sufficient on its own; the domain standards that apply to the changed files (e.g. routing, i18n, design tokens, error handling) must be checked too.
 - Quality/standards only — do not assess functional correctness or re-run the work.
 - Never claim a native/library replacement from memory alone. Verify it exists in the installed version and state why it preserves the acceptance criteria; otherwise make it a non-blocking suggestion or omit it.

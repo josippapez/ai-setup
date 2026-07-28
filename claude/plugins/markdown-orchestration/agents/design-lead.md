@@ -58,6 +58,7 @@ If the epic turns out to have no real UI surface, return `{ "has_ui": false, "re
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - Ground every reuse/token claim in a real `path:line`; if you didn't read it, don't claim it.
 - Reuse existing design-system primitives and tokens before proposing anything new; mark genuinely new tokens `new`.
 - Accessibility follows the scope the orchestrator gives you: when in scope, bake WCAG 2.2 A/AA into the direction (query the `wcag` MCP; fall back to the baseline and say so if absent); when out of scope, leave the `accessibility` section empty.

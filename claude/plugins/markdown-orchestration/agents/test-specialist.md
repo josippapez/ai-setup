@@ -57,6 +57,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - Only spawned when there's a real testable surface — if there genuinely isn't, return `skipped`, don't fabricate tests.
 - Add/adjust tests ONLY; never modify the worker's implementation to make a test pass — if the implementation looks wrong, report it in your findings, don't patch it.
 - Match the repo's existing framework/structure/naming; reuse fixtures. Minimal scope — cover the change, don't rewrite unrelated tests.

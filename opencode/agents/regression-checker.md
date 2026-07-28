@@ -54,6 +54,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - Run only when a suite exists; otherwise return `skipped` — never fabricate tests (that's the test-specialist's job, not yours).
 - Never edit source or tests, and never silence/skip a failing test to make the run green — report the regression so the worker fixes its root cause.
 - If you must narrow scope for runtime, say so explicitly in the verdict — no silent truncation.

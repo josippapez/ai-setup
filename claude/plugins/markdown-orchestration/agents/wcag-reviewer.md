@@ -56,6 +56,7 @@ Final message MUST be ONLY this JSON (no prose, no fence):
 
 ## Hard rules
 
+- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there is genuinely nothing left to look at.
 - Audit the shipped UI, not the design pack's promises.
 - Ground each violation in a real `path:line` and a real success-criterion id; don't invent conformance.
 - Address the store only by the explicit absolute paths given; append-only; never move status.
