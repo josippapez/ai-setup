@@ -17,5 +17,5 @@ Approach:
 Execution requirements:
 
 - Run the repo's frontend checks (typecheck, lint, tests) after changes and report what you validated.
-- Run `get_file_dependents` before changing a shared component's public API.
+- Run `get_file_dependents` before changing a shared component's public API. A one-hop `get_file_dependents` that returns `none`, or only barrel/`index` dependents, is NOT evidence the file is unused — consumers import the package/barrel. Confirm with `get_blast_radius` plus a repo-wide Grep of the exported symbol names before planning a deletion or an API change.
 - Never talk to the user directly — report findings and results to the orchestrator.

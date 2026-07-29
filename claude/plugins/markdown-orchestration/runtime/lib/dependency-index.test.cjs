@@ -100,6 +100,62 @@ test('tolerates JSONC comments and trailing commas in tsconfig', async () => {
   assert.strictEqual(ui.to, 'packages/ui/src/index.ts');
 });
 
+// A workspace monorepo with NO tsconfig `paths`: the app imports the lib by its
+// package.json name, the way pnpm/npm workspaces resolve it. The lib's barrel
+// re-exports a leaf hook. This is the shape that used to report the leaf as
+// having a single dependent (its own barrel) and no consumers at all.
+function makeWorkspaceRepo() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-ws-'));
+  writeFile(root, 'package.json', '{"name":"root","workspaces":["libs/*","apps/*"]}');
+  writeFile(root, 'libs/web-lib/package.json', '{"name":"@scope/web-lib"}');
+  writeFile(root, 'libs/web-lib/src/index.ts', "export * from './useLocale';");
+  writeFile(root, 'libs/web-lib/src/useLocale.ts', 'export const useLocale = () => 1;');
+  writeFile(root, 'libs/web-lib/src/format.ts', 'export const format = () => 2;');
+  writeFile(
+    root,
+    'apps/web/package.json',
+    '{"name":"@scope/web","dependencies":{"@scope/web-lib":"*"}}',
+  );
+  writeFile(
+    root,
+    'apps/web/src/App.tsx',
+    [
+      "import { useLocale } from '@scope/web-lib';",
+      "import { format } from '@scope/web-lib/format';",
+      'export const App = () => useLocale() + format();',
+    ].join('\n'),
+  );
+  return root;
+}
+
+test('resolves workspace-package imports without any tsconfig paths', async () => {
+  const context = createContext(makeWorkspaceRepo());
+  const index = await ensureDependencyIndex(context);
+  const edges = index.dependenciesByFile.get('apps/web/src/App.tsx');
+  const resolved = Object.fromEntries(edges.map((e) => [e.specifier, e.to]));
+
+  assert.strictEqual(resolved['@scope/web-lib'], 'libs/web-lib/src/index.ts');
+  assert.strictEqual(resolved['@scope/web-lib/format'], 'libs/web-lib/src/format.ts');
+});
+
+test('workspace consumers reach a barrel-re-exported leaf via blast radius', async () => {
+  const context = createContext(makeWorkspaceRepo());
+  const index = await ensureDependencyIndex(context);
+
+  const leafDependents = index.dependentsByFile.get('libs/web-lib/src/useLocale.ts') || [];
+  assert.deepStrictEqual(
+    leafDependents.map((e) => e.from),
+    ['libs/web-lib/src/index.ts'],
+    'one hop still stops at the barrel — that is why the tool warns about it',
+  );
+
+  const barrelDependents = index.dependentsByFile.get('libs/web-lib/src/index.ts') || [];
+  assert.ok(
+    barrelDependents.some((e) => e.from === 'apps/web/src/App.tsx'),
+    'the app importing the package by name must be a dependent of the barrel',
+  );
+});
+
 test('missing tsconfig degrades to relative-only resolution', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-noconfig-'));
   writeFile(root, 'src/index.ts', "import helper from './helper';");

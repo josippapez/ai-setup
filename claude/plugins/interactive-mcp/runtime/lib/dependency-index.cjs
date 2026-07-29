@@ -193,13 +193,79 @@ function resolveAlias(context, specifier) {
   return null;
 }
 
+// Maps every in-repo package.json `name` to its directory. Workspace packages
+// are imported by name (e.g. "@scope/web-lib") and resolved by the package
+// manager through node_modules symlinks, not through tsconfig `paths` — without
+// this map those importers look like bare third-party imports and vanish from
+// the graph, which silently understates a file's dependents.
+function loadWorkspacePackages(context) {
+  if (context.workspacePackages) return context.workspacePackages;
+  const packages = new Map();
+  walkDirectory(context.root, (filePath) => {
+    if (path.basename(filePath) !== 'package.json') return;
+    try {
+      const name = JSON.parse(fs.readFileSync(filePath, 'utf8')).name;
+      if (typeof name === 'string' && name && !packages.has(name))
+        packages.set(name, path.dirname(filePath));
+    } catch {
+      // Unreadable/unparseable package.json — skip it.
+    }
+  });
+  context.workspacePackages = packages;
+  return packages;
+}
+
+// Resolves a workspace-package specifier to a source file: either the package
+// root ("@scope/pkg" -> its entry) or a subpath ("@scope/pkg/format").
+// Source-shaped entries are preferred over built output so the graph points at
+// files an edit would actually touch.
+function resolveWorkspacePackage(context, specifier) {
+  const packages = loadWorkspacePackages(context);
+  for (const [name, dir] of packages) {
+    if (specifier !== name && !specifier.startsWith(`${name}/`)) continue;
+    if (specifier !== name) {
+      const subpath = specifier.slice(name.length + 1);
+      return (
+        resolveFileTarget(context, path.resolve(dir, subpath)) ||
+        resolveFileTarget(context, path.resolve(dir, 'src', subpath))
+      );
+    }
+    let manifest = {};
+    try {
+      manifest = JSON.parse(
+        fs.readFileSync(path.join(dir, 'package.json'), 'utf8'),
+      );
+    } catch {
+      // Already logged as unusable above; fall back to conventions.
+    }
+    const candidates = [
+      manifest.source,
+      'src/index',
+      'index',
+      manifest.types,
+      manifest.module,
+      manifest.main,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'string' || !candidate) continue;
+      const hit = resolveFileTarget(context, path.resolve(dir, candidate));
+      if (hit) return hit;
+    }
+    return null;
+  }
+  return null;
+}
+
 function resolveImportPath(context, fromFile, specifier) {
   if (specifier.startsWith('.'))
     return resolveFileTarget(
       context,
       path.resolve(path.dirname(fromFile), specifier),
     );
-  return resolveAlias(context, specifier);
+  return (
+    resolveAlias(context, specifier) ||
+    resolveWorkspacePackage(context, specifier)
+  );
 }
 
 function parseDependencies(context, filePath) {

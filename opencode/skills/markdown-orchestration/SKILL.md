@@ -1,167 +1,112 @@
 ---
 name: markdown-orchestration
-description: Use when a non-trivial, multi-step task should be tracked and executed by subagents — multi-file or multi-step work that needs decomposition, an epic/ticket to execute end-to-end, or a previously tracked epic to resume. Also on explicit asks like "track this" or "orchestrate this". The main agent follows this skill as the orchestrator; the skill body is the authoritative workflow.
+description: Orchestrate non-trivial multi-step work through a local markdown store and conditional specialist agents. Use for multi-file work, tasks needing decomposition, tracked epics, or explicit "track this" / "orchestrate this" requests, and to resume an existing `.orchestration` epic. The main agent owns the user loop and state machine.
 ---
 
-# Orchestration (markdown-tracked)
+# Markdown orchestration dispatcher
 
-The MAIN agent is the orchestrator and prompt-loop owner. The global OpenCode installation is managed by `opencode/install.sh`.
+The MAIN agent is always the orchestrator, prompt-loop owner, store coordinator, and final decision maker. Subagents never talk to the user. This file is the only automatically loaded skill resource; linked references/templates remain explicitly on-demand.
 
-## When to engage
+## Gate
 
-- Engage for non-trivial, multi-step tasks (multiple files/steps, or one that needs decomposition).
-- Skip trivial one-offs — handle them inline.
-- Honor explicit overrides ("track this" / "skip tracking").
-- Tracking is a **local in-repo markdown store** — no external service, no account, no auth. The orchestrator creates it on first use (see *Markdown store*). Nothing to authenticate; if the store can't be created (read-only FS), warn and fall back to in-session todos.
+Engage for non-trivial work that has multiple files or steps, needs decomposition or durable tracking, resumes a tracked epic, or is explicitly requested. Handle trivial one-offs inline. Honor explicit `track this` and `skip tracking` overrides.
 
-## Markdown store
+Tracking uses `<main-repo-root>/.orchestration/`. It requires no external tracker, account, or authentication. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos; do not pretend persistence exists.
 
-One local store per repo, git-ignored, fully file-based (zero manual setup):
+## Mandatory progressive loading
 
-- **Location:** `<repo-root>/.orchestration/` — resolved to an **absolute path** by the orchestrator and passed top-down (see *Addressing*). The orchestrator **creates the folder** if absent and, in the SAME step, writes a **self-ignoring `.orchestration/.gitignore` containing `*`** so the entire store (that file included) is untracked — the repo's **root `.gitignore` is never touched**. The store is never committed. (Idempotent: if `.orchestration/.gitignore` already exists, leave it.)
-- **`PROJECT.md`** = one per repo/product — **long-lived; it never completes**. Holds a product overview + the single **"Progress / Resume here"** section (done vs remaining issues by path + next action).
-- **`<epic-slug>/EPIC.md`** = an **epic / story / ticket** — a cohesive unit of work. Holds that unit's goal + acceptance criteria + a compact **Context pack** section (per-area files, reuse candidates, gates), plus (when they apply) the approved **Design direction**, **ADRs**, and **accessibility scope**. Its frontmatter carries an append-only **`sessions:` list** — every `OPENCODE_SESSION_ID` the epic was worked in (the orchestrator adds the current id at Decompose and on each resume; append-only, never overwritten). This *is* the epic — there is no parent "epic issue".
-- **`<epic-slug>/issues/NN-<slug>.md`** = a chunk under the epic. **One file per chunk**, holding the spec AND its comment thread:
+When the native skill tool loads this skill, capture the absolute **Base directory** reported with the loaded skill and define it as `skillRoot`. Every `read` call for a bundled resource MUST use an absolute `${skillRoot}/...` path; never resolve these resources from cwd, the target repository, or a worktree. References/templates do **not** auto-load.
 
-```markdown
----
-id: NN-<slug>
-epic: <epic-slug>
-status: Todo            # Todo | In Progress | In Review | Done | Canceled
-labels: [agent-task]    # + blocked / partial as needed
-complexity: low         # low | medium | high
-wave: 1                 # dispatch wave — chunks sharing a wave run in PARALLEL; set by the Plan phase
-depends_on: []          # issue ids this chunk consumes from — set by the Plan phase
-sessions: []            # OPENCODE_SESSION_ID(s) that worked this chunk — worker appends its own on start (append-only across resumes)
----
-# <Chunk title>
+If no Base directory is available, search the configured OpenCode skill paths **once** for `markdown-orchestration/SKILL.md`, resolve its absolute parent directory as `skillRoot`, and verify that the required resources below exist. If the loaded SKILL cannot be uniquely resolved, STOP with a clear resource-resolution error; never silently skip a protocol or guess a cwd-relative path.
 
-## Description
-<!-- The spec — this IS the ticket body. Keep it current. -->
-Objective · exact scope/files · constraints · acceptance criteria · validation commands · handoff format · complexity signal · context-pack slice (+ design-pack slice for a UI chunk).
+1. **Before Gate, Intake, Explore, Refine, or Design:** `read` `${skillRoot}/references/intake-design.md` and `${skillRoot}/references/platform.md`.
+2. **Before creating, reading, resuming, or writing the store:** `read` `${skillRoot}/references/store-protocol.md`; when creating files also `read` the required `${skillRoot}/templates/PROJECT.md`, `${skillRoot}/templates/EPIC.md`, and/or `${skillRoot}/templates/issue.md`.
+3. **Before Decompose, Plan, Execute, Relay, or Converge:** `read` `${skillRoot}/references/execution.md` and `${skillRoot}/references/platform.md`.
+4. **Before any agent or specialist dispatch in any phase:** `read` `${skillRoot}/references/routing.md`. This is mandatory even if another phase reference was already loaded. It is the single authority for predicates, inputs, blocking role, writer, names, and model policy.
+5. Re-read a reference when the phase is resumed after compaction, handoff, or a changed issue Description. Do not rely on stale recalled policy.
 
----
-## Comments
-<!-- Append-only thread below the description. Each writer appends its OWN section with shell `>>` (never a read-modify-write edit); never rewrite another's section or the Description. -->
+## Ordered state machine
 
-### <YYYY-MM-DD> · worker — findings
-…what shipped + validation output + per-criterion self-check, then a fenced ```diff``` block…
+Run phases in order. Persist the current state and every specialist predicate result as required by the references.
 
-### <YYYY-MM-DD> · code-standards-checker — PASS|FAIL
-…gates run + violations citing their source…
+### 0. Gate
 
-### <YYYY-MM-DD> · md-reviewer — verdict: Done ✅ | In Progress ❌
-…per-criterion pass/fail + fix-list; status moved in the frontmatter above…
-```
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go directly to the Resume rule below before new intake or decomposition.
 
-- **Status lives in the frontmatter `status:` field**; labels in `labels:`. Reviewers move status by editing that field. Timestamps come from `date +%F` (agents run it via Bash).
+### 1. Intake
 
-## Addressing & concurrency (multi-project safe)
+Pin objective, scope, constraints, acceptance criteria, terminology, validation expectations, and genuine user decisions. A ticket-prescribed choice is decided, not a reason to ask again. The main agent alone prompts the user. Never decompose an incomplete spec.
 
-- **Everything is addressed by explicit absolute file path, passed top-down.** The orchestrator resolves `{storeRoot, epicDir, issuePath}` (all absolute, rooted at the **main repo root**) and passes the exact paths into each subagent prompt. **No subagent infers the store from cwd/git** — critical because a worker in an isolated worktree has a *different* cwd, yet must still write to the main repo's store. There is no global "active epic".
-- Because the store is git-ignored, it does **not** propagate into a git worktree. Always address it by the absolute main-repo path so worktree workers write to the one canonical store.
-- Overlapping file scopes in the SAME repo run sequentially; disjoint scopes — or different repos — run in parallel. Different issues are different files, so parallel chunks never contend for one store file. **Within a single issue there ARE concurrent writers** — the worker spawns its checker, reviewer, and (when run) regression-checker in parallel and they all append to the same `ISSUE.md`. This is safe because **all comment writes are append-only** (`>> file` — concurrent appends don't clobber) and the frontmatter **`status:` field is changed by only ONE writer at a non-concurrent moment** (the worker at start / In Review / after its reviewers return; the orchestrator at Converge). No two agents ever rewrite the file at once.
-- **Isolation is only for concurrent writers.** OpenCode `task` agents share the active workspace. Run only disjoint scopes in parallel; when stronger isolation is required, the orchestrator may prepare a worktree explicitly and pass its absolute path to the worker. The Plan phase's `wave:` decides when that's required: **wave size ≥ 2 → prepare and assign a worktree per chunk; wave size 1 → run in the active workspace.**
-- **Sequential, solo, or dependent chunks run in place** so each builds naturally on the last. Use a manually prepared worktree only for concurrent isolated work, never for a dependent chunk that would miss unlanded prerequisites.
-- **Integration is the orchestrator's job.** Before dependent work starts, ensure its prerequisites are present in the active workspace. Never commit, create branches, merge, or open a PR unless the user explicitly approved that landing strategy. When commits are approved, keep one commit per completed chunk and never include the git-ignored orchestration store.
+### 2. Explore
 
-## Phases
+Ground the task in repository evidence. Produce a context pack precise enough to scope chunks and precompute every conditional specialist input. Surface unresolved user decisions before proceeding. Repository evidence, not priors, owns file scope.
 
-0. **Gate** — engage vs inline.
-   - **Repo-docs index readiness (once, before the first scout):** the pre-grill/deep `repo-scout`, the `code-standards-checker`, and the Converge docs-freshness check all rely on `interactive-mcp-standalone_find_docs`, which needs a semantic index. Call **`interactive-mcp-standalone_get_repository_index_status`**; if the repo is unindexed (or the index is absent/empty), build it first — run the **`/reindex` command** — before dispatching the pre-grill scout. Degrade gracefully only if indexing genuinely can't run (e.g. plugin deps not installed): note it in handoff and fall back to grep-based scouting.
-1. **Intake (grill)** — orchestrator ↔ user only. **Never decompose on an incomplete spec.**
-   - **Gap-check the task** before decomposing: scan for missing/ambiguous elements (unclear scope, undefined acceptance criteria, ambiguous terms, unstated constraints, competing interpretations).
-   - **A "gap" is something the ticket genuinely leaves undefined or ambiguous — NOT something its acceptance criteria already prescribe.** If the ACs already specify the approach (which layer/component owns a behavior, the expected outcome, the validation), treat it as *decided*: proceed on the ACs and do NOT prompt the user to re-choose it — that is noise, and it reads as asking them to decide what the ticket already decided. Prompt only for genuinely undefined gaps; when a gap sits next to an AC-specified part, ask ONLY about the undefined slice, not the whole area.
-   - **Pre-grill scout:** before grilling, dispatch the bundled `repo-scout` agent (`subagent_type: repo-scout`, **quick** mode, Free) over the task's apparent area, passing the code-answerable gaps as questions — grill the user ONLY with what the scout couldn't answer from the repo (its `open_questions` + genuine preference/scope decisions).
-   - **Default to grilling for any non-trivial task** — invoke the grill skill via the **native `skill` tool** unless the spec is *provably* complete (scope, acceptance criteria, and all terms already pinned with no competing interpretation), in which case a quick scope confirmation suffices.
-   - **Which skill:** domain-heavy / schema-bearing → invoke `grill-with-docs` (via the native `skill` tool); simpler → invoke `grilling`. Only if the native `skill` tool cannot load it, fall back to a question-tool interview (graceful — never block on a missing skill, but do NOT use "graceful" as a reason to skip grilling a task with real gaps).
-   - **Design-input gate:** UI/visual/layout/design task with no design supplied (Figma, mockup, screenshot, wireframe, written spec, reference UI) → note it for the **Design phase**: ask the user for design input if they have any, otherwise the `design-lead` proposes an accessible direction there. Never decompose UI chunks before a design direction is approved.
-2. **Explore (deep scout)** — once the spec is pinned, dispatch the bundled `repo-scout-luna` (`subagent_type: repo-scout-luna`, **deep** mode; parallel scouts only for genuinely disjoint multi-area epics) with the confirmed scope.
-   - It returns the **context pack**: per-area file lists (chunk-scope precision), reuse candidates (existing patterns/utilities — the highest-value output), blast radius, cross-area `overlaps`, quality gates, docs conventions, and `open_questions`.
-   - **Surface `open_questions` to the user before decomposing** — they are intake gaps the code couldn't answer.
-   - The pack grounds the council and is the REQUIRED evidence base for decompose's file scopes — **never decompose from priors when a scout can look.**
-   - Docs-only epics may downgrade to a quick-mode scout (Free). Skip entirely when intake's quick scout already covered the confirmed scope end-to-end, or on a **resume** (the epic already exists — `EPIC.md` carries the pack; jump to Decompose's resume check and re-scout only a remaining chunk whose spec lacks its slice).
-3. **Refine (architecture council)** — *conditional; fires only when the user delegated a technical decision.* **Never decompose before a surfaced delegated decision is resolved.**
-   - If intake surfaces open **high-impact technical decisions the user left to us** (architecture, structure, data model, security posture, tech/library choice), the orchestrator **auto-offers a council** rather than deciding unilaterally, and proceeds on the user's OK.
-   - A council = **3–4 bundled `council-member-luna` agents in parallel** (`subagent_type: council-member-luna`), each given the decision question, the context-pack slice for the affected area, and ONE assigned lens; each returns a strict-JSON proposal (tradeoffs, risks, `path:line` evidence, rejected alternatives, confidence).
-   - **Pick the lenses to match the decision type** — always **simplicity/YAGNI** + **repo-convention fit**, then per type: **security** (auth, data exposure, trust boundaries), **migration & operability** (data models, schema changes), **maintenance/licensing/bus-factor** (library choices), **performance/scale** (hot paths).
-   - Use `council-member-luna` normally and `council-member` (Sol) for security-critical, high-blast-radius, or otherwise highest-stakes decisions.
-   - The orchestrator **synthesizes one recommendation** (grafting the best of the runners-up) and presents it with the key tradeoffs for **user approval**. **Default is lightweight** (parallel proposals → synthesis); **escalate to a scored judge-panel / adversarial cross-critique only for security-critical or high-blast-radius decisions.**
-   - Record the approved approach in **`EPIC.md`** (write it as an ADR by invoking `domain-modeling` via the native `skill` tool; if it can't load, inline the ADR text directly — don't skip recording the decision).
-   - Skip entirely when the decision is trivial, fully constrained by the user, or **already prescribed by the ticket's acceptance criteria** (don't convene a council — or ask — over a choice the ACs already made).
-4. **Design** — *conditional; fires only for a UI/visual/layout/design epic.* **Never decompose UI chunks before a design direction is approved.**
-   - If the epic has a real UI surface and no complete design is supplied, dispatch the bundled `design-lead` agent (`subagent_type: design-lead`; use `design-lead-sol` for a large or novel UI system), given the pinned spec, the scout pack's UI slice, and any design input the user provided.
-   - **A supplied visual reference is NOT a finished design spec.** For a UI epic with a Figma file, mockup, or screenshot, "a design was supplied" does NOT satisfy this phase. First ensure the design-tool MCP (Figma/etc.) is **configured and connected up front**; if it is unavailable, ask the user to configure the required API key or connection before relying on it. The bundled `design-lead` **is granted the design-tool MCP** (Figma `get_screenshot`/`get_design_context`/`get_variable_defs`/`get_metadata` + Framelink `get_figma_data`/`download_figma_images`) so, when the MCP is authenticated, it **inspects the design directly** and returns a concrete visual spec — a reference screenshot PLUS layout/positioning, spacing, sizing, color/typography tokens, and component structure. When the design MCP is unavailable or unauthenticated, the **orchestrator extracts that same visual spec** as the fallback. Either way the concrete spec is baked into the design pack and every UI chunk's Description, so subagents build to a written spec, not to an unseen live design. **Mirroring a sibling/existing component is NOT a substitute for the design spec; if you reuse a sibling, first verify the sibling itself matches the target design.**
-   - It returns a **design pack**: direction + a design-token map grounded in the repo's existing design system, a component-reuse plan, and (when in accessibility scope) a **WCAG 2.2 A/AA baseline** — grounded in the `wcag-guidelines` skill and CLI, degrading to a baked-in baseline if the CLI is unavailable. Reuse existing design-system primitives over anything bespoke.
-   - **Accessibility scope (ask the user):** for a UI epic, the orchestrator **asks the user via the prompt loop whether a WCAG 2.2 A/AA accessibility review is needed** — recommend it for user-facing web/mobile UI, note it's usually unnecessary for non-user-facing/internal surfaces. The answer sets scope: in-scope keeps the design a11y baseline AND the Converge `wcag-reviewer`; out-of-scope skips both. **Record the decision in `EPIC.md`** (accessibility: in-scope / out-of-scope) so it isn't re-asked on resume.
-   - **Surface its `open_questions` (brand/tone/reference decisions) to the user and present the direction for approval** — design is a user-facing decision, like the council recommendation. Proceed on the user's OK.
-   - Record the approved direction (and, when accessibility is in scope, the a11y baseline) in **`EPIC.md`** (a compact "Design direction" section, alongside the Context pack), and feed each UI chunk its `per_chunk_slices` entry (design notes + any a11y notes) so workers build to the approved design instead of improvising.
-   - Skip entirely for non-UI epics, or when the user supplied a complete, unambiguous design (a quick confirmation then suffices).
-5. **Decompose** — turn the pinned spec + context pack into the epic on disk (`EPIC.md` + issue files).
-   - First, **resume check**: ensure the store exists, then look for the epic's `<epic-slug>/` dir; if it exists, read `PROJECT.md`'s "Progress / Resume here" + the issue files' frontmatter `status:` (authoritative) and rebuild from open issue statuses — continue it. **Dispatch order comes from the existing `wave:`/`depends_on:` frontmatter — it's already authoritative, so skip the Plan phase** and re-plan only a chunk whose Description materially changed since. **Add the current `$OPENCODE_SESSION_ID` to `EPIC.md`'s `sessions:` list if absent** (append-only — the orchestrator is EPIC.md's sole frontmatter writer, so this never races a worker).
-   - Otherwise: ensure `.orchestration/` (with its self-ignoring `.gitignore` = `*`) + `PROJECT.md` exist (create if not); create the epic dir with `EPIC.md` (goal + acceptance criteria + a compact **Context pack** section: per-area files, reuse candidates, gates — so resume and the council re-read it; and a frontmatter `sessions:` list seeded with the current `$OPENCODE_SESSION_ID`); write one **issue file** (`issues/NN-<slug>.md`) per chunk with the frontmatter (including `sessions: []`) + Description + an empty Comments section.
-   - Each issue MUST be self-contained: objective, exact scope/files, constraints, acceptance criteria, validation commands, handoff format, **complexity signal** (low/medium/high — also in frontmatter), and its **context-pack slice** (the pack's files + reuse candidates + gates for THIS chunk's scope — so the worker starts warm instead of re-exploring). **For a UI chunk, also include its design-pack slice** (design notes + a11y baseline from the Design phase) so it builds to the approved, accessible design. **File scopes come from the context pack, not priors.**
-   - Order by dependency and seed each issue's `wave:` with a **provisional** ordering: compare the chunks' file lists (plus the pack's `overlaps`) — any shared file → different waves. File-list overlap is a weak proxy, so this is a draft only; the **Plan phase makes `wave:`/`depends_on:` authoritative** before any worker is dispatched.
-   - Before any schema-bearing chunk, capture the domain model by invoking `domain-modeling` via the native `skill` tool (graceful only if it can't load — not an excuse to skip when a schema is involved).
-   - **Docs-upkeep:** if the repo has a docs convention (`docs/**`, a docs-sync rule, a AGENTS.md or repository instruction policy), behavior/workflow/config-changing chunks MUST include "update owning docs" as acceptance criteria or a dedicated docs-sync chunk. (Workers also run a docs self-check at build time and report any unforeseen stale docs as `docs_impact` — the backstop to this plan-time step.)
-   - **Code-quality gate:** if the repo exposes quality tooling/standards, each code chunk's validation MUST include the relevant gates — enforced at review time by the **code-standards-checker** the worker spawns, which DISCOVERS and reads the repo's relevant standards/guides itself (via the plugin's bundled repo-docs MCP) and checks the diff against them, not just the ACs (planning side here; execution side there).
-6. **Plan (conceptual dry-run)** — *fires when the epic has **≥3 chunks***; below that, dispatch order is trivial — skip it and note the skip. **Never dispatch a worker before the waves are authoritative.**
-   - Dispatch the bundled `impl-planner` agent (`subagent_type: impl-planner`) — **one per chunk, capped at 6**; above the cap, group chunks by context-pack area and give one planner the group. All planners run **in parallel** (read-only, zero contention). Use `impl-planner` (Luna) by default and **`impl-planner-sol` for a high-complexity chunk** — never a Free-tier planner (this is reasoning work, like a review).
-   - Each planner gets the pinned spec, `{epicDir, issuePath}` for its chunk, its context-pack slice (+ design-pack slice for a UI chunk), and — critically — a **sibling roster** (every other chunk's id, title, file scope). Without the roster a planner can only see its own chunk and the cross-chunk edges stay invisible.
-   - It conceptually implements the chunk against the real files and returns ordered `plan` steps plus `produces` / `consumes` / `conflicts_with` / `spec_corrections` / `split_or_merge` / `open_questions`. **`produces`↔`consumes` is the payoff** — it catches "chunk B needs an interface chunk A introduces" even when their file lists are disjoint, which no overlap check can see.
-   - On join the orchestrator: (a) builds the dependency graph from `consumes`/`produces` + `conflicts_with`; (b) writes the authoritative **`wave:` + `depends_on:`** into each issue's frontmatter — topological layering, conflicting chunks in different waves; (c) applies `spec_corrections` to the issue **Descriptions** (the orchestrator is their sole writer); (d) acts on `split_or_merge`, re-cutting issue files when warranted; (e) folds the planner's `plan` steps into its issue Description as a **"Conceptual plan"** subsection, so the worker starts with a route instead of re-deriving one; (f) surfaces `open_questions` to the user before Execute.
-   - **On resume, skip this phase** — the waves live in frontmatter. Re-plan only a chunk whose Description materially changed (a mid-epic decision, a `split_or_merge`, a re-opened chunk with a new fix-list).
-7. **Execute (self-managing workers)** — dispatch **wave by wave**: all chunks in the lowest open `wave:` in parallel → join → integrate + commit → next wave. Dispatch one model-specific worker per ready chunk: `md-worker-free` for trivial/mechanical work, `md-worker-terra` for low complexity, `md-worker-luna` for normal multi-file work, and `md-worker-sol` only for high-complexity or high-risk work. Pass explicit `{storeRoot, epicDir, issuePath}` + complexity, then step back.
-   - Each worker owns its chunk like a dev opening a PR: sets its issue **In Progress** (frontmatter) → appends its own `$OPENCODE_SESSION_ID` to that issue's `sessions:` list if absent (single writer per issue file — safe) → does the work, **fixing root causes not symptoms** → **adds tests** (spawns a **test-specialist** ONLY when the chunk has a real testable surface — source behavior changed and the repo has/should have tests; skipped for docs/config/no-test chunks) → **docs self-check** (flags owning docs its change left stale — updates in-scope ones, reports out-of-scope ones as `docs_impact`) → appends its own **findings** (+ `diff`) to the issue's Comments → sets **In Review** → **requests review** by spawning a **code-standards-checker** + a **md-reviewer** + a **regression-checker** (the last only when the repo has a runnable suite) **in parallel** (using the OpenCode `subagent_type` `code-standards-checker` / `md-reviewer` / `regression-checker`; reviewer model by complexity), each of which **appends** its verdict comment to the issue → **the worker applies the frontmatter status on join** (all pass → **Done**; any fails → back to **In Progress**, fix in scope + re-request, ≤2 rounds; a regression `skipped` is not a fail) and appends its own follow-up comment → returns final status + any **relay** items.
-   - **The wave decides isolation, mechanically: wave size ≥ 2 → the orchestrator prepares and assigns a worktree path per chunk; wave size 1 → run in the active workspace.** OpenCode workers otherwise share the active workspace, so a wave of ≥2 without assigned worktrees would clobber.
-   - **Docs-only chunks** skip the code-standards-checker and use a single docs-aware `md-reviewer` — see *Defaults → Docs-only economy*.
-8. **Relay & record** — the orchestrator's per-chunk duties:
-   - **Apply any `relay` items** a subagent couldn't write itself (a file-write that was denied/errored) — the orchestrator is the writer of last resort.
-   - **Land the chunk only as approved by the user.** If commits were approved, commit the reviewed chunk to the approved branch; otherwise leave the reviewed changes uncommitted.
-   - At a worker's internal-retry cap without a pass — or a worker returning `blocked` on ambiguity — add the `blocked` label (frontmatter) and **escalate to the user via the prompt loop** (present the blocker + options), write the resolution into the **issue's Description** (it IS the spec), then re-dispatch.
-   - Refresh the single **"Progress / Resume here"** section in `PROJECT.md`, listing done vs remaining issues (by path + epic) + next action.
-   - **Re-plan:** after each chunk lands, re-check the remaining open issues' Descriptions against what actually shipped (renamed symbols, moved files, changed interfaces, a decision taken mid-chunk) and UPDATE any stale spec before its worker is dispatched. When what shipped **invalidates a dependency edge** (a chunk's `consumes` landed differently, or a new one appeared), re-dispatch an `impl-planner` for the affected chunks and re-derive their `wave:`/`depends_on:` — a stale wave either serializes work needlessly or dispatches a chunk against a base that lacks its dependency.
-   - **Consume `docs_impact`:** if a worker reports owning docs its change left stale (out-of-scope docs it correctly didn't touch), fold "update owning docs" into a pending chunk's acceptance criteria or add a dedicated docs-sync chunk — don't drop it. This is the worker-time backstop to Decompose's plan-time docs-upkeep, so unforeseen docs drift is still caught.
-9. **Converge** — when the epic's issues are all Done, run the final checks over the **integrated** result (a baseline pair, PLUS a docs-freshness check for any behavior/workflow/config-changing epic and a WCAG audit for a UI epic); ALL must pass. The orchestrator spawns them in parallel; each **appends** its verdict to `EPIC.md`, and the orchestrator applies any status/label change on join (single writer):
-   - A `md-reviewer` (Luna) against **`EPIC.md`'s** acceptance criteria (integration coherence, not just per-chunk).
-   - A `code-standards-checker-luna` over the **integrated diff** (whole epic vs the base branch), given `{epicDir}` + that diff, so it discovers and checks the repo's standards/guides across the combined change (catching cross-chunk drift the per-chunk gates miss).
-   - **When the repo has a runnable test suite**, a `regression-checker` (`subagent_type: regression-checker`, Luna) over the **integrated** result — runs the full suite once against the combined epic to catch cross-chunk breakage no single per-chunk run saw (chunk A + chunk B individually green, together red). It appends its verdict to `EPIC.md`; a regression is a Converge fail handled like any other (re-open / remediation chunk). Skip only when there's genuinely no suite.
-   - **For any epic whose integrated change touches behavior/workflow/config** (skip only for a purely non-behavioral change — and for a docs-only epic, which uses the combined docs-review below instead), also run a **docs-freshness check** over the integrated diff (a `docs-maintainer` used read-only as an auditor, `subagent_type: docs-maintainer`). It uses the bundled repo-docs MCP — **`interactive-mcp-standalone_find_docs`/`interactive-mcp-standalone_list_docs`/`interactive-mcp-standalone_read_doc`** — to discover which owning docs (`docs/**`, READMEs, docs-sync-governed files) each changed area maps to, then confirms each reflects the integrated change; it appends its verdict (stale-doc list + what to update) to `EPIC.md`. This is the Converge backstop to the per-chunk worker docs self-check + `docs_impact` consumption — a fail is handled like any Converge fail (docs-sync remediation chunk).
-   - **For a UI epic that is in accessibility scope** (see Design → Accessibility scope — run only when the user confirmed a WCAG review is needed), also run a `wcag-reviewer` (`subagent_type: wcag-reviewer`, Luna) over the integrated UI — a WCAG 2.2 A/AA audit grounded in the `wcag-guidelines` skill and CLI; it appends its verdict to `EPIC.md`. This is the accessibility gate for UI work; a fail is handled like any Converge fail (remediation chunk).
-   - **For a UI epic built against a visual reference, run a visual-fidelity gate — orchestrator-run, because subagents can't see the design.** Before declaring the epic done, the ORCHESTRATOR (which holds the browser/Chrome + design-tool MCPs that subagents lack) **renders the built UI and compares it side-by-side against the design reference** — screenshot the running UI and the design node, then compare layout, spacing, sizing, and typography. The AC/standards/WCAG reviewers do NOT check visual fidelity, so this is the only gate catching design drift. A visual mismatch is a Converge fail handled like any other (remediation chunk / re-open).
-   - (For a **docs-only epic**, run ONE combined docs-review over the integrated set — ACs + links + grounding + doc-shape — instead of the reviewer + code-standards-checker pair.)
-   - Pass → **deliver:** ask the user via the prompt loop how to land the completed changes — open a PR, merge an approved branch, commit them, or leave them as-is — and execute the choice (never commit, push, open a PR, or merge unasked); then mark the **epic** complete (set every issue Done; note completion in `EPIC.md`); **do NOT delete or complete `PROJECT.md` — it is long-lived**; refresh the "Progress / Resume here" section with the landing result + satisfaction check.
-   - **Close-out gate (blocking):** the epic is NOT closed until `PROJECT.md`'s "Progress / Resume here" section is current. Before the satisfaction check, re-read `PROJECT.md` and confirm the section reflects this epic's done/remaining issues + landing location (PR/merge/branch); if it's stale or missing this epic, refresh it first — this is the one orchestrator-only store write with no reviewer, so it's easy to skip and there's no other gate catching it.
-   - Fail (any check) → refresh "Progress / Resume here" with gaps; re-open issue(s) (status back to In Progress) or add a remediation chunk. Blocked/deferred → `partial` label + status note. Abort/infeasible → set the epic's open issues Canceled + note.
+### 3. Refine
 
-## Store I/O (subagents write their own — attempt-then-relay)
+Resolve only qualifying delegated technical decisions. Present recommendations and obtain user approval where required. Persist approved architectural/domain decisions before decomposition.
 
-- **Subagents write their OWN updates** directly to the markdown store (worker: its findings + follow-up comments AND the frontmatter status; checker/reviewer/wcag-reviewer: their verdict comment sections only). Comment writes are **append-only**: append a new `### <date> · <agent> — …` section under `## Comments` in the exact `issuePath` given, with shell `>>` — never a read-modify-write edit, and never rewrite another writer's section or the Description. The **frontmatter `status:` is changed by a single writer only** (the worker after its parallel reviewers join, or the orchestrator at Converge), so a status change never races a concurrent append.
-- **Attempt-then-relay:** local writes rarely fail, but if a write is denied (permission) or errors, a subagent MUST NOT fail — it records `{issuePath, action, body/status}` in a `relay` array returned to its parent, which re-attempts and bubbles still-failing items up. The **orchestrator** is the guaranteed writer of last resort.
-- Reads are always allowed. The orchestrator owns store/epic/issue **creation**, the store's self-ignoring `.orchestration/.gitignore` (`*`), and the "Progress / Resume here" section.
+### 4. Design
 
-## Status map
+For qualifying UI work, establish and approve a concrete design direction before UI decomposition. Record accessibility scope and any visual-reference requirements. Non-UI work records this phase skipped.
 
-Todo → In Progress (worker start) → In Review (worker requests review) → Done (worker applies on reviewer pass) / In Progress (fail → loop). `blocked` label at the retry cap; abandoned/infeasible → Canceled. Status is the frontmatter `status:` field; labels are the `labels:` list. **Epic completion = all its issues Done** (`PROJECT.md` stays). Full vocabulary: Todo, In Progress, In Review, Done, Canceled.
+### 5. Decompose
 
-## Invariants
+Create or refresh the epic and issue specs from templates. Every issue Description is the current executable spec and routing context. It must contain its exact context-pack slice, explicit empty results, validation, and handoff contract. Do not embed workflow templates in this dispatcher.
 
-- Workers get fully-specified chunks addressed by **explicit absolute paths** + complexity; they self-manage build + standards-check + review.
-- **Don't overthink — check.** When you're unsure how something works, don't reason from priors: look. grep it, read the file, read the library source (`npx opensrc path <pkg>`), run the command. A ten-second check beats a paragraph of speculation, and speculation is how a wrong assumption enters the epic. Reason at length only when there's genuinely nothing left to look at. This binds the orchestrator and every bundled agent.
-- **Chunk file scopes are evidence-based** — they come from a `repo-scout` context pack, never from priors. The scout is read-only and never talks to the user.
-- **Parallelism is planned, not guessed.** An epic of ≥3 chunks gets the **Plan phase** before any worker runs: read-only `impl-planner`s conceptually implement each chunk and report real `produces`/`consumes` edges, from which the orchestrator derives the authoritative `wave:` + `depends_on:` frontmatter. Chunks sharing a wave dispatch in parallel; **wave size ≥ 2 ⇒ assigned worktrees, wave size 1 ⇒ the active workspace.** Planners are read-only and never write to the store — the orchestrator applies their `spec_corrections` to the Descriptions.
-- **Subagents write their own updates to the store; relay up only on a write error** — never silently drop one.
-- **No parent "epic" issue** — the epic is `EPIC.md`. `PROJECT.md` is the long-lived container and is **never deleted**.
-- The store is the source of truth; on resume read `PROJECT.md`'s "Progress / Resume here", then re-read issue frontmatter statuses (authoritative).
-- The store lives at the **main repo root** and is **git-ignored via its own `.orchestration/.gitignore` (`*`)** — the repo's root `.gitignore` is never modified; address it by absolute path so worktree workers write to the one canonical store, and it never lands in a commit.
-- **A UI epic gets a design direction before its UI chunks are decomposed.** Accessibility is **optional by default**: the orchestrator asks the user at the Design phase whether a WCAG 2.2 A/AA review is needed and records the answer in `EPIC.md`. Only when the user confirms does the `design-lead` bake a WCAG 2.2 A/AA baseline into the approved design (recorded in `EPIC.md` + each UI chunk's spec) and the `wcag-reviewer` audit the integrated UI at Converge — both grounding in the `wcag-guidelines` skill and CLI, degrading to the baked-in baseline only if the CLI is unavailable.
-- **A chunk's issue Description IS its spec — keep it current.** When a mid-epic decision changes a chunk, UPDATE that issue file's Description, not only a `PROJECT.md` note or a comment. The worker, `code-standards-checker`, and `md-reviewer` read the Description (not the comment thread); a stale Description makes the standards-checker enforce the old spec and fail correct work as a false positive.
-- Nests inside the existing prompt loop; follows `agent-orchestration` delegation rules. Companion skills are invoked **via the native `skill` tool** by their OpenCode skill names — `grilling`, `grill-with-docs`, `domain-modeling` (the `/name` shorthand is NOT a slash command here — always call the native `skill` tool). "Graceful" means: fall back only when the native `skill` tool genuinely can't load the skill — never as a default reason to skip grilling or domain-modeling on work that needs it.
+### 6. Plan
 
-## Defaults
+When the routing predicate applies, conceptually dry-run chunks and derive authoritative dependency waves. Otherwise record the skip and use a safe trivial ordering. No worker starts before its dependencies and wave are authoritative.
 
-- Store: per-repo `.orchestration/` (git-ignored, long-lived). Epic = `EPIC.md` dir. Chunks = issue files (label `agent-task`). Labels: `agent-task`, `blocked`, `partial`.
-- Models: workers use `md-worker-free` → `md-worker-terra` → `md-worker-luna` → `md-worker-sol` by complexity. Quick scouts and mechanical maintenance use Free; standards and regression checks use Terra; deep scouts, correctness review, design, accessibility, and routine council work use Luna; Sol is reserved for high-risk implementation, architecture, or disputed gates. **Impl-planners:** `impl-planner` (Luna) by default, `impl-planner-sol` for a high-complexity chunk — never Free (a wrong dependency edge either serializes independent work or dispatches a chunk against a base that lacks its dependency). One per chunk, **capped at 6**; above the cap, group by area. Worker internal review-retry cap: 2.
-- **Docs-only economy:** a chunk (or epic) whose scope is entirely markdown / `docs/**` with no source change uses a SINGLE docs-aware `md-reviewer` — it verifies the ACs **plus** links resolve, claims are grounded to `path:line`, and doc-shape/terminology is consistent — and **skips the code-standards-checker** (code gates like lint/typecheck/tests don't apply to markdown, and the remaining doc checks overlap the reviewer). Run the docs reviewer on **Luna** (reviewers are never Free; Sol only for health-critical doc sets). Prefer compact/targeted `interactive-mcp-standalone_read_doc` reads for grounding lookups; on **incremental** docs epics scope the audit to changed docs + their link-neighbors rather than re-reading the full set. At convergence for a docs epic, run ONE combined docs-review, not a reviewer + checker pair.
-- **Design & accessibility (UI epics):** a UI/visual/layout/design epic runs the **Design phase** (`design-lead` → design pack: direction, token map grounded in the existing design system, component-reuse plan, and — when accessibility is in scope — a WCAG 2.2 A/AA baseline) before Decompose. The accessibility gate is **optional by default**: the orchestrator asks the user whether a WCAG 2.2 A/AA review is needed (recommended for user-facing UI), and only on confirmation does the design baseline + the Converge `wcag-reviewer` run — the choice recorded in `EPIC.md`. When in scope, both ground in the `wcag-guidelines` skill and CLI and degrade to a baked-in A/AA baseline if it's absent. Skip the Design phase entirely for non-UI epics.
-- **Bundled docs specialist:** for a docs-only chunk or a convergence doc-audit/remediation, the orchestrator MAY dispatch the bundled `docs-maintainer` agent (generic, repo-agnostic; docs-only with source read-only; returns a handoff and appends its own store updates attempt-then-relay) instead of a generic `md-worker`. **A docs-maintainer spawns nothing, so the orchestrator owns its review loop:** on the handoff, spawn the single docs-aware `md-reviewer` yourself; on fail, re-dispatch the docs-maintainer with the fix-list (same 2-round cap, then `blocked`); the reviewer — never the docs-maintainer, never the orchestrator alone — sets Done.
+### 7. Execute
+
+For each ready chunk, evaluate pre-worker routing, update the Description with accepted preflight findings, then dispatch the selected worker. The worker owns chunk lifecycle, status transitions at non-concurrent points, build, bounded specialist review/retry, and final handoff. Dispatch only independent scopes concurrently.
+
+### 8. Relay and record
+
+Apply failed store-write relays, integrate only through user-approved mechanics, refresh `PROJECT.md`, and update stale pending specs. At retry cap or genuine ambiguity, persist the blocker and return to the user loop rather than grinding or guessing.
+
+### 9. Converge
+
+After all issues are Done, evaluate integrated predicates and run every applicable blocking gate over actual integrated state. Record each dispatched or skipped route. A failed blocking gate reopens work or creates a remediation chunk. Only a fully passing integrated result may enter close-out.
+
+## Transition checkpoints
+
+At every phase boundary, the orchestrator MUST make the transition explicit in the store or, before store creation, in its active task state. Record: phase completed, evidence produced, unresolved questions, next phase, and references that must be loaded next. Do not advance merely because an agent returned; validate its output shape, apply relays, and ensure blocking questions are resolved.
+
+The following transitions are prohibited:
+
+- Intake → Explore while genuine user decisions remain hidden in assumptions.
+- Explore → Refine/Design/Decompose without grounded file scopes and complete explicit conditional-input slices.
+- Refine → Decompose before required user approval and ADR/domain recording.
+- Design → Decompose before the concrete design and accessibility decision are recorded.
+- Decompose/Plan → Execute before issue Descriptions and dependency waves are authoritative.
+- Execute → next wave before prior dependencies are visible in the target workspace and PROJECT progress is current.
+- Execute → Converge while any issue is not Done or any relay is unresolved.
+- Converge → close-out while any blocking gate failed or any applicable route is unrecorded.
+
+When evidence invalidates an earlier phase, move back to the earliest affected phase, update the authoritative Description/EPIC state, and rerun downstream predicates. Never patch only a comment while leaving the executable spec stale.
+
+## Resume rule
+
+The store is authoritative. On resume, `read` `${skillRoot}/references/store-protocol.md`, `${skillRoot}/references/execution.md`, `${skillRoot}/references/routing.md`, and `${skillRoot}/references/platform.md`, then read store `PROJECT.md`, `EPIC.md`, and every open issue. Reconstruct state from issue frontmatter, not prose summaries. Append the current session ID if absent. Preserve existing authoritative waves; re-plan only when a Description or landed dependency materially changed. Re-scout only missing or stale context slices. Continue at the earliest incomplete phase; never recreate a parallel epic for the same work.
+
+## Hard invariants
+
+- The main agent owns user interaction, phase transitions, issue creation/spec edits, integrated convergence, and close-out.
+- Routing predicates live only in `${skillRoot}/references/routing.md`; do not recreate or broaden them elsewhere.
+- Store schema, status ownership, append-only concurrency, relays, resume writes, and close-out writes live only in `${skillRoot}/references/store-protocol.md`.
+- Common phase mechanics live in `${skillRoot}/references/intake-design.md` and `${skillRoot}/references/execution.md`; platform names/models/isolation/install/landing mechanics live only in `${skillRoot}/references/platform.md`.
+- Every specialist decision is recorded as `dispatched` or `skipped: <reason>`. Empty precomputed input is inapplicable, never a fabricated pass.
+- Specialists receive required precomputed slices verbatim. A specialist never discovers another role's inputs.
+- Workers and the orchestrator change frontmatter status only at defined non-concurrent points. Reviewers/checkers append verdicts only and never move status.
+- Comments are append-only. Attempt failed writes, relay them upward, and never silently drop store updates.
+- Issue Description is the current spec. Accepted decisions, preflight findings, corrections, and changed interfaces must be folded into it before dispatch.
+- Fix root causes, verify actual state, and prefer existing repository/native/framework/library mechanisms without weakening security, validation, accessibility, or required behavior.
+- Never commit, create a branch, merge, push, or open a PR without explicit user approval. Approval for implementation is not landing approval.
+- The `.orchestration/` store is never committed and the root `.gitignore` is never modified for it.
+
+## Failure and close-out
+
+At a worker retry cap, mark the issue blocked and ask the user with concrete options. On deferred work, record `partial`; on infeasible/aborted work, cancel open issues and explain why. Never mark an epic complete while a blocking gate fails, a relay is unapplied, or an issue remains open.
+
+For successful close-out, first `read` `${skillRoot}/references/store-protocol.md` and `${skillRoot}/references/platform.md`. Ask how the user wants the work landed; execute only the approved option. Refresh `PROJECT.md`'s single `Progress / Resume here` section with done/remaining issues and the actual landing location or `left uncommitted`. Re-read it to verify freshness, record epic completion, preserve `PROJECT.md`, and run the mandatory satisfaction check.

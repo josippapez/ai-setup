@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const { createContext } = require('../lib/context.cjs');
 const { shutdown } = require('../lib/semantic-index.cjs');
 const { buildDocIndex } = require('./build-semantic-index.cjs');
+const { skipWithoutRuntimeDeps } = require('../lib/test-runtime-deps.cjs');
+const skip = skipWithoutRuntimeDeps();
 
 function makeRepo(fileCount) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'build-semantic-index-'));
@@ -18,7 +20,7 @@ function makeRepo(fileCount) {
 
 // The incremental-cache tests force each build to bypass the debounce window
 // (they intentionally rebuild twice back-to-back to exercise the mtime cache).
-test('second build reuses unchanged files and only re-embeds a touched one', async (t) => {
+test('second build reuses unchanged files and only re-embeds a touched one', { skip }, async (t) => {
   const root = makeRepo(4);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);
@@ -39,7 +41,7 @@ test('second build reuses unchanged files and only re-embeds a touched one', asy
   assert.strictEqual(second.skipped, 0);
 });
 
-test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', async (t) => {
+test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', { skip }, async (t) => {
   const root = makeRepo(2);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);
@@ -55,7 +57,7 @@ test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', 
   assert.strictEqual(second.unchanged, 0);
 });
 
-test('a rapid unforced rebuild is debounced (no re-embed)', async (t) => {
+test('a rapid unforced rebuild is debounced (no re-embed)', { skip }, async (t) => {
   const root = makeRepo(2);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);
@@ -70,7 +72,7 @@ test('a rapid unforced rebuild is debounced (no re-embed)', async (t) => {
   assert.strictEqual(second.unchanged, 0);
 });
 
-test('a held build lock makes a concurrent build back off (single-writer guard)', async (t) => {
+test('a held build lock makes a concurrent build back off (single-writer guard)', { skip }, async (t) => {
   const root = makeRepo(2);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);

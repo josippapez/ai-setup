@@ -16,6 +16,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 5. After follow-up, the main agent MAY relaunch at most one new agent for that same unresolved objective.
 6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective. This does not forbid one bounded review layer: an orchestration worker may use OpenCode's native `task` tool to dispatch checkers/reviewers for the distinct review objective. If `task` is unavailable to that worker, it must relay the review request to the orchestrator rather than retrying or pretending review passed.
 7. If no meaningful progress remains after allowed attempts, the main agent MUST stop delegating, execute directly, validate, and report why.
+8. Markdown orchestration MUST follow its canonical skill's persisted predicates: solution research only when signaled; standards, non-test commands, and owning-doc gates only for non-empty supplied lists; implementation-quality review only for substantive source. Empty predicates are recorded skips, never fake passes.
 
 ## Model-tier-aware routing
 
@@ -71,3 +72,4 @@ These tools are registered by the `interactive-mcp-standalone` plugin in `~/.con
 - `agents/free-tier-coder.md`
 - `agents/free-tier-maintainer.md`
 - `agents/free-tier-explorer.md`
+- `skills/markdown-orchestration/SKILL.md` — authoritative specialist routing predicates.

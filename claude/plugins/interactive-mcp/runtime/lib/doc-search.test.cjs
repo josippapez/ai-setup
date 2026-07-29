@@ -7,8 +7,10 @@ const path = require('node:path');
 const { warmUp, waitUntilReady, embedDocument, shutdown } = require('./semantic-index.cjs');
 const { createIndex, addChunks, saveIndex } = require('./doc-index.cjs');
 const { rankDocs } = require('./doc-search.cjs');
+const { skipWithoutRuntimeDeps } = require('./test-runtime-deps.cjs');
+const skip = skipWithoutRuntimeDeps();
 
-test('rankDocs returns hits above threshold, collapsed one-per-file', async () => {
+test('rankDocs returns hits above threshold, collapsed one-per-file', { skip }, async () => {
   warmUp();
   const ready = await waitUntilReady();
   assert.ok(ready, 'embedder must warm up');
@@ -29,7 +31,7 @@ test('rankDocs returns hits above threshold, collapsed one-per-file', async () =
   await shutdown();
 });
 
-test('rankDocs with collapse:false returns raw threshold-filtered candidates without one-per-file dedup', async () => {
+test('rankDocs with collapse:false returns raw threshold-filtered candidates without one-per-file dedup', { skip }, async () => {
   warmUp();
   const ready = await waitUntilReady();
   assert.ok(ready, 'embedder must warm up');

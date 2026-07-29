@@ -1,77 +1,45 @@
 # Orchestration Claude Plugin
 
-Markdown-tracked task orchestration. On a non-trivial, multi-step task the main agent
-grills it to a spec, scouts the repo into a **context pack** (read-only `repo-scout`
-agent — quick pass before grilling, deep pass before decomposing), tracks the epic in a
-**local git-ignored `.orchestration/` markdown store** — a **long-lived per-repo
-`PROJECT.md`**, the **epic as `EPIC.md`**, and its **chunks as issue files** (and, for a
-UI epic, a read-only `design-lead` produces an accessible, WCAG 2.2 A/AA design direction
-before decomposing). Once the chunks exist, read-only `impl-planner` agents run **one per
-chunk in parallel** and *conceptually implement* each one against the real code — reporting
-what it would produce and what it must consume from its siblings — so the orchestrator can
-derive the authoritative **`wave:` / `depends_on:`** frontmatter and dispatch genuinely
-independent chunks in parallel. Then it dispatches **self-managing** `md-worker` subagents
-**wave by wave**; each builds its chunk, runs its own code-standards + review loop, and
-writes its own updates to the store; the orchestrator drives convergence and statuses to Done / partial /
-abandoned. Everything is addressed by explicit absolute path passed top-down, so multiple
-repos/epics run concurrently without collision. **No external service, account, or auth is
-required** — tracking is plain files in the repo.
+Markdown-tracked task orchestration for non-trivial work. The main agent grills and scouts the task, stores the epic under a git-ignored `.orchestration/` directory, plans dependency waves, dispatches self-managing workers, and converges blocking specialist gates. No external tracker, account, or authentication is required.
 
-## The markdown store
+The compact state machine lives in [`skills/markdown-orchestration/SKILL.md`](skills/markdown-orchestration/SKILL.md). Only `SKILL.md` auto-loads; it requires explicit on-demand absolute reads of bundled references. Routing predicates are authoritative only in `references/routing.md`, store/concurrency only in `references/store-protocol.md`, and phase detail in the intake/execution references.
 
-- **Location:** `<repo-root>/.orchestration/`, created on first use with a self-ignoring
-  `.orchestration/.gitignore` (`*`) so the whole store is untracked without touching the
-  repo's root `.gitignore` (it's never committed). Addressed by **absolute path**, resolved at
-  the main repo root and passed into every subagent — so a worker running in a git worktree
-  still writes to the one canonical store.
-- **`.gitignore`** — a single `*`, written when the store is created, so the entire
-  `.orchestration/` tree stays out of git with no change to the repo's root `.gitignore`.
-- **`PROJECT.md`** — long-lived per-repo container: product overview + the single
-  "Progress / Resume here" section. Never deleted.
-- **`<epic-slug>/EPIC.md`** — the epic: goal + acceptance criteria + a compact Context pack,
-  plus (when they apply) the approved Design direction, ADRs, and accessibility scope. Its
-  frontmatter `sessions:` list records every `CLAUDE_CODE_SESSION_ID` the epic was worked in
-  (orchestrator appends the current id at Decompose and on each resume).
-- **`<epic-slug>/issues/NN-<slug>.md`** — one file per chunk: YAML frontmatter
-  (`status` / `labels` / `complexity` / `sessions`, the last an append-only list of the
-  `CLAUDE_CODE_SESSION_ID`s that worked the chunk), a `## Description` (the spec), and an append-only
-  `## Comments` thread. The worker, its code-standards-checker, and its md-reviewer all
-  write into this one file — comments are **append-only** (`>>`, safe for the parallel
-  reviewers), and the frontmatter `status:` is moved by a **single writer** (the worker on
-  join, or the orchestrator at Converge) so a status change never races an append.
+## Markdown store
+
+- `<repo-root>/.orchestration/.gitignore` contains `*`; the root `.gitignore` is untouched.
+- `PROJECT.md` is the long-lived per-repo resume index.
+- `<epic>/EPIC.md` owns epic ACs, context, decisions, convergence records, and append-only session IDs.
+- `<epic>/issues/NN-slug.md` owns one chunk's frontmatter, current Description/spec, and append-only Comments.
+- Every agent receives explicit absolute store paths. Comments use append-only writes; the worker/orchestrator remains the single status writer.
+
+## Responsibility catalog
+
+- `repo-scout` — read-only context pack. Per scope it precomputes files/reuse plus applicable documented standards, owning docs, non-test quality commands, test surfaces, and solution-reuse signals. Empty results are explicit.
+- `solution-reuse-scout` — conditional, read-only pre-worker research for custom mechanisms, dependencies/integrations, and likely repository/native/library/package solutions.
+- `impl-planner`, `council-member`, `design-lead` — retain their conditional planning, architecture, and UI design responsibilities.
+- `md-worker` — lifecycle/status/retry coordinator. It builds one chunk and dispatches only gates enabled by persisted predicates.
+- `code-standards-checker` — checks only supplied documented standards/clauses; it never discovers standards or runs commands.
+- `quality-gates-checker` — runs only supplied non-test quality commands; it never runs tests or reviews standards.
+- `md-reviewer` — checks ACs, functional correctness, scope, actual state, and root-cause correctness.
+- `implementation-quality-reviewer` — blocking reuse/simplification/root-cause quality gate for substantive source changes only.
+- `test-specialist`, `regression-checker`, `wcag-reviewer`, and visual-fidelity review retain their existing explicit predicates.
+- `docs-maintainer` remains both editor and auditor, dispatched only for docs-only work or non-empty scoped owning docs.
+
+Every dispatched specialist appends its own verdict and relays failed writes. Every inapplicable specialist is recorded as `skipped: <reason>` rather than a fabricated pass.
 
 ## Layout
 
-- `.mcp.json` bundles one self-contained MCP server: a **repo-docs** MCP (server name `repo-docs`, a local `node` runtime) exposing `find_docs`/`list_docs`/`read_doc`/`find_libs` + dependency-graph tools, available on install. `find_docs` indexes every Markdown file in the repo (vendor/build dirs pruned) into a chunked hybrid index and blends BM25 keyword scoring with dense `bge-small` embeddings, returning per file the best-matching chunk with its section anchor and a snippet. An optional per-call `rerank` flag (or the `RERANK_ENABLED` env var) applies a cross-encoder reranker on top candidates — off by default. To exclude folders/files from indexing, add a gitignore-lite `<repo>/.claude/repo-docs-ignore` (one glob per line, `#` comments; a bare name excludes that subtree at any depth). Rebuild the semantic index any time with `/reindex`.
-- `runtime/` — the bundled repo-docs MCP server, copied in so the plugin is self-contained (no dependency on any other plugin's MCP).
-- `hooks/` — a SessionStart hook that installs the repo-docs MCP's npm dependency (`@huggingface/transformers`) into `CLAUDE_PLUGIN_DATA`. Separately, the repo-docs MCP pre-embeds the repo's Markdown in the background when it connects (fire-and-forget, incremental via an mtime cache) so the first `find_docs` doesn't pay the indexing cost; `/reindex` remains the explicit rebuild.
-- `skills/` — `markdown-orchestration` (the workflow) plus companion skills `grilling`, `domain-modeling`, `grill-with-docs`, and `wcag-guidelines` (the `@rawwee/wcag-cli` WCAG 2.2 lookup CLI that `design-lead` and `wcag-reviewer` ground accessibility in — a Bash-invoked CLI rather than an MCP, so it costs nothing until used; bundled here too so the plugin stays self-contained).
-- `commands/` — `/markdown-orchestration [task]`, an explicit slash-command handle that invokes the workflow skill (use when you'd rather trigger it directly than rely on skill-discovery); `/reindex [repo-root]`, which rebuilds the repo-docs semantic index for the current repo (re-embeds all Markdown — run after adding/editing docs); and `/repo-docs-ignore [paths]`, which shows/edits the `.claude/repo-docs-ignore` exclude list interactively and offers to reindex. All require a Claude Code surface (CLI, IDE extension, or Cowork); plugin commands/skills/subagents do **not** run in the Claude Desktop *chat* app — only the bundled MCP servers do.
-- `agents/` — `repo-scout` (read-only exploration; returns the context pack that grounds grilling, the council, and chunk file-scopes, and whose slices go into each issue spec), `council-member` (one voice in the architecture council: argues ONE delegated decision through ONE assigned lens, returns a strict-JSON proposal the orchestrator synthesizes), `design-lead` (read-only UI design lead; for a UI epic returns a design pack — direction, token map, component-reuse plan, WCAG 2.2 A/AA baseline — grounded in the bundled `wcag-guidelines` CLI skill, accessible by default), `impl-planner` (read-only conceptual dry-run of ONE chunk against the real code; returns its ordered plan plus the `produces`/`consumes`/`conflicts_with` edges the orchestrator turns into dispatch waves, and any spec corrections it found while planning — file-list overlap can't see that chunk B needs an interface chunk A introduces, so this is what makes parallel dispatch safe), `md-worker` (builds a chunk fixing root causes not symptoms, adds tests via a `test-specialist` when the chunk has a real testable surface, runs a docs self-check for stale owning docs, then spawns its own `code-standards-checker` + a tier-by-complexity `md-reviewer` + a `regression-checker` when the repo has a suite), plus `md-reviewer`, `code-standards-checker`, `test-specialist` (writes/stabilizes tests for the chunk's changed behavior — reproduces bugs with a failing test first; spawned only when warranted), `regression-checker` (runs the repo's full existing suite to catch breakage elsewhere — per chunk and again over the integrated epic at convergence), `wcag-reviewer` (WCAG 2.2 A/AA audit of the integrated UI at convergence for UI epics), and `docs-maintainer`. Subagents write their own updates to the markdown store (append-only comments; attempt-then-relay, so the orchestrator applies anything a subagent couldn't). The skill engages via skill-discovery (its `description`); the only hook is the SessionStart dependency-install step for the bundled repo-docs MCP — not an auto-engage hook. The `code-standards-checker` uses the bundled repo-docs MCP to discover and check the repo's standards/guides, not just the ACs.
+- `.mcp.json` + `runtime/` — self-contained repo-docs MCP (`find_docs`, `list_docs`, `read_doc`, `find_libs`, dependency graph tools).
+- `hooks/` — SessionStart dependency setup and index lifecycle hooks.
+- `skills/markdown-orchestration/` — compact dispatcher, `references/` (`routing`, `store-protocol`, `intake-design`, `execution`, `platform`), and canonical `templates/` for PROJECT, EPIC, and issues.
+- Other `skills/` — grilling, domain-modeling, and design/accessibility companions.
+- `commands/` — `/markdown-orchestration`, `/reindex`, and `/repo-docs-ignore`.
+- `agents/` — the specialists cataloged above and their contract test.
 
-## Design
+## Browser research portability
 
-The full design lives in the workflow skill: [`skills/markdown-orchestration/SKILL.md`](skills/markdown-orchestration/SKILL.md)
-(phases, status map, self-managing workers, append-only writes + single-writer status,
-store scoping, invariants).
+The existing repository-owned `agent-browser` skill is not copied into this plugin: its source contains HCP-specific startup guidance and assumes a separately installed global CLI/browser, so copying it would not make the plugin self-contained or portable. The solution scout prefers direct repo/docs/web tools and retains WebFetch/WebSearch. OpenCode uses its already-installed `agent-browser` skill when browser interaction is genuinely required.
 
-### Why a local markdown store
+## Prerequisites
 
-Tracking is plain files under `.orchestration/` in the repo, git-ignored so orchestration
-chatter never lands in commits. This keeps the plugin **fully autonomous and zero-setup** —
-no account, no OAuth, no per-workspace ticket quota, and no network dependency: the store is
-created on first use and read back on resume. The shape mirrors a tracker (a long-lived
-per-repo `PROJECT.md`, the epic as `EPIC.md`, chunks as issue files with a description +
-comment thread) so the same worker → checker + reviewer flow works unchanged; only the
-medium is different. Because the store lives at the main repo root and is addressed by
-absolute path, workers isolated in git worktrees still write to the one canonical store.
-
-## Prerequisites (one-time)
-
-None. The store is created automatically on first use and git-ignored; there is nothing to
-install, authorize, or configure. (If the filesystem is read-only and the store can't be
-created, the workflow warns and falls back to in-session todos — tracking won't persist.)
-
-The bundled `repo-docs` MCP still applies: it installs its embedding dependency on first
-SessionStart. Check it with `/mcp`. WCAG lookups need no server — the `wcag-guidelines` skill
-fetches `@rawwee/wcag-cli` via `npx` on first use.
+None for tracking. The store is created automatically. The bundled repo-docs dependencies install on SessionStart; WCAG lookups use the bundled CLI skill on demand. If the filesystem is read-only, the workflow reports that persistence is unavailable and falls back to in-session tracking.

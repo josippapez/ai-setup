@@ -17,7 +17,7 @@
     },
     {
       "name": "markdown-orchestration",
-      "description": "Markdown-tracked task orchestration: grill, decompose into a local git-ignored .orchestration/ markdown store (per-repo PROJECT.md, the epic as EPIC.md, chunks as issue files), and dispatch self-managing worker/reviewer subagents that write their own updates. No external service or account required. Engages via skill-discovery on matching non-trivial tasks.",
+      "description": "Markdown-tracked orchestration with precomputed per-scope predicates, conditional solution-reuse research, separated standards/quality/correctness/implementation gates, and a local git-ignored store.",
       "author": {
         "name": "Personal AI Setup"
       },
