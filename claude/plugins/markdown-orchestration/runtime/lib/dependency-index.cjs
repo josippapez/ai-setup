@@ -292,15 +292,39 @@ function parseDependencies(context, filePath) {
 
 function indexState(context) {
   if (!context.dependencyIndexState) {
-    context.dependencyIndexState = { status: 'idle', processed: 0, total: 0 };
+    context.dependencyIndexState = {
+      status: 'idle',
+      processed: 0,
+      total: 0,
+      generation: 0,
+    };
   }
   return context.dependencyIndexState;
+}
+
+// Drops the cached graph so the next dependency-tool call rebuilds it against
+// current sources (e.g. after a source-file edit mid-session). The generation
+// bump makes any in-flight build finish as a no-op instead of committing a
+// stale graph over the fresh one.
+function invalidateDependencyIndex(context) {
+  const state = indexState(context);
+  state.generation = (state.generation || 0) + 1;
+  state.status = 'idle';
+  state.processed = 0;
+  state.total = 0;
+  context.dependencyIndex = null;
+  context.dependencyIndexPromise = null;
 }
 
 // Builds the dependency graph incrementally, updating progress on the context
 // and yielding to the event loop so concurrent status calls observe live state.
 async function buildDependencyIndex(context) {
   const state = indexState(context);
+  // Snapshot the generation: an invalidation while this build is in flight
+  // bumps it, and a superseded build must not commit (or report progress for)
+  // a graph that predates the invalidating edit.
+  const generation = state.generation || 0;
+  const isCurrent = () => (state.generation || 0) === generation;
   const sourceFiles = getSourceFiles(context);
   state.status = 'building';
   state.processed = 0;
@@ -321,20 +345,25 @@ async function buildDependencyIndex(context) {
       if (!dependentsByFile.has(edge.to)) dependentsByFile.set(edge.to, []);
       dependentsByFile.get(edge.to).push(edge);
     }
-    state.processed = i + 1;
+    if (isCurrent()) state.processed = i + 1;
     if ((i + 1) % YIELD_EVERY_FILES === 0) {
       await new Promise((resolve) => setImmediate(resolve));
     }
   }
 
-  context.dependencyIndex = {
+  const index = {
     sourceFiles,
     dependenciesByFile,
     dependentsByFile,
     edgeCount,
   };
-  state.status = 'ready';
-  return context.dependencyIndex;
+  if (isCurrent()) {
+    context.dependencyIndex = index;
+    state.status = 'ready';
+  }
+  // Superseded or not, return a coherent snapshot to callers already awaiting
+  // this build; the next ensureDependencyIndex call gets the fresh graph.
+  return index;
 }
 
 // Idempotent: kicks off the async build once and returns a promise resolving to
@@ -343,9 +372,14 @@ async function buildDependencyIndex(context) {
 function startDependencyIndex(context) {
   if (context.dependencyIndex) return Promise.resolve(context.dependencyIndex);
   if (context.dependencyIndexPromise) return context.dependencyIndexPromise;
+  const generation = indexState(context).generation || 0;
   const promise = buildDependencyIndex(context).catch((err) => {
-    indexState(context).status = 'error';
-    context.dependencyIndexPromise = null;
+    // Only report/clear if this build wasn't superseded — a failing stale
+    // build must not mark the fresh generation as errored or null its promise.
+    if ((indexState(context).generation || 0) === generation) {
+      indexState(context).status = 'error';
+      context.dependencyIndexPromise = null;
+    }
     throw err;
   });
   context.dependencyIndexPromise = promise;
@@ -372,4 +406,5 @@ module.exports = {
   startDependencyIndex,
   ensureDependencyIndex,
   getDependencyIndexState,
+  invalidateDependencyIndex,
 };

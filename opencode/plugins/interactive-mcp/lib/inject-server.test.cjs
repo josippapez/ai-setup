@@ -72,6 +72,28 @@ test('reindex requests reuse the running server', async () => {
   delete process.env.REPO_DOCS_INJECT;
 });
 
+test('invalidate-deps requests clear the cached dependency graph', async () => {
+  const context = {
+    root: createRoot(),
+    maxFileSizeBytes: 1e6,
+    dependencyIndex: { stale: true },
+    dependencyIndexPromise: Promise.resolve(),
+  };
+  process.env.REPO_DOCS_INJECT = '1';
+  const server = await startInjectServer(context, {
+    rank: async () => [],
+    ready: () => true,
+  });
+
+  const result = await ask(injectSocketPath(context.root), { op: 'invalidate-deps' });
+  assert.strictEqual(result.invalidated, true);
+  assert.strictEqual(context.dependencyIndex, null);
+  assert.strictEqual(context.dependencyIndexPromise, null);
+
+  await new Promise((resolve) => server.close(resolve));
+  delete process.env.REPO_DOCS_INJECT;
+});
+
 test('reuses an active socket instead of replacing it', async () => {
   const context = { root: createRoot(), maxFileSizeBytes: 1e6 };
   process.env.REPO_DOCS_INJECT = '1';

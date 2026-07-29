@@ -102,3 +102,39 @@ test('injects relevant repository docs into system context for a user prompt', a
   );
   await new Promise((resolve) => server.close(resolve));
 });
+
+test('source-file edits request dependency-graph invalidation over the socket', async () => {
+  // Short prefix: the socket path below must stay under the 104-char unix
+  // socket limit on macOS.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-deps-'));
+  const socketPath = path.join(root, '.opencode', 'repo-docs', 'inject.sock');
+  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
+  const received = [];
+  const server = net.createServer((connection) => {
+    connection.on('data', (data) => {
+      try { received.push(JSON.parse(String(data).trim())); } catch {}
+      connection.end(`${JSON.stringify({ ok: true })}\n`);
+    });
+  });
+  await new Promise((resolve) => server.listen(socketPath, resolve));
+
+  const hooks = await interactiveMcpPlugin({
+    directory: root,
+    serverUrl: new URL('http://localhost:4096'),
+  });
+  await hooks['tool.execute.after']({
+    sessionID: 'session-deps',
+    tool: 'edit',
+    args: { filePath: path.join(root, 'src/app.ts') },
+  });
+  for (let i = 0; i < 50 && received.length === 0; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  // Close before asserting so a failure can't leave the server holding the
+  // event loop open (node --test would hang instead of reporting).
+  await new Promise((resolve) => server.close(resolve));
+  assert.ok(
+    received.some((message) => message.op === 'invalidate-deps'),
+    'a source edit must send an invalidate-deps op',
+  );
+});

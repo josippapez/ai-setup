@@ -51,11 +51,21 @@ test('reindex-on-edit sends a reindex op after a Markdown Write', async () => {
   await new Promise((r) => server.close(r));
 });
 
-test('reindex-on-edit ignores non-Markdown edits', async () => {
+test('reindex-on-edit sends invalidate-deps after a source-file edit', async () => {
   const root = freshRoot();
   const received = [];
   const server = await stubServer(root, received);
   await runHook({ tool_name: 'Edit', tool_input: { file_path: path.join(root, 'src/app.ts') }, cwd: root });
+  assert.strictEqual(received.length, 1);
+  assert.strictEqual(received[0].op, 'invalidate-deps');
+  await new Promise((r) => server.close(r));
+});
+
+test('reindex-on-edit ignores non-doc, non-source edits', async () => {
+  const root = freshRoot();
+  const received = [];
+  const server = await stubServer(root, received);
+  await runHook({ tool_name: 'Edit', tool_input: { file_path: path.join(root, 'styles/app.css') }, cwd: root });
   assert.strictEqual(received.length, 0);
   await new Promise((r) => server.close(r));
 });

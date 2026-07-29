@@ -4,6 +4,7 @@ const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { rankDocs } = require('./doc-search.cjs');
+const { invalidateDependencyIndex } = require('./dependency-index.cjs');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
 
 const MAX_SNIPPET_CHARS = 180;
@@ -42,6 +43,13 @@ async function startInjectServer(context, { rank = rankDocs, build = buildDocInd
       if (req.op === 'reindex') {
         try { await build(context); conn.end(JSON.stringify({ reindexed: true }) + '\n'); }
         catch { conn.end(JSON.stringify({ reindexed: false }) + '\n'); }
+        return;
+      }
+      // Source-file edit: drop the cached dependency graph so the next
+      // dependency-tool call rebuilds it (cheap, no re-embedding involved).
+      if (req.op === 'invalidate-deps') {
+        invalidateDependencyIndex(context);
+        conn.end(JSON.stringify({ invalidated: true }) + '\n');
         return;
       }
       try {

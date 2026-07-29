@@ -52,16 +52,32 @@ function requestsMarkdownReindex(input) {
   return /\.mdx?$/i.test(file) || /(?:^|\n)[+*]{3} (?:Add|Update|Delete) File: .*\.mdx?$/im.test(args.patchText || '');
 }
 
-function requestReindex(repositoryRoot) {
-  const lockPath = join(repositoryRoot, '.opencode', 'repo-docs', 'reindex.lock');
-  if (!claimReindex(lockPath)) return;
+// Mirrors SOURCE_EXTENSIONS in lib/dependency-index.cjs.
+const SOURCE_FILE_RE = /\.(cjs|cts|js|jsx|mjs|mts|ts|tsx)$/i;
+
+function requestsDependencyInvalidate(input) {
+  const tool = String(input.tool || '').toLowerCase();
+  if (!['apply_patch', 'edit', 'multiedit', 'write'].includes(tool)) return false;
+  const args = input.args || {};
+  const file = args.filePath || args.file_path || args.path || '';
+  return SOURCE_FILE_RE.test(file)
+    || /(?:^|\n)[+*]{3} (?:Add|Update|Delete) File: .*\.(cjs|cts|js|jsx|mjs|mts|ts|tsx)$/im.test(args.patchText || '');
+}
+
+function sendInjectOp(repositoryRoot, op) {
   const socketPath = join(repositoryRoot, '.opencode', 'repo-docs', 'inject.sock');
   const socket = net.connect(socketPath);
   const timer = setTimeout(() => socket.destroy(), 1500);
-  socket.on('connect', () => socket.write(`${JSON.stringify({ op: 'reindex' })}\n`));
+  socket.on('connect', () => socket.write(`${JSON.stringify({ op })}\n`));
   socket.on('data', () => socket.end());
   socket.on('error', () => {});
   socket.on('close', () => clearTimeout(timer));
+}
+
+function requestReindex(repositoryRoot) {
+  const lockPath = join(repositoryRoot, '.opencode', 'repo-docs', 'reindex.lock');
+  if (!claimReindex(lockPath)) return;
+  sendInjectOp(repositoryRoot, 'reindex');
 }
 
 /**
@@ -204,6 +220,9 @@ export default async function interactiveMcpPlugin({
     },
     'tool.execute.after': async (input) => {
       if (requestsMarkdownReindex(input)) requestReindex(repositoryRoot);
+      // Undebounced on purpose: invalidation is an in-memory flag flip, and a
+      // missed one would leave dependency tools answering from a stale graph.
+      if (requestsDependencyInvalidate(input)) sendInjectOp(repositoryRoot, 'invalidate-deps');
       const prompt = latestPrompts.get(input.sessionID) || '';
       const query = `${prompt} ${toolQuery(input)}`.trim().replace(/\s+/g, ' ').slice(0, 400);
       if (query.replace(/[^a-zA-Z]/g, '').length >= 8 && !isConversationalFiller(query)) {

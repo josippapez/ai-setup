@@ -6,7 +6,10 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createContext } = require('./context.cjs');
-const { ensureDependencyIndex } = require('./dependency-index.cjs');
+const {
+  ensureDependencyIndex,
+  invalidateDependencyIndex,
+} = require('./dependency-index.cjs');
 
 function writeFile(root, rel, content) {
   const full = path.join(root, rel);
@@ -153,6 +156,43 @@ test('workspace consumers reach a barrel-re-exported leaf via blast radius', asy
   assert.ok(
     barrelDependents.some((e) => e.from === 'apps/web/src/App.tsx'),
     'the app importing the package by name must be a dependent of the barrel',
+  );
+});
+
+test('invalidateDependencyIndex forces the next call to pick up new files', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-invalidate-'));
+  writeFile(root, 'src/index.ts', "import helper from './helper';");
+  writeFile(root, 'src/helper.ts', 'export default 1;');
+  const context = createContext(root);
+  const first = await ensureDependencyIndex(context);
+
+  writeFile(root, 'src/late.ts', "import helper from './helper';");
+  const cached = await ensureDependencyIndex(context);
+  assert.strictEqual(cached, first, 'without invalidation the cached graph is reused');
+
+  invalidateDependencyIndex(context);
+  const rebuilt = await ensureDependencyIndex(context);
+  assert.notStrictEqual(rebuilt, first);
+  assert.strictEqual(rebuilt.dependenciesByFile.get('src/late.ts')[0].to, 'src/helper.ts');
+});
+
+test('an in-flight build superseded by invalidation does not commit a stale graph', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-supersede-'));
+  // Enough files that the build yields to the event loop mid-way (every 50
+  // files), leaving a window where invalidation arrives while it is in flight.
+  for (let i = 0; i < 60; i += 1) writeFile(root, `src/mod${i}.ts`, 'export {};\n');
+  writeFile(root, 'src/helper.ts', 'export default 1;');
+  const context = createContext(root);
+
+  const stale = ensureDependencyIndex(context); // parses 50 files, parks at the yield
+  invalidateDependencyIndex(context);
+  writeFile(root, 'src/late.ts', "import helper from './helper';");
+  await stale; // finishes against its old file list — must NOT become the cached graph
+
+  const rebuilt = await ensureDependencyIndex(context);
+  assert.ok(
+    rebuilt.dependenciesByFile.has('src/late.ts'),
+    'post-invalidation build must see the new file',
   );
 });
 

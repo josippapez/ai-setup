@@ -4,7 +4,9 @@
 // PostToolUse hook: after a Markdown file is written/edited, ask the running MCP
 // server (which holds the warm embedder) to re-embed changed docs via the
 // injection socket, so mid-session doc edits become injectable without a
-// reconnect. Self-contained (node: builtins only), fire-and-forget, fail-safe.
+// reconnect. After a source-file edit, send a cheap invalidate-deps op instead
+// so the dependency graph rebuilds lazily against current sources.
+// Self-contained (node: builtins only), fire-and-forget, fail-safe.
 //
 // Registered in BOTH claude plugins' hooks.json, so a shared debounce lock keeps
 // a single edit from triggering two reindexes when both plugins are installed.
@@ -28,6 +30,8 @@ const normalizeTool = (v) => {
 };
 
 const EDIT_TOOLS = new Set(['write', 'edit', 'multiedit', 'create', 'apply_patch']);
+// Mirrors SOURCE_EXTENSIONS in runtime/lib/dependency-index.cjs.
+const SOURCE_FILE_RE = /\.(cjs|cts|js|jsx|mjs|mts|ts|tsx)$/i;
 
 function editedPath(event) {
   const input = event.tool_input || event.toolInput || event.input || {};
@@ -48,14 +52,14 @@ function claimReindex(lockPath) {
   }
 }
 
-function sendReindex(root) {
+function sendOp(root, op) {
   return new Promise((resolve) => {
     const sock = path.join(root, '.claude', 'repo-docs', 'inject.sock');
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
     const c = net.connect(sock);
     const timer = setTimeout(() => { c.destroy(); finish(); }, 1500);
-    c.on('connect', () => c.write(JSON.stringify({ op: 'reindex' }) + '\n'));
+    c.on('connect', () => c.write(JSON.stringify({ op }) + '\n'));
     c.on('data', () => { clearTimeout(timer); c.end(); finish(); });
     c.on('error', () => { clearTimeout(timer); finish(); });
     c.on('close', () => { clearTimeout(timer); finish(); });
@@ -68,10 +72,15 @@ const main = async () => {
   const tool = normalizeTool(event.tool_name || event.toolName || event.tool || event.name);
   if (!EDIT_TOOLS.has(tool)) process.exit(0);
   const file = editedPath(event);
-  if (!/\.mdx?$/i.test(file)) process.exit(0);
   const root = event.cwd || process.cwd();
-  if (!claimReindex(path.join(root, '.claude', 'repo-docs', 'reindex.lock'))) process.exit(0);
-  await sendReindex(root);
+  if (/\.mdx?$/i.test(file)) {
+    if (!claimReindex(path.join(root, '.claude', 'repo-docs', 'reindex.lock'))) process.exit(0);
+    await sendOp(root, 'reindex');
+  } else if (SOURCE_FILE_RE.test(file)) {
+    // Undebounced on purpose: invalidation is an in-memory flag flip, and a
+    // missed one would leave dependency tools answering from a stale graph.
+    await sendOp(root, 'invalidate-deps');
+  }
   process.exit(0);
 };
 

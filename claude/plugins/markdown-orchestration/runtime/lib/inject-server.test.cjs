@@ -63,3 +63,19 @@ test('inject server handles a reindex op by invoking the incremental build', asy
   await new Promise(r => server.close(r));
   delete process.env.REPO_DOCS_INJECT;
 });
+
+test('inject server handles an invalidate-deps op by clearing the cached graph', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'inject-invalidate-'));
+  fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
+  const context = { root, maxFileSizeBytes: 1e6, dependencyIndex: { stale: true }, dependencyIndexPromise: Promise.resolve() };
+
+  process.env.REPO_DOCS_INJECT = '1';
+  const server = await startInjectServer(context, { rank: async () => [] });
+  const res = await ask(injectSocketPath(root), { op: 'invalidate-deps' });
+  assert.strictEqual(res.invalidated, true);
+  assert.strictEqual(context.dependencyIndex, null);
+  assert.strictEqual(context.dependencyIndexPromise, null);
+
+  await new Promise(r => server.close(r));
+  delete process.env.REPO_DOCS_INJECT;
+});

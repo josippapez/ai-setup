@@ -5,6 +5,7 @@ const net = require('node:net');
 const path = require('node:path');
 const { rankDocs } = require('./doc-search.cjs');
 const { isReady } = require('./semantic-index.cjs');
+const { invalidateDependencyIndex } = require('./dependency-index.cjs');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
 
 const MAX_SNIPPET_CHARS = 180;
@@ -70,6 +71,13 @@ async function startInjectServer(
         } catch {
           connection.end(`${JSON.stringify({ reindexed: false })}\n`);
         }
+        return;
+      }
+      // Source-file edit: drop the cached dependency graph so the next
+      // dependency-tool call rebuilds it (cheap, no re-embedding involved).
+      if (request.op === 'invalidate-deps') {
+        invalidateDependencyIndex(context);
+        connection.end(`${JSON.stringify({ invalidated: true })}\n`);
         return;
       }
       if (!ready()) {
