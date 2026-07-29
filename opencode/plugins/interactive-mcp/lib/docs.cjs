@@ -4,7 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { relativePath, walkDirectory } = require('./fs-utils.cjs');
 
+// Optional per-repo ignore config: <repo>/.opencode/repo-docs-ignore
+// gitignore-lite, one pattern per line (# comments). A pattern without a slash
+// matches at any depth; a trailing slash / bare dir name excludes the subtree;
+// `*` matches within a path segment, `**` across segments.
 const IGNORE_FILE = path.join('.opencode', 'repo-docs-ignore');
+
+// Non-character sentinel used to fold `**` before the single-`*` pass so it
+// isn't re-processed. U+FFFF can't appear in a real path, so it never collides
+// with the pattern; written as an escape to keep this source pure ASCII.
 const GLOBSTAR = '\uFFFF';
 
 function globToRegExp(pattern) {
@@ -31,6 +39,9 @@ function loadIgnoreMatchers(root) {
     .map(globToRegExp);
 }
 
+// Index every Markdown file in the repo. walkDirectory already prunes the
+// standard noise directories (node_modules, .git, dist, …) via SKIP_DIRS;
+// the optional repo-docs-ignore config drops anything else the repo opts out of.
 function getDocFiles(context) {
   const ignore = loadIgnoreMatchers(context.root);
   const files = [];
