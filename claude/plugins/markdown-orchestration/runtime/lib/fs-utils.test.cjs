@@ -24,3 +24,23 @@ test('walkDirectory skips the .orchestration store and other noise dirs', () => 
   assert.ok(!seen.some((p) => p.startsWith('.orchestration')), '.orchestration must be skipped');
   assert.ok(!seen.some((p) => p.startsWith('node_modules')), 'node_modules must be skipped');
 });
+
+test('walkDirectory skips .claude/worktrees but keeps other .claude and worktrees dirs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'skipworktrees-'));
+  fs.mkdirSync(path.join(root, '.claude', 'worktrees', 'agent-abc123'), { recursive: true });
+  fs.mkdirSync(path.join(root, '.claude', 'rules'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'worktrees'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.claude', 'worktrees', 'agent-abc123', 'README.md'), '# copy');
+  fs.writeFileSync(path.join(root, '.claude', 'rules', 'custom.md'), '# rule');
+  fs.writeFileSync(path.join(root, 'worktrees', 'doc.md'), '# unrelated');
+
+  const seen = [];
+  walkDirectory(root, (p) => seen.push(path.relative(root, p)));
+
+  assert.ok(
+    !seen.some((p) => p.startsWith(path.join('.claude', 'worktrees'))),
+    '.claude/worktrees must be skipped',
+  );
+  assert.ok(seen.includes(path.join('.claude', 'rules', 'custom.md')), 'other .claude docs should be visited');
+  assert.ok(seen.includes(path.join('worktrees', 'doc.md')), 'a non-.claude worktrees dir should be visited');
+});

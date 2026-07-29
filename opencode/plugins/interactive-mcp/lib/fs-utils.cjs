@@ -23,6 +23,13 @@ function clampInteger(value, fallback, min, max) {
   return Math.min(Math.max(parsed, min), max);
 }
 
+function shouldSkipDir(parentPath, name) {
+  if (SKIP_DIRS.has(name)) return true;
+  // .claude/worktrees holds transient full checkouts made by Claude Code
+  // worktree agents; indexing them duplicates every doc per agent.
+  return name === 'worktrees' && path.basename(parentPath) === '.claude';
+}
+
 function walkDirectory(dirPath, visitor) {
   let entries = [];
   try {
@@ -33,7 +40,7 @@ function walkDirectory(dirPath, visitor) {
   for (const entry of entries) {
     const fullPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walkDirectory(fullPath, visitor);
+      if (!shouldSkipDir(dirPath, entry.name)) walkDirectory(fullPath, visitor);
       continue;
     }
     if (entry.isFile()) visitor(fullPath);
