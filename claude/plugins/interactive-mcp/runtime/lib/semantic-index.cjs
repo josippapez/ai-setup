@@ -53,22 +53,44 @@ if (!isMainThread) {
 
 let worker = null;
 let workerReady = false;
-let workerFailed = false;
+let lastFailedAt = 0;
 let msgId = 0;
 const pending = new Map();
 
+// A failed spawn (e.g. runtime deps still npm-installing right after a plugin
+// reinstall) retries after this cooldown instead of latching the process into
+// a dead-embedder state for its whole lifetime.
+const RETRY_COOLDOWN_MS = Number(process.env.REPO_DOCS_EMBED_RETRY_MS) > 0
+  ? Number(process.env.REPO_DOCS_EMBED_RETRY_MS)
+  : 30000;
+
+function inFailureCooldown() {
+  return lastFailedAt !== 0 && Date.now() - lastFailedAt < RETRY_COOLDOWN_MS;
+}
+
+function markFailed() {
+  lastFailedAt = Date.now();
+  workerReady = false;
+  worker = null;
+  // Resolve anything awaiting an embed so builds/queries fail fast with null
+  // instead of hanging on a worker that will never answer.
+  for (const resolve of pending.values()) resolve(null);
+  pending.clear();
+}
+
 function warmUp() {
-  if (worker || workerFailed) return;
+  if (worker || inFailureCooldown()) return;
 
   try {
     worker = new Worker(__filename);
   } catch {
-    workerFailed = true;
+    markFailed();
     return;
   }
 
   worker.on('message', (msg) => {
     if (msg.type === 'ready') {
+      lastFailedAt = 0;
       workerReady = true;
       return;
     }
@@ -82,20 +104,20 @@ function warmUp() {
     }
 
     if (msg.type === 'error') {
-      workerFailed = true;
-      workerReady = false;
-      worker = null;
+      markFailed();
     }
   });
 
   worker.on('error', () => {
-    workerFailed = true;
-    workerReady = false;
-    worker = null;
+    markFailed();
   });
 }
 
 function isReady() {
+  // Query paths only probe readiness; give them the (cooldown-gated) retry
+  // trigger too, so a post-failure process heals on the next query instead of
+  // only when a build happens to run.
+  if (!workerReady) warmUp();
   return workerReady;
 }
 
@@ -111,7 +133,7 @@ async function shutdown() {
 function waitUntilReady(timeoutMs = 300000) {
   warmUp();
   if (workerReady) return Promise.resolve(true);
-  if (workerFailed) return Promise.resolve(false);
+  if (inFailureCooldown()) return Promise.resolve(false);
 
   return new Promise((resolve) => {
     const start = Date.now();
@@ -121,7 +143,7 @@ function waitUntilReady(timeoutMs = 300000) {
         resolve(true);
         return;
       }
-      if (workerFailed || Date.now() - start >= timeoutMs) {
+      if (inFailureCooldown() || Date.now() - start >= timeoutMs) {
         clearInterval(timer);
         resolve(false);
       }

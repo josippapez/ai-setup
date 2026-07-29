@@ -4,6 +4,7 @@ const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { rankDocs } = require('./doc-search.cjs');
+const { isReady } = require('./semantic-index.cjs');
 const { invalidateDependencyIndex } = require('./dependency-index.cjs');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
 
@@ -25,7 +26,7 @@ function snippet(content) {
 // Host the injection query socket. No-op unless REPO_DOCS_INJECT=1. First server
 // to bind wins; a second (the other byte-identical plugin runtime) sees EADDRINUSE
 // and resolves null. Reuses the caller's warm embedder via rankDocs.
-async function startInjectServer(context, { rank = rankDocs, build = buildDocIndex } = {}) {
+async function startInjectServer(context, { rank = rankDocs, build = buildDocIndex, ready = isReady } = {}) {
   if (process.env.REPO_DOCS_INJECT !== '1') return null;
   const sockPath = injectSocketPath(context.root);
   fs.mkdirSync(path.dirname(sockPath), { recursive: true });
@@ -50,6 +51,12 @@ async function startInjectServer(context, { rank = rankDocs, build = buildDocInd
       if (req.op === 'invalidate-deps') {
         invalidateDependencyIndex(context);
         conn.end(JSON.stringify({ invalidated: true }) + '\n');
+        return;
+      }
+      // Tell the client the embedder is still loading (or retrying after a
+      // failed spawn) so "no hits yet" is distinguishable from "no matches".
+      if (!ready()) {
+        conn.end(JSON.stringify({ hits: [], injected: false, warming: true }) + '\n');
         return;
       }
       try {

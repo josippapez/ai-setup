@@ -29,7 +29,7 @@ test('inject server returns ranked hits over the socket, gated by env', async ()
   process.env.REPO_DOCS_INJECT = '1';
   const stub = async (_ctx, { query }) =>
     query.includes('auth') ? [{ path: 'docs/auth.md', heading: 'Auth', content: 'token refresh '.repeat(30), startLine: 1, score: 0.9 }] : [];
-  const server = await startInjectServer(context, { rank: stub });
+  const server = await startInjectServer(context, { rank: stub, ready: () => true });
   assert.ok(server, 'server should start when enabled');
 
   const hit = await ask(injectSocketPath(root), { query: 'auth login', limit: 3, threshold: 0 });
@@ -59,6 +59,26 @@ test('inject server handles a reindex op by invoking the incremental build', asy
   const res = await ask(injectSocketPath(root), { op: 'reindex' });
   assert.strictEqual(res.reindexed, true);
   assert.strictEqual(builds, 1, 'reindex op must invoke the build once');
+
+  await new Promise(r => server.close(r));
+  delete process.env.REPO_DOCS_INJECT;
+});
+
+test('inject server reports warming instead of empty hits while the embedder loads', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'inject-warming-'));
+  fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
+  const context = { root, maxFileSizeBytes: 1e6 };
+
+  process.env.REPO_DOCS_INJECT = '1';
+  let ranked = 0;
+  const server = await startInjectServer(context, {
+    rank: async () => { ranked += 1; return []; },
+    ready: () => false,
+  });
+  const res = await ask(injectSocketPath(root), { query: 'auth' });
+  assert.strictEqual(res.warming, true);
+  assert.strictEqual(res.injected, false);
+  assert.strictEqual(ranked, 0, 'must not rank while the embedder is not ready');
 
   await new Promise(r => server.close(r));
   delete process.env.REPO_DOCS_INJECT;
