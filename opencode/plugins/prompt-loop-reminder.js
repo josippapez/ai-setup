@@ -1,43 +1,18 @@
-const STOP_PHRASES = [
-  "stop prompting",
-  "end session",
-  "don't ask anymore",
-  "close conversation",
-];
+// Nudges the agent to close a turn by checking in with the user.
+//
+// Kept deliberately minimal: it used to also append a reminder to every
+// question-tool result and restate a full prompting policy (mandatory
+// satisfaction check, stop phrases, prompt-loop todo). That policy was retired
+// to retired/prompt-loop/, so the hook no longer cites it — it states only the
+// live expectation, once, in the system prompt.
 
-function containsStopPhrase(text) {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return STOP_PHRASES.some(phrase => lower.includes(phrase));
-}
+const REMINDER =
+  'Close each turn with the deliverable as its final plain text, then ask the user whether they want any changes. Never place the deliverable above a questions-tool widget — the widget hides the text before it.';
 
 export const server = async _input => {
   return {
-    "tool.execute.after": async (input, output) => {
-      const toolName = input.tool ?? "";
-      // Fire after the built-in questions tool (harness-provided ask-question tool),
-      // e.g. AskUserQuestion / question / ask_question. The interactive MCP path is retired.
-      const isQuestionTool = toolName.toLowerCase().includes("question");
-
-      if (!isQuestionTool) return;
-
-      const responseText =
-        typeof output.output === "string"
-          ? output.output
-          : JSON.stringify(output.output ?? "");
-
-      if (containsStopPhrase(responseText)) {
-        output.output = `${responseText}\n\n[prompt-loop] stop phrase detected; no more prompts.`;
-        return;
-      }
-
-      output.output = `${responseText}\n\n[prompt-loop] keep todo active; prompt after task.`;
-    },
-
-    "experimental.chat.system.transform": async (_input, output) => {
-      output.system.push(
-        'Use the built-in questions tool (the harness-provided ask-question tool) for every prompt and the mandatory post-task satisfaction check. Stop prompting after the exact phrase "Stop prompting", "End session", "Don\'t ask anymore", or "Close conversation"; then give a plain-text summary only.'
-      );
+    'experimental.chat.system.transform': async (_input, output) => {
+      output.system.push(REMINDER);
     },
   };
 };

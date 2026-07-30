@@ -19,17 +19,19 @@ communication, confirm scope before each task, run a mandatory
 `Are you satisfied with this result, or would you like any changes?` check after each
 delivery, and continue the loop until an exact stop phrase.
 
-## Still live elsewhere
+## Still live elsewhere (by choice)
 
-Retiring these files did **not** remove the enforcement hooks. Both still fire and
-still inject the prompt-loop reminder every turn:
+The check-in reminder hooks were kept, but rewritten so they no longer cite this
+retired policy and no longer spam:
 
-- `claude/hooks/scripts/prompt-loop-reminder.mjs`, wired into `SessionStart`,
-  `UserPromptSubmit`, and `Stop` in `claude/settings.json`.
-- `opencode/plugins/prompt-loop-reminder.js`, listed in `opencode/opencode.json`.
-
-Retire those too if the reminder text is unwanted — otherwise the hooks keep asking
-for a satisfaction prompt that no rule defines any more.
+- `claude/hooks/scripts/prompt-loop-reminder.mjs` — now wired to `UserPromptSubmit`
+  only (was also `PostToolUse` on every Edit/Write and `SessionStart`), and
+  throttled to one reminder per session per 30 minutes
+  (`PROMPT_LOOP_REMINDER_INTERVAL_MS`, state under `PROMPT_LOOP_STATE_DIR`).
+  Covered by `prompt-loop-reminder.test.mjs`, including a guard test that fails if
+  the reminder text ever cites this retired policy again.
+- `opencode/plugins/prompt-loop-reminder.js` — reduced to a single system-prompt
+  line; its per-question-tool output rewriting and stop-phrase policy are gone.
 
 One lesson from this policy was kept in live guidance rather than retired: the
 **deliverable visibility** rule (never bury an answer above a questions-tool widget —

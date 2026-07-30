@@ -66,20 +66,6 @@
             "command": "HOOK_RUN_ESLINT=1 node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/format-lint-edited-files.mjs\"",
             "timeout": 120,
             "statusMessage": "Formatting edited file"
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/prompt-loop-reminder.mjs\""
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scripts/prompt-loop-reminder.mjs\""
           }
         ]
       }
