@@ -14,5 +14,6 @@ Claude-compatible mirror of the OpenCode `interactive-mcp` custom plugin.
   - `REPO_DOCS_INJECT_THRESHOLD_PROGRESS` (default 0.86) — higher threshold for PostToolBatch/PostToolUse (progress) hook
   - `REPO_DOCS_INJECT_LIMIT` (default 3) — max doc pointers per injection
   - `REPO_DOCS_INJECT_TIMEOUT_MS` (default 300) — socket connect timeout
+  - `REPO_DOCS_INJECT_WARM_ATTEMPTS` (default 3) / `REPO_DOCS_INJECT_WARM_DELAY_MS` (default 250) — bounded retry on the UserPromptSubmit hook while the server answers `warming: true` (its embedder still loading, i.e. the first prompt of a fresh or resumed session). ~750ms worst case; costs nothing once warm, and a plain miss / absent socket / timeout is never retried. The progress hook deliberately does not retry — it runs between tool calls, where waiting would stall the agent loop rather than a single prompt.
   - `REPO_DOCS_INJECT_EVENTS` (default `prompt,batch`) — control which hooks are active
   See [proactive doc-injection design spec](../../../docs/superpowers/specs/2026-07-16-proactive-doc-injection-design.md) for architecture, risks, and how the thresholds were calibrated.

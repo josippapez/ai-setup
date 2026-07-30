@@ -43,6 +43,81 @@ function runHook(input, env) {
   });
 }
 
+// Stub that counts requests and can answer differently per attempt, for the
+// warming-retry tests below.
+function startCountingStub(root, replyFor) {
+  const sock = injectSocketPath(root);
+  fs.mkdirSync(path.dirname(sock), { recursive: true });
+  try { fs.rmSync(sock, { force: true }); } catch {}
+  const state = { requests: 0 };
+  const server = net.createServer((conn) => {
+    let buf = '';
+    conn.on('data', (d) => {
+      buf += d;
+      if (buf.indexOf('\n') === -1) return;
+      state.requests += 1;
+      conn.end(JSON.stringify(replyFor(state.requests)) + '\n');
+    });
+    conn.on('error', () => {});
+  });
+  return new Promise((resolve) => {
+    server.listen(sock, () => resolve({ server, state }));
+  });
+}
+
+const WARMING = { hits: [], injected: false, warming: true };
+const HIT = {
+  hits: [{ path: 'docs/warm.md', startLine: 7, heading: 'H', snippet: 'sn', score: 0.9 }],
+  injected: true,
+};
+
+test('retries while the embedder reports warming, then injects once ready', async () => {
+  const root = tmpRoot();
+  // Warming on the first two attempts (fresh/resumed session), ready on the third.
+  const { server, state } = await startCountingStub(root, (n) => (n < 3 ? WARMING : HIT));
+  try {
+    const out = await runHook({
+      prompt: 'how does the injection pipeline decide what to inject',
+      cwd: root,
+    }, { ...process.env, REPO_DOCS_INJECT_WARM_DELAY_MS: '10' });
+    const parsed = JSON.parse(out);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /docs\/warm\.md:7/);
+    assert.strictEqual(state.requests, 3, 'should have retried twice before succeeding');
+  } finally {
+    server.close();
+  }
+});
+
+test('gives up after the bounded attempt cap when warming never clears', async () => {
+  const root = tmpRoot();
+  const { server, state } = await startCountingStub(root, () => WARMING);
+  try {
+    const out = await runHook({
+      prompt: 'how does the injection pipeline decide what to inject',
+      cwd: root,
+    }, { ...process.env, REPO_DOCS_INJECT_WARM_DELAY_MS: '10' });
+    assert.strictEqual(out, '', 'no injection while still warming');
+    assert.strictEqual(state.requests, 3, 'bounded to 3 attempts, never unbounded');
+  } finally {
+    server.close();
+  }
+});
+
+test('does not retry a plain miss — only warming is retried', async () => {
+  const root = tmpRoot();
+  const { server, state } = await startCountingStub(root, () => ({ hits: [], injected: false }));
+  try {
+    const out = await runHook({
+      prompt: 'how does the injection pipeline decide what to inject',
+      cwd: root,
+    }, { ...process.env, REPO_DOCS_INJECT_WARM_DELAY_MS: '10' });
+    assert.strictEqual(out, '');
+    assert.strictEqual(state.requests, 1, 'a warm "no matches" must cost exactly one attempt');
+  } finally {
+    server.close();
+  }
+});
+
 test('prints additionalContext (UserPromptSubmit) when stub returns hits', async () => {
   const root = tmpRoot();
   const reply = { hits: [{ path: 'docs/x.md', startLine: 5, heading: 'H', snippet: 'sn', score: 0.8 }], injected: true };

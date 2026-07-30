@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-const { queryInject, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
+const { queryInjectWithWarmRetry, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
 
 const readStdin = async () => {
   const chunks = [];
@@ -17,11 +17,17 @@ const main = async () => {
   if (prompt.replace(/[^a-zA-Z]/g, '').length < 8) process.exit(0); // skip trivial
   if (isConversationalFiller(prompt)) process.exit(0);
 
-  const res = await queryInject(root, {
+  // Bounded wait for a cold embedder (~750ms worst case, default 3 x 250ms) so the
+  // FIRST prompt of a fresh/resumed session still gets its docs instead of silently
+  // missing them. Costs nothing once warm, or when no server is listening.
+  const res = await queryInjectWithWarmRetry(root, {
     query: prompt,
     limit: num(process.env.REPO_DOCS_INJECT_LIMIT, 3),
     threshold: num(process.env.REPO_DOCS_INJECT_THRESHOLD, 0.80),
-  }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
+  }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300), {
+    attempts: num(process.env.REPO_DOCS_INJECT_WARM_ATTEMPTS, 3),
+    delayMs: num(process.env.REPO_DOCS_INJECT_WARM_DELAY_MS, 250),
+  });
 
   if (!res || !res.injected || !res.hits || !res.hits.length) process.exit(0);
   process.stdout.write(JSON.stringify({

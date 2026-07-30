@@ -28,6 +28,20 @@ function queryInject(root, req, timeoutMs = 300) {
   });
 }
 
+// Same query, but tolerant of a cold embedder: the server answers `warming: true`
+// immediately (before any ranking) while its model is still loading, which is the
+// normal state for the first prompt of a fresh or resumed session. Retry only that
+// case — bounded, and cheap because a warming reply is a fast path. A plain miss,
+// an absent socket, or a timeout is NOT retried, so a repo without a running server
+// pays nothing.
+async function queryInjectWithWarmRetry(root, req, timeoutMs, { attempts = 3, delayMs = 250 } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const res = await queryInject(root, req, timeoutMs);
+    if (!res?.warming || attempt >= attempts) return res;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
 // True for unmistakable conversational filler (greetings, acknowledgements,
 // yes/no) that should never trigger doc injection regardless of match score.
 // Conservative: only whole-string filler; any real question word/content → false.
@@ -55,4 +69,10 @@ function formatBlock(hits) {
   return `[repo-docs] Relevant local documentation — consult these with read_doc before relying on general knowledge:\n${lines.join('\n')}`;
 }
 
-module.exports = { injectSocketPath, queryInject, formatBlock, isConversationalFiller };
+module.exports = {
+  injectSocketPath,
+  queryInject,
+  queryInjectWithWarmRetry,
+  formatBlock,
+  isConversationalFiller,
+};
