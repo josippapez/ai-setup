@@ -5,32 +5,56 @@ description: Write short, human PR review comments. Use when drafting or posting
 
 # Concise PR Comments
 
-Use this skill when drafting or posting PR review comments.
+Use this skill when drafting or posting PR review comments or replies. The style below is distilled from the user's own review history, match it.
 
 ## Style
 
 Write like a senior dev dropping a quick note for a teammate, not like an automated policy engine.
 
-- Keep it short. One or two sentences for most comments.
-- Casual is good: contractions, plain words, get to the point.
-- State the concrete issue plainly. Drop the corporate hedging ("this appears to potentially introduce a risk that may...").
+- Verdict first, reasoning after. The first sentence says what's wrong or what you decided. Then one or two sentences of why. Stop there.
+- Most comments are 1-3 sentences. A long comment is only justified when the evidence is the point (a traced code path, a compiled output, a reproduced failure), and even then it's plain paragraphs.
+- One idea per comment. If there are genuinely two, open with "Two things here." and give each a sentence or two. Never three.
+- Replies can be one word. "Done", "Fixed", "intended for now", "Good to know, didn't know that. Resolved". Don't dress up an acknowledgement.
+- First person, plainly. "I'm not a fan of this, but I guess we don't have much choice here." "I think", "my best guess is", "I'll check". Uncertainty is a casual hedge, not corporate qualifier stacking.
+- Own mistakes flat out: "You're right, my bad on both." Then correct the record and resolve.
+- When the author should make the call, end on a direct question: "Which is it?", "Was dropping the central registry deliberate?", "Do we add those checks or not?"
+- Evidence is `file.ts:123` and inline backticks. A fenced snippet only when the code itself is the argument.
 - Use a "nit:" prefix for minor or optional stuff so the author knows it's not a blocker.
-- Ask a direct question when you actually want the author to make the call ("why skip instead of fail here?"). Don't bolt on a forced suggestion when the issue already speaks for itself.
-- Save the long explanation for when the user asks for detail.
-- No em dashes. Use a comma, a period, or just split the sentence. People typing fast in a PR almost never reach for one, so it reads as bot-written.
+- No em dashes. Use a comma, a period, or just split the sentence.
+
+## AI tells to avoid
+
+These are the patterns that make a comment read bot-written. If a draft has any of them, cut or rewrite:
+
+- Inventory dumps: line-count deltas, exhaustive lists of everything that changed, "all test ids, aria wiring and handlers are unchanged". Say the one thing that matters.
+- Filler transitions and softeners: "just flagging it", "worth noting", "fair enough, but", "One caveat:", "fine either way". If it's worth a comment, say it; if it's optional, "nit:" already says so.
+- Three-part parallel constructions and colon-introduced clause lists mid-sentence.
+- Headers, bold, or bullet lists inside an inline comment. Inline comments are prose.
+- Self-summarizing marketing tone: "a clean, backwards-compatible API addition", "net -43 lines". Nobody narrates their own diff like that.
+- Restating the obvious context back at the author before getting to the point.
 
 ## Examples
 
-Good:
+Real ones, good:
 
 ```md
-Should this fail instead of skip when the Bitrise secrets are missing? As written, the sync check silently stops enforcing if the variable group is missing or not authorized.
+Done. We are now displaying `user.userName` from who-am-i query since there's no separate first + last name fields
 ```
 
-Good:
+```md
+I'm not a fan of these types of useEffect, but I guess we don't have much choice here.
+```
 
 ```md
-This says `FE9-1` is defined in `FE-guardrails.json`, but I don't see that rule in this PR.
+Needs a `try/finally` around this. If `activeStep.validation()` rejects, `setNextIsLoading(false)` never runs and the Next button spins forever.
+```
+
+```md
+This one needs a rationale comment like every other pin in the block. It's also not mentioned in the PR description, and 8.5.18 is well past the last postcss advisory I know of, so it reads like a dedupe pin rather than a security fix. Which is it?
+```
+
+```md
+You're right, my bad on both. `_closed` never fires on an actual close, so it consistently means "user asked to close". Funnel's fine as is. Resolving.
 ```
 
 Avoid:
@@ -38,3 +62,9 @@ Avoid:
 ```md
 This appears to create a configuration drift risk and may mislead future maintainers. Please either add the rule metadata or document this as standalone CI validation.
 ```
+
+```md
+nit: icon size tweak rode along in this PR, fine either way, just flagging it for the changelog.
+```
+
+(The second one should just be: `nit: unrelated to this PR` or nothing at all.)
