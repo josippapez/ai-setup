@@ -5,21 +5,16 @@ set -euo pipefail
 # Idempotent: safe to re-run. Mirrors claude/ -> ~/.claude/.
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEST="$HOME/.claude"
+DEST="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 # The plugin marketplace manifest lives at the repo root (one level above this claude/ dir).
 REPO_ROOT="$(cd "$SRC/.." && pwd)"
+# shellcheck source=../scripts/install-common.sh
+. "$REPO_ROOT/scripts/install-common.sh"
 
 mkdir -p "$DEST/skills" "$DEST/agents" "$DEST/hooks/scripts"
 
-# Ensure rtk (Rust Token Killer) is installed — settings.json hooks depend on it.
-# Install from the rtk-ai tap explicitly; the bare name collides with homebrew/core/rtk.
-if command -v rtk >/dev/null 2>&1; then
-  echo "rtk already installed: $(rtk --version 2>/dev/null || echo present)"
-elif command -v brew >/dev/null 2>&1; then
-  brew install rtk-ai/tap/rtk
-else
-  echo "Warning: rtk not found and Homebrew unavailable; install rtk manually (https://www.rtk-ai.app)." >&2
-fi
+# rtk (Rust Token Killer) backs the PreToolUse hook in settings.json.
+install_rtk
 
 # Copy top-level config files.
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"
@@ -31,7 +26,13 @@ cp "$SRC/RTK.md" "$DEST/RTK.md"
 cp "$SRC/settings.json" "$DEST/settings.json"
 
 # Copy hook scripts referenced by settings.json (format-lint-edited-files + prompt-loop-reminder).
-cp "$SRC/hooks/scripts/"*.mjs "$DEST/hooks/scripts/"
+# Their *.test.mjs siblings stay in the repo — settings.json never runs them.
+for f in "$SRC"/hooks/scripts/*.mjs; do
+  case "$f" in
+    *.test.mjs) continue ;;
+  esac
+  cp "$f" "$DEST/hooks/scripts/"
+done
 
 # Rules are no longer copied loose into ~/.claude/rules/: the interactive-mcp plugin
 # now bundles them and injects them via its SessionStart hook (see cleanup below).
@@ -51,24 +52,30 @@ done
 
 # Register or refresh the local plugin marketplace (root-level .claude-plugin/marketplace.json).
 # Re-add from the repo root so a moved/renamed source path is always picked up.
-claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
-claude plugin marketplace add "$REPO_ROOT"
+# Skipped when the CLI is absent (e.g. a fresh machine where the config lands
+# before Claude Code itself) — the copied files above are still valid.
+if have claude; then
+  claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
+  claude plugin marketplace add "$REPO_ROOT"
 
-# Install or update the interactive-mcp plugin.
-if claude plugin list 2>/dev/null | grep -q "interactive-mcp@ai-setup"; then
-  claude plugin update interactive-mcp@ai-setup
+  # Install or update the interactive-mcp plugin.
+  if claude plugin list 2>/dev/null | grep -q "interactive-mcp@ai-setup"; then
+    claude plugin update interactive-mcp@ai-setup
+  else
+    claude plugin install interactive-mcp@ai-setup --scope user
+  fi
+
+  # Remove the pre-rename plugin (linear-orchestration -> markdown-orchestration) if still installed.
+  claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
+
+  # Install or update the markdown-orchestration plugin.
+  if claude plugin list 2>/dev/null | grep -q "markdown-orchestration@ai-setup"; then
+    claude plugin update markdown-orchestration@ai-setup
+  else
+    claude plugin install markdown-orchestration@ai-setup --scope user
+  fi
 else
-  claude plugin install interactive-mcp@ai-setup --scope user
-fi
-
-# Remove the pre-rename plugin (linear-orchestration -> markdown-orchestration) if still installed.
-claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
-
-# Install or update the markdown-orchestration plugin.
-if claude plugin list 2>/dev/null | grep -q "markdown-orchestration@ai-setup"; then
-  claude plugin update markdown-orchestration@ai-setup
-else
-  claude plugin install markdown-orchestration@ai-setup --scope user
+  warn "the 'claude' CLI is not on PATH; skipped marketplace + plugin install. Install Claude Code, then re-run this script."
 fi
 # Remove loose files migrated into the markdown-orchestration plugin (now plugin-provided).
 # Includes the grilling/domain-modeling/grill-with-docs skills relocated from skills/ into the plugin.
@@ -86,5 +93,9 @@ rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md
 echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
 echo "  - skills/, agents/"
-echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
-echo "  - markdown-orchestration@ai-setup plugin"
+if have claude; then
+  echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
+  echo "  - markdown-orchestration@ai-setup plugin"
+else
+  echo "  - plugins NOT installed (no 'claude' CLI on PATH)"
+fi

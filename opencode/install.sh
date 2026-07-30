@@ -7,6 +7,12 @@ set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+# shellcheck source=../scripts/install-common.sh
+. "$(cd "$SRC/.." && pwd)/scripts/install-common.sh"
+
+# The config reconcile below is a node one-liner; without this a missing node
+# died as a bare "node: command not found" halfway through the install.
+ensure_node
 
 mkdir -p "$DEST" "$DEST/agents" "$DEST/commands" "$DEST/plugins" "$DEST/rules" "$DEST/skills"
 
@@ -30,7 +36,8 @@ node -e '
 cp "$SRC/package.json" "$DEST/package.json"
 
 for directory in agents commands plugins rules skills; do
-  rm -rf "$DEST/$directory"
+  # ${DEST:?} so an unset/empty DEST aborts instead of expanding to "/agents".
+  rm -rf "${DEST:?}/$directory"
   if [ -d "$SRC/$directory" ]; then
     cp -R "$SRC/$directory" "$DEST/$directory"
   else
