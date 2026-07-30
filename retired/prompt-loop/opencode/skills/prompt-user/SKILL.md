@@ -11,7 +11,8 @@ Use this skill for any user-facing prompt workflow.
 
 ## Required behavior
 
-1. Use the **built-in questions tool** (harness-provided `question` / `ask_question` / equivalent) for every prompt.
+0. **Deliverable visibility first.** The questions widget hides assistant text that precedes it, so any turn carrying a deliverable (answer, review, analysis, handoff) puts that content in plain text and closes with the satisfaction question as the final plain-text line — no widget in that turn. Reserve the widget for turns whose purpose IS the question. See the `user-interaction` always-on rule.
+1. Use the **built-in questions tool** (harness-provided `question` / `ask_question` / equivalent) for prompts on no-deliverable turns.
 1. Before starting each newly requested task in an active session, ask at least one scope/confirmation prompt.
 1. After any task output/delivery, ask exactly:
    `Are you satisfied with this result, or would you like any changes?`
@@ -25,7 +26,7 @@ Use this skill for any user-facing prompt workflow.
    - prompt timeout or empty response
    - prompt decline/cancel/dismiss
    - prompt tool failure
-1. Plain-text completion fallback is forbidden — re-prompt with a shorter, option-driven question instead.
+1. Silent completion is forbidden — re-prompt with a shorter, option-driven question instead (a plain-text turn closing with the satisfaction line is not silent completion).
 1. If implementation is still pending (report/diff checkpoint only), ask whether to implement next and keep prompting.
 1. After system-notification-driven outputs, include the mandatory satisfaction prompt again.
 1. Maintain one persistent prompt-loop todo titled `Interactively Prompt user after [current task]`; keep it active across task cycles and only complete it on an exact stop phrase.

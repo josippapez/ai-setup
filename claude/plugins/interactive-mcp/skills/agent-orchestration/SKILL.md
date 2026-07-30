@@ -189,5 +189,4 @@ questions) — plus any skill surfaced via skill-discovery.
 
 ## References
 
-- `prompt-user` skill — prompt-loop ownership rules.
 - `agent-guidance-authoring` skill — authoring/maintaining this guidance.

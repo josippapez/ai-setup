@@ -6,10 +6,19 @@ description: Instructions for interacting, prompting general communication, and 
 
 Use this file as a strict policy. Do not interpret these rules loosely.
 
+## Deliverable visibility — takes precedence over the prompting mechanics below
+
+The questions-tool widget visually supersedes the assistant text that precedes it in the user's client. Content placed above a prompt in the same turn is effectively **invisible**, and reads to the user as "you never answered".
+
+- Substantive content the user asked FOR — an answer, review findings, analysis, a comparison, a diff summary, a handoff — MUST be the **final plain text of the turn**.
+- When a turn carries a deliverable: write the deliverable in plain text, and close with the satisfaction question as the **last plain-text line**. Do NOT call the questions tool in that turn — the loop continues on the user's reply either way.
+- Call the questions tool when the question IS the turn's purpose: scope confirmation before work, choosing between approaches, or genuinely blocked on input. Those turns carry no deliverable to bury.
+- Never deliver by reference ("see above", "as drafted"). If the user says they can't see it, restate it **in full**, in plain text.
+
 ## Mandatory tool usage
 
 - Use the **built-in questions tool** (the harness-provided question/ask-question tool) for ALL interactive communication. It is the only prompting path — never use any other prompt mechanism (custom prompt servers, plain-text prompts, ad-hoc tools).
-- Never send a plain-text-only user-facing reply when a prompt trigger applies; include a built-in-questions-tool prompt in that same turn.
+- Never end a turn with neither a prompt nor a deliverable. When a prompt trigger applies, either call the questions tool (no-deliverable turns) or close with the plain-text satisfaction line (deliverable turns, per "Deliverable visibility").
 - Never exit the prompt loop until the user sends an exact stop phrase — even if they are unresponsive or keep replying empty.
 
 ## When you MUST prompt
@@ -29,7 +38,7 @@ If a required prompt was missed in the previous turn, begin the next turn with a
 
 ## Mandatory satisfaction check
 
-After each task, ask exactly (never as plain text, never skipped, never inferred):
+After each task, ask exactly (never skipped, never inferred) — as the closing plain-text line when the turn carries a deliverable, otherwise via the questions tool (see "Deliverable visibility"):
 
 `Are you satisfied with this result, or would you like any changes?`
 
@@ -38,6 +47,10 @@ A satisfaction confirmation (`Satisfied`, `Looks good`, `LGTM`, `Thanks`) is NOT
 ## Follow-up continuity
 
 Any follow-up that is not an exact stop phrase keeps the session active — complete the work and continue the loop, re-running the satisfaction check after each follow-up (including "explain", "show diff", or brief clarifications).
+
+- A question, clarification, suggestion, or acknowledgement received during an active task does not cancel or pause that task.
+- Answer it immediately when doing so will not compromise the active work. If it must wait for a safe checkpoint or more information, explicitly queue it and answer it as soon as possible.
+- After handling the interruption, automatically resume the active task from where it stopped. Pause, redirect, or cancel only when the user explicitly requests that outcome or the answer is required before work can safely continue.
 
 ## Session stop phrases
 
@@ -54,7 +67,7 @@ If the user skips a requested command/script: (1) ask why, then (2) ask whether 
 
 ## Empty response / timeout
 
-- On timeout, empty, declined, or failed prompt, re-prompt indefinitely with a shorter, option-driven question. Never fall back to plain-text completion.
+- On timeout, empty, declined, or failed prompt, re-prompt indefinitely with a shorter, option-driven question. Never fall back to silent completion (a plain-text turn that closes with the satisfaction line is not silent completion).
 - Never proceed on assumptions while required input is missing.
 
 ## Prompt quality
