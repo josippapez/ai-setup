@@ -16,6 +16,23 @@ ensure_node
 
 mkdir -p "$DEST" "$DEST/agents" "$DEST/commands" "$DEST/plugins" "$DEST/rules" "$DEST/skills"
 
+cp "$SRC/env.sh" "$DEST/env.sh"
+
+# Keep these variables literal so they resolve when the user's profile loads.
+# shellcheck disable=SC2016
+env_source_line='[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/env.sh" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/env.sh"'
+case "$(basename "${SHELL:-}")" in
+  zsh) shell_profile="${ZDOTDIR:-$HOME}/.zshrc" ;;
+  bash) shell_profile="$HOME/.bashrc" ;;
+  *) shell_profile="$HOME/.profile" ;;
+esac
+mkdir -p "$(dirname "$shell_profile")"
+touch "$shell_profile"
+if ! grep -Fqx "$env_source_line" "$shell_profile" \
+  && ! grep -Eq '^[[:space:]]*export[[:space:]]+OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=(true|1)[[:space:]]*$' "$shell_profile"; then
+  printf '\n# OpenCode defaults managed by ai-setup.\n%s\n' "$env_source_line" >> "$shell_profile"
+fi
+
 node -e '
   const fs = require("fs");
   const [sourcePath, destinationPath, claudePath] = process.argv.slice(1);
@@ -63,5 +80,6 @@ fi
 
 echo "Installed OpenCode config to $DEST:"
 echo "  - base config, plugins, rules, skills, and agents"
+echo "  - background subagents enabled for new shell sessions"
 echo "  - Markdown orchestration skills, commands, and OpenCode-compatible agents"
 echo "  - Repository-docs MCP retained; external @rawwee/interactive-mcp removed"

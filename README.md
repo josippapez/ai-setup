@@ -60,6 +60,7 @@ Notes:
 - `install.sh` / `bootstrap.sh` / `scripts/install-common.sh` - the universal (macOS + Linux) installer, its curl-able bootstrap, and their shared platform helpers.
 - `claude/` - Claude Code global config mirroring `~/.claude/`: `CLAUDE.md`, `RTK.md`, `settings.json`, `hooks/`, plus the bundled `interactive-mcp` and `markdown-orchestration` plugins. `claude/install.sh` installs just this adapter; `./install.sh` covers both.
 - `opencode/opencode.json` - global OpenCode config.
+- `opencode/env.sh` - OpenCode startup environment defaults, including background subagents.
 - `opencode/package.json` - global plugin dependency manifest.
 
 This repository intentionally excludes dependency folders, environment files, and secret-like filenames.
