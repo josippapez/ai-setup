@@ -16,6 +16,16 @@ Use task model overrides; frontmatter is fallback. Ladder: haiku → sonnet → 
 
 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` permits a worker to spawn one bounded specialist layer. If Agent is absent, the worker relays review requests to the orchestrator; it never retries indefinitely or self-approves.
 
+**`Agent` is asynchronous only on this platform, and that changes who joins a review.** There is no `background: false` parameter and no synchronous mode: a dispatch returns "launched, you will be notified", and the completion notification is delivered to the **orchestrator**, not to the subagent that spawned it. A depth-1 worker therefore cannot reliably join its own reviewers inside its turn.
+
+Consequences, which are mandatory rather than advisory:
+
+- A worker that has dispatched gates but holds no completed `pass`/`fail` puts the outstanding gates in `relay`, leaves the issue `In Review`, and returns. The orchestrator runs the review loop and applies the final status. This is the designed path, not a degraded fallback.
+- Waiting is forbidden. No filler/idle "wait" agents, no `Monitor` polling for a reviewer's completion, no sleep loops. One observed worker spawned five throwaway agents plus a Monitor, spent ~140k tokens and ~18 minutes, and still had to relay.
+- A "running", "queued" or "pending" acknowledgement is never a verdict and must never be recorded as a pass or used to set `Done`.
+
+Note the asymmetry with the OpenCode adapter, which fixes the same hazard by requiring `background: false` on blocking review calls. That parameter does not exist here, so the Claude answer is relay-first rather than force-synchronous. Do not port the OpenCode wording across.
+
 ## Isolation
 
 Isolation is decided by **file overlap, not wave size**. Apply this rule per wave:
