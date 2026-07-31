@@ -16,6 +16,8 @@ Worker ladder: `md-worker-free` → `md-worker-terra` → `md-worker-luna` → `
 
 `subagent_depth: 2` permits one bounded worker review layer. Worker agent permissions must explicitly allow every nested specialist. If task dispatch is unavailable, the worker relays review requests to the orchestrator and never self-approves.
 
+Every blocking worker checker/reviewer `task` call MUST explicitly set `background: false`, including calls issued in parallel. A response that only reports the task as running, queued, pending, or completing in the background is not a verdict: keep the issue `In Review` until a completed `pass`/`fail` result arrives, or relay the unresolved gate to the orchestrator when no synchronous join is available. Never record such an acknowledgement as a pass or use it to set `Done`.
+
 ## Isolation
 
 OpenCode tasks share the workspace, so isolation is decided by **file overlap, not wave size**. Apply this rule per wave:
