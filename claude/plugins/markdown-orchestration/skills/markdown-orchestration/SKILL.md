@@ -25,7 +25,8 @@ Immediately define the absolute skill root:
 2. **Before creating, reading, resuming, or writing the store:** Read `${skillRoot}/references/store-protocol.md`; when creating files also Read the required `${skillRoot}/templates/PROJECT.md`, `${skillRoot}/templates/EPIC.md`, and/or `${skillRoot}/templates/issue.md`.
 3. **Before Decompose, Plan, Execute, Relay, or Converge:** Read `${skillRoot}/references/execution.md` and `${skillRoot}/references/platform.md`.
 4. **Before any agent or specialist dispatch in any phase:** Read `${skillRoot}/references/routing.md`. This is mandatory even if another phase reference was already loaded. It is the single authority for predicates, inputs, blocking role, writer, names, and model policy.
-5. Re-read a reference when the phase is resumed after compaction, handoff, or a changed issue Description. Do not rely on stale recalled policy.
+5. **Before reporting any terminal outcome (done, partial, blocked, aborted):** Read `${skillRoot}/references/close-out-brief.md`. It owns the shape of the final report to the user.
+6. Re-read a reference when the phase is resumed after compaction, handoff, or a changed issue Description. Do not rely on stale recalled policy.
 
 ## Ordered state machine
 
@@ -85,6 +86,7 @@ The following transitions are prohibited:
 - Execute → next wave before prior dependencies are visible in the target workspace and PROJECT progress is current.
 - Execute → Converge while any issue is not Done or any relay is unresolved.
 - Converge → close-out while any blocking gate failed or any applicable route is unrecorded.
+- Any terminal outcome → the satisfaction check without a rendered close-out brief.
 
 When evidence invalidates an earlier phase, move back to the earliest affected phase, update the authoritative Description/EPIC state, and rerun downstream predicates. Never patch only a comment while leaving the executable spec stale.
 
@@ -94,7 +96,7 @@ The store is authoritative. On resume, Read `${skillRoot}/references/store-proto
 
 ## Hard invariants
 
-- The main agent owns user interaction, phase transitions, issue creation/spec edits, integrated convergence, and close-out.
+- The main agent owns user interaction, phase transitions, issue creation/spec edits, integrated convergence, close-out, and the close-out brief. No subagent writes the brief; only the orchestrator has seen the whole epic.
 - Routing predicates live only in `${skillRoot}/references/routing.md`; do not recreate or broaden them elsewhere.
 - Store schema, status ownership, append-only concurrency, relays, resume writes, and close-out writes live only in `${skillRoot}/references/store-protocol.md`.
 - Common phase mechanics live in `${skillRoot}/references/intake-design.md` and `${skillRoot}/references/execution.md`; platform names/models/isolation/install/landing mechanics live only in `${skillRoot}/references/platform.md`.
@@ -110,5 +112,7 @@ The store is authoritative. On resume, Read `${skillRoot}/references/store-proto
 ## Failure and close-out
 
 At a worker retry cap, mark the issue blocked and ask the user with concrete options. On deferred work, record `partial`; on infeasible/aborted work, cancel open issues and explain why. Never mark an epic complete while a blocking gate fails, a relay is unapplied, or an issue remains open.
+
+Every terminal outcome — done, partial, blocked, or aborted — is reported to the user as a **close-out brief** per `${skillRoot}/references/close-out-brief.md`: what changed, a plain-text diagram of the change itself, why, what it solves, what was verified with actual observed results, and what is still open. Render it before the landing question and append the same text to EPIC `## Completion`. A brief that replays the chunk list, diagrams the agents, or claims an unobserved pass is a defect.
 
 For successful close-out, first Read `${skillRoot}/references/store-protocol.md` and `${skillRoot}/references/platform.md`. Ask how the user wants the work landed; execute only the approved option. Refresh `PROJECT.md`'s single `Progress / Resume here` section with done/remaining issues and the actual landing location or `left uncommitted`. Re-read it to verify freshness, record epic completion, preserve `PROJECT.md`, and run the mandatory satisfaction check.

@@ -34,4 +34,4 @@ sessions: [] # append-only OPENCODE_SESSION_ID values
 
 ## Completion
 
-<Open until every issue/gate/relay is complete; include approved landing result.>
+<Open until every issue/gate/relay is complete. On any terminal outcome, paste the close-out brief exactly as rendered to the user — point, diagram, changed, how, verified, open — then the approved landing result.>

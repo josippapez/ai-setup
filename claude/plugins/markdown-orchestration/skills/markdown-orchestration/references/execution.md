@@ -36,4 +36,4 @@ When every issue is Done, inspect the integrated diff/current state. Aggregate a
 
 Integrated MD review always checks epic ACs and coherence. Conditionally run scoped standards, non-test quality commands, regression suite, implementation quality, owning-doc audit, WCAG, and visual fidelity. Docs-only epics use one combined docs-aware review. Enabled independent gates may run in parallel and append to EPIC; the orchestrator joins them and owns remediation status changes.
 
-Any blocking failure reopens affected issues or creates a remediation issue from the template, refreshes PROJECT, and returns to Execute. Passing all gates proceeds to SKILL close-out and `store-protocol.md`. No landing action is implicit.
+Any blocking failure reopens affected issues or creates a remediation issue from the template, refreshes PROJECT, and returns to Execute. Passing all gates proceeds to SKILL close-out, `store-protocol.md`, and `close-out-brief.md` for the report to the user. No landing action is implicit.
