@@ -19,12 +19,15 @@ This is the WCAG lookup path in this setup — use it instead of recalling crite
 
 ## Commands
 
+Every command is prefixed (`get-*`, `list-*`, `search-*`). There is no bare
+`criterion` / `guideline` / `search` — calling one exits 1 with `unknown command`.
+
 **Core**
 - `list-principles` — list the 4 WCAG principles (POUR)
-- `list-guidelines` — list all guidelines
-- `list-success-criteria` — list all success criteria
-- `get-success-criteria-detail` — full detail for a success criterion
-- `get-criterion <id>` — get one success criterion by number (e.g. `1.1.1`)
+- `list-guidelines` — list all guidelines, optionally filtered by principle (1-4)
+- `list-success-criteria` — list criteria, optionally filtered by level (A/AA/AAA), guideline (e.g. `1.1`) or principle (1-4)
+- `get-success-criteria-detail <id>` — **normative text only**: the requirement plus its exceptions, no Understanding prose. Use this when citing what a criterion actually demands.
+- `get-criterion <id>` — **the long one**: everything above plus the full Understanding documentation. Use when you need intent and rationale.
 - `get-guideline <id>` — get one guideline by number
 - `search-wcag <query>` — full-text search across WCAG content
 - `get-criteria-by-level <level>` — list criteria at a conformance level (A/AA/AAA)
@@ -68,3 +71,20 @@ wcag whats-new-in-wcag22
 - **Reading the repo's own a11y conventions** — check the repo's docs/standards first; this CLI is the upstream spec, not local policy.
 
 If the first `npx` call fails (offline, no cache), say so and fall back to your own WCAG knowledge — but flag that the criterion text is unverified rather than quoting it as exact.
+
+## Reading the exit code
+
+A wrong command exits 1, but **a valid command with a bad argument exits 0** and
+prints a plain-language miss:
+
+```
+$ wcag get-criterion 9.9.9        # exit 0
+No success criterion found with number "9.9.9". Use format like "1.1.1" or "2.4.7".
+
+$ wcag search-wcag "zzzznotathing"  # exit 0
+No success criteria found matching "zzzznotathing".
+```
+
+So never treat exit 0 as "the lookup worked" — read the output. And never pipe
+through `head` while checking `$?`, since that reports the exit code of `head`,
+not of `wcag`.
