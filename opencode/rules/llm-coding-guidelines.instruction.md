@@ -42,6 +42,8 @@ Before writing, stop at the first rung that solves it:
 - No "while I'm here" changes riding along with a fix — no preemptive refactors, renames, or hardening you weren't asked for.
 - If you write 200 lines and it could be 50, rewrite it.
 
+**Enforcement:** this rule is only as strong as its gate. Every change must pass Gate 2 (observed case before building) in the always-on `evidence-first` rule — name the observed case, show the change improves it, or delete it. That rule also lists how YAGNI most often gets smuggled past (robustness laundering, absence-as-justification, riding along with a real fix, hypothetical framing).
+
 Guardrail: never simplify away security, input validation at trust boundaries, error handling that prevents data loss, accessibility, or explicitly requested behavior.
 
 When you deliberately ship a simpler-than-ideal solution, mark it with a `debt:` comment naming the ceiling and upgrade path (e.g. `// debt: O(n²) scan — fine under ~1k rows; add an index if it grows`).
