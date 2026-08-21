@@ -48,10 +48,6 @@
         "FIGMA_API_KEY": "{env:FIGMA_API_KEY}"
       },
       "timeout": 120000
-    },
-    "storybook-web-components": {
-      "type": "remote",
-      "url": "http://localhost:6006/mcp"
     }
   }
 }
