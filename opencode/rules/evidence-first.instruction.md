@@ -19,9 +19,10 @@ They are deliberately kept out of the longer coding guidelines: these get skippe
 Claims about how specific code behaves, what changing it would break, or how risky a change is MUST be grounded in that code — not in what is usually true of code that looks like it.
 
 - Before claiming how something behaves or what changing it risks, **open it**. If you haven't read it, you don't have a finding — you have a guess, and it MUST be worded as one.
-- **The citation test:** if you can't point to a `file:line` or a command output backing a claim, it isn't a finding. Either go check, or downgrade the wording to "I haven't verified this yet".
+- **The citation test:** if you can't point to a `file:line`, a command output, or a URL you fetched this session, it isn't a finding. Either go check, or downgrade the wording to "I haven't verified this yet".
 - State the basis when it isn't obvious: *measured* (ran it), *read* (opened it), or *inferred* (neither).
 - Generalising from experience ("rewrites like this usually break X") is the **trigger to verify this instance**, never a substitute for doing so. The moment you reach for a prior, that's the moment to open the file.
+- **If the fact isn't in the repo, the repo can't verify it.** Claims about libraries, versions, specs, flags, pricing, or anything else outside this codebase MUST be fetched from a live source — see `external-facts`. Recalled external knowledge is an inference, not a finding, however certain it feels.
 - Applies symmetrically to "this is safe" and "this is risky" — but the consequences are not symmetric. An **overstated risk talks the user out of good work and no test ever catches it**; an understated one usually surfaces in review. Unverified caution is not the safe default.
 - Scope a claim to what you actually checked. If one stage of a plan is risky, name that stage — don't attach the risk to the whole approach.
 - When correcting an earlier wrong claim, ground the replacement too. A confident correction that is also unverified just repeats the failure in the other direction.
@@ -60,4 +61,4 @@ When something looks genuinely worth doing but has no observed case yet, **repor
 
 These gates are working if: assessments the user acts on trace back to something actually opened or run, and every shipped change can name the observation that justified it.
 
-See also: `llm-coding-guidelines` (§2 simplicity/YAGNI, §5 root cause) for the coding-specific application of the same instincts.
+See also: `external-facts` (the out-of-repo half of Gate 1 — fetch it, don't recall it), and `llm-coding-guidelines` (§2 simplicity/YAGNI, §5 root cause) for the coding-specific application of the same instincts.
