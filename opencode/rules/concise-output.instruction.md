@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 name: concise-output
-description: Answer short, plain, and direct, in every artifact you produce. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Applies to chat, code comments, commits, PR and issue text, docs, logs, and subagent prompts.
+description: Answer short, plain, and direct in anything a person sees or that leaves this machine. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Covers chat, code comments, commits, PR and issue text, docs, and logs. Agent-to-agent traffic is exempt and should be as detailed as the task needs.
 ---
 
 # Concise output
@@ -10,7 +10,9 @@ description: Answer short, plain, and direct, in every artifact you produce. Lea
 
 Default length is one to three sentences of plain prose. A paragraph is already long. Anything longer needs a reason that is not "I did a lot of work".
 
-**Scope: everything you produce.** Chat replies, code comments, commit messages, PR and issue text, docs, changelogs, log and error strings, test names, plan and todo text, and the prompts you hand to subagents. Every one of them is written for a reader who did not ask for your reasoning.
+**Scope: anything a person sees or that leaves this machine.** Chat replies, code comments, commit messages, PR and issue text, docs, changelogs, log and error strings, test names, and anything posted, pushed, or sent on the user's behalf.
+
+**Exempt: agent-to-agent traffic.** Subagent prompts, the payloads agents return to each other, and your own working notes are machinery, not writing. Be as detailed there as the task needs. A vague subagent prompt costs a wasted run, so spell out context, constraints, and the return shape in full.
 
 ## Length
 
@@ -46,7 +48,7 @@ This binds every artifact, and padding is worse outside chat because the audienc
 - **Code comments.** Comment why a line is surprising, never what it plainly does. No changelog entries, no "we tried X first", no restating the function name.
 - **Docs.** The instruction, the value, the command. Background only when the reader cannot act without it.
 - **Logs and errors.** What failed and what to do about it. No essays in a stack trace.
-- **Subagent prompts.** The task, the constraints, the return shape. Not your reasoning about how you arrived at the task.
+- **Not agent-to-agent traffic.** Subagent prompts and inter-agent payloads are exempt. Give them everything they need.
 
 Draft at the length you would ship. Do not write the long version and offer to trim.
 
