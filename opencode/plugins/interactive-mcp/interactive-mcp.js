@@ -12,7 +12,11 @@ const { formatBlock, isConversationalFiller, queryInjectWithRetry } = injectClie
 const { claimReindex } = reindexDebounce;
 const latestPrompts = new Map();
 const pendingQueries = new Map();
-const seenProgressDocs = new Map();
+// sessionID -> { tick, seen: Map<path, tick> }. Applies to prompt and progress
+// injections alike: without it the same handful of docs is re-injected on every
+// message. Ticks advance once per injection, so a doc becomes eligible again
+// after REPO_DOCS_INJECT_REPEAT_AFTER ticks rather than being blocked forever.
+const seenDocs = new Map();
 const lastPromptMessageIDs = new Map();
 const pendingSystemContexts = new Map();
 
@@ -163,13 +167,16 @@ export default async function interactiveMcpPlugin({
     });
     debugInjection(`query result injected=${Boolean(result?.injected)} hits=${result?.hits?.length || 0}`);
     if (!result?.injected || !result.hits?.length) return '';
-    let hits = result.hits;
-    if (pending.progress) {
-      const seen = seenProgressDocs.get(sessionID) || new Set();
-      hits = hits.filter((hit) => !seen.has(hit.path));
-      hits.forEach((hit) => seen.add(hit.path));
-      seenProgressDocs.set(sessionID, seen);
-    }
+    const windowTicks = numberFromEnv('REPO_DOCS_INJECT_REPEAT_AFTER', 20);
+    const state = seenDocs.get(sessionID) || { tick: 0, seen: new Map() };
+    state.tick += 1;
+    let hits = result.hits.filter((hit) => {
+      const last = state.seen.get(hit.path);
+      return last === undefined || state.tick - last >= windowTicks;
+    });
+    hits.forEach((hit) => state.seen.set(hit.path, state.tick));
+    seenDocs.set(sessionID, state);
+    if (!hits.length) return '';
     debugInjection(`queued paths=${hits.map((hit) => hit.path).join(',')}`);
     return formatBlock(hits);
   }
@@ -181,7 +188,7 @@ export default async function interactiveMcpPlugin({
       if (!sessionID) return;
       latestPrompts.delete(sessionID);
       pendingQueries.delete(sessionID);
-      seenProgressDocs.delete(sessionID);
+      seenDocs.delete(sessionID);
       lastPromptMessageIDs.delete(sessionID);
       pendingSystemContexts.delete(sessionID);
     },

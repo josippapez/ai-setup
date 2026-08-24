@@ -5,7 +5,7 @@ const net = require('node:net');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { injectSocketPath, queryInject, formatBlock, isConversationalFiller } = require('./inject-client.cjs');
+const { injectSocketPath, queryInject, formatBlock, isConversationalFiller, filterFreshHits, statePath, loadState } = require('./inject-client.cjs');
 
 function tmpRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'inject-client-'));
@@ -69,4 +69,45 @@ test('isConversationalFiller false for real questions/content', () => {
   for (const t of ['how does auth work', 'what are the orchestration rules', 'explain the injection socket']) {
     assert.strictEqual(isConversationalFiller(t), false, `expected not filler: ${t}`);
   }
+});
+
+const hit = (p) => ({ path: p, startLine: 1, snippet: 's' });
+
+test('filterFreshHits suppresses a doc already injected this session', () => {
+  const root = tmpRoot();
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('a.md')]).map((h) => h.path), ['a.md']);
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('a.md')]), []);
+});
+
+test('filterFreshHits passes through docs not seen before', () => {
+  const root = tmpRoot();
+  filterFreshHits(root, 's1', [hit('a.md')]);
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('a.md'), hit('b.md')]).map((h) => h.path), ['b.md']);
+});
+
+test('filterFreshHits re-allows a doc once the tick window has passed', () => {
+  const root = tmpRoot();
+  filterFreshHits(root, 's1', [hit('a.md')], 3);
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('a.md')], 3), []);
+  filterFreshHits(root, 's1', [hit('x.md')], 3);
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('a.md')], 3).map((h) => h.path), ['a.md']);
+});
+
+test('filterFreshHits keeps sessions independent', () => {
+  const root = tmpRoot();
+  filterFreshHits(root, 's1', [hit('a.md')]);
+  assert.deepStrictEqual(filterFreshHits(root, 's2', [hit('a.md')]).map((h) => h.path), ['a.md']);
+});
+
+test('filterFreshHits reads a v1 array state without resurfacing everything', () => {
+  const root = tmpRoot();
+  const sp = statePath(root, 's1');
+  fs.mkdirSync(path.dirname(sp), { recursive: true });
+  fs.writeFileSync(sp, JSON.stringify(['old.md']));
+  assert.deepStrictEqual(filterFreshHits(root, 's1', [hit('old.md')], 20), []);
+  assert.strictEqual(loadState(sp).tick, 1);
+});
+
+test('filterFreshHits is fail-safe when the state dir cannot be written', () => {
+  assert.deepStrictEqual(filterFreshHits('/proc/nonexistent-root', 's1', [hit('a.md')]).map((h) => h.path), ['a.md']);
 });

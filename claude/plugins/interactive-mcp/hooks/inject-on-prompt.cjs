@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-const { queryInjectWithWarmRetry, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
+const { queryInjectWithWarmRetry, formatBlock, isConversationalFiller, filterFreshHits } = require('./lib/inject-client.cjs');
 
 const readStdin = async () => {
   const chunks = [];
@@ -30,8 +30,14 @@ const main = async () => {
   });
 
   if (!res || !res.injected || !res.hits || !res.hits.length) process.exit(0);
+
+  // Without this the same handful of docs is re-injected on every single message.
+  const fresh = filterFreshHits(root, event?.session_id, res.hits,
+    num(process.env.REPO_DOCS_INJECT_REPEAT_AFTER, 20));
+  if (fresh.length === 0) process.exit(0);
+
   process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: formatBlock(res.hits) },
+    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: formatBlock(fresh) },
   }));
 };
 main().catch(() => process.exit(0));

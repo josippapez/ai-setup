@@ -79,8 +79,9 @@ test('injects relevant repository docs into system context for a user prompt', a
     { sessionID: 'session-test' },
     progressSystem,
   );
-  assert.match(progressSystem.system[0], /<system-reminder>/);
-  assert.match(progressSystem.system[0], /docs\/auth\.md:12/);
+  // Same session, same doc: already injected for the prompt above, so the
+  // progress pass must stay silent rather than repeat it.
+  assert.doesNotMatch(progressSystem.system[0], /docs\/auth\.md:12/);
 
   const directOutput = {
     messages: [{

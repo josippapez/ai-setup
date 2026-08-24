@@ -2,7 +2,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { queryInject, formatBlock, isConversationalFiller } = require('./lib/inject-client.cjs');
+const { queryInject, formatBlock, isConversationalFiller, filterFreshHits } = require('./lib/inject-client.cjs');
 
 const readStdin = async () => {
   const chunks = [];
@@ -54,11 +54,6 @@ function progressQuery(transcriptPath) {
   const combined = `${q} ${toolTargets(lastAssistant)}`.trim().replace(/\s+/g, ' ');
   return combined.slice(0, 400); // keep focused
 }
-function statePath(root, session) {
-  return path.join(root, '.claude', 'repo-docs', 'inject-state', `${session || 'default'}.json`);
-}
-function loadSeen(p) { try { return new Set(JSON.parse(fs.readFileSync(p, 'utf8'))); } catch { return new Set(); } }
-function saveSeen(p, set) { try { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, JSON.stringify([...set])); } catch {} }
 
 const main = async () => {
   const events = (process.env.REPO_DOCS_INJECT_EVENTS || 'prompt,batch').split(',').map((s) => s.trim());
@@ -77,12 +72,9 @@ const main = async () => {
   }, num(process.env.REPO_DOCS_INJECT_TIMEOUT_MS, 300));
   if (!res || !res.injected || !res.hits || !res.hits.length) process.exit(0);
 
-  const sp = statePath(root, event?.session_id);
-  const seen = loadSeen(sp);
-  const fresh = res.hits.filter((h) => !seen.has(h.path));
+  const fresh = filterFreshHits(root, event?.session_id, res.hits,
+    num(process.env.REPO_DOCS_INJECT_REPEAT_AFTER, 20));
   if (fresh.length === 0) process.exit(0);
-  fresh.forEach((h) => seen.add(h.path));
-  saveSeen(sp, seen);
 
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: { hookEventName: event?.hook_event_name || 'PostToolBatch', additionalContext: formatBlock(fresh) },

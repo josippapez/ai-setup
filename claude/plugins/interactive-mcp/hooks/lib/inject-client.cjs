@@ -1,5 +1,6 @@
 'use strict';
 const net = require('node:net');
+const fs = require('node:fs');
 const path = require('node:path');
 
 function injectSocketPath(root) {
@@ -42,6 +43,48 @@ async function queryInjectWithWarmRetry(root, req, timeoutMs, { attempts = 3, de
   }
 }
 
+// Per-session record of which docs were already injected, so the same file isn't
+// re-surfaced on every message. Shared by the prompt and progress hooks (both
+// write the same file). Ticks advance once per injection attempt, so a doc
+// becomes eligible again after `windowTicks` of activity: a hit that mattered on
+// turn 2 can legitimately matter again on turn 80, and a permanent block would
+// hide it forever.
+function statePath(root, session) {
+  return path.join(root, '.claude', 'repo-docs', 'inject-state', `${session || 'default'}.json`);
+}
+
+// v1 was a bare array of paths. Read it as "seen at tick 0" so an upgrade does
+// not resurface everything at once.
+function loadState(p) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (Array.isArray(raw)) return { tick: 0, seen: Object.fromEntries(raw.map((k) => [k, 0])) };
+    return { tick: Number(raw.tick) || 0, seen: raw.seen && typeof raw.seen === 'object' ? raw.seen : {} };
+  } catch { return { tick: 0, seen: {} }; }
+}
+
+function saveState(p, state) {
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify({ v: 2, tick: state.tick, seen: state.seen }));
+  } catch {}
+}
+
+// Drop hits injected within the last `windowTicks`, record the survivors, and
+// advance the tick. Returns the hits worth injecting now.
+function filterFreshHits(root, session, hits, windowTicks = 20) {
+  const p = statePath(root, session);
+  const state = loadState(p);
+  const tick = state.tick + 1;
+  const fresh = (hits || []).filter((h) => {
+    const last = state.seen[h.path];
+    return last === undefined || tick - last >= windowTicks;
+  });
+  for (const h of fresh) state.seen[h.path] = tick;
+  saveState(p, { tick, seen: state.seen });
+  return fresh;
+}
+
 // True for unmistakable conversational filler (greetings, acknowledgements,
 // yes/no) that should never trigger doc injection regardless of match score.
 // Conservative: only whole-string filler; any real question word/content → false.
@@ -71,6 +114,10 @@ function formatBlock(hits) {
 
 module.exports = {
   injectSocketPath,
+  statePath,
+  loadState,
+  saveState,
+  filterFreshHits,
   queryInject,
   queryInjectWithWarmRetry,
   formatBlock,
