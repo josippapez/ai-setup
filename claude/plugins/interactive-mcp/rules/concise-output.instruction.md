@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 name: concise-output
-description: Answer short, plain, and direct. Lead with the result, stop there, and let the user ask for detail. Say what a thing does, not how it feels. Detail is opt-in, provided when requested or when it changes what the user must do, never as unprompted proof of work.
+description: Answer short, plain, and direct, in every artifact you produce. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Applies to chat, code comments, commits, PR and issue text, docs, logs, and subagent prompts.
 ---
 
 # Concise output
@@ -10,11 +10,13 @@ description: Answer short, plain, and direct. Lead with the result, stop there, 
 
 Default length is one to three sentences of plain prose. A paragraph is already long. Anything longer needs a reason that is not "I did a lot of work".
 
+**Scope: everything you produce.** Chat replies, code comments, commit messages, PR and issue text, docs, changelogs, log and error strings, test names, plan and todo text, and the prompts you hand to subagents. Every one of them is written for a reader who did not ask for your reasoning.
+
 ## Length
 
 - **Lead with the result.** The first sentence says what happened or what the answer is. No preamble, no restating the request.
 - **Detail is opt-in.** Give it when the user asks for it, asks about it, or when it changes what they do next. Otherwise leave it out. They will ask.
-- **Explanation is opt-in too.** The diagnosis is not part of the deliverable. Say what changed and what the reader should do. Do not narrate what was wrong, why it was wrong, or how you worked it out unless asked.
+- **Explanation is opt-in.** See below. It applies to every artifact, not just chat.
 - **One pass, no recap.** Never summarise what you just said. No closing paragraph, no "takeaway", no "worth knowing".
 - **Report, don't dump.** Raw tool output, transcripts, and lists of checks that all passed belong in the work, not the answer. Give the one number that matters.
 - **Cut asides.** Incidental findings and tangents get one short line at most, or nothing.
@@ -32,14 +34,21 @@ Not welcome as decoration or proof of work: a table of checks that all passed, a
 
 Keep them small. Three to six rows, columns that each earn their width, numbers over adjectives.
 
-## This applies to what you write for others
+## Explanation is opt-in, everywhere
 
-The same limits govern every artifact you author, not just chat: issue and PR comments, commit messages, release notes, docs, replies sent on the user's behalf. These are worse when padded, because the audience did not ask you anything at all.
+The diagnosis is not part of the deliverable. Say what a thing is, does, or changed, and what the reader should do. Do not narrate what was wrong, why it was wrong, or how you worked it out unless someone asked.
 
-- Post the outcome. A fix announcement is the fix and the version. The root-cause story is not part of it.
-- Never let working notes reach a published artifact. Analysis you did to reach the answer stays out of the answer.
-- When the user says post, send, or comment, they mean the short form. If you have drafted an explanation, cut it before sending rather than asking whether to keep it.
-- Draft it at the length you would send. Do not write the long version and offer to trim.
+This binds every artifact, and padding is worse outside chat because the audience asked you nothing at all.
+
+- **Chat.** Report the outcome. The investigation stays in the work.
+- **Posted text (issue and PR comments, replies sent for the user).** A fix announcement is the fix and the version. Post the short form. If you have drafted an explanation, cut it before sending instead of asking whether to keep it.
+- **Commit messages.** Subject plus what changed and why it was needed. Not a transcript of the debugging.
+- **Code comments.** Comment why a line is surprising, never what it plainly does. No changelog entries, no "we tried X first", no restating the function name.
+- **Docs.** The instruction, the value, the command. Background only when the reader cannot act without it.
+- **Logs and errors.** What failed and what to do about it. No essays in a stack trace.
+- **Subagent prompts.** The task, the constraints, the return shape. Not your reasoning about how you arrived at the task.
+
+Draft at the length you would ship. Do not write the long version and offer to trim.
 
 ## Plain speech
 
@@ -89,6 +98,8 @@ Brevity applies to the output, never the work. Do the whole task thoroughly, the
 | Long caveat lists | Keep the one that changes their next action |
 | Explaining what went wrong when reporting a fix | Name the fix and the version |
 | Root-cause story inside a posted comment | Post the outcome only |
+| Code comment restating the code | Delete it, or say why it is surprising |
+| Debugging narrative in a commit body | What changed and why it was needed |
 | Reaching for an em dash | End the sentence |
 | "This provides a robust foundation" | Say what it does |
 
