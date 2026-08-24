@@ -5,11 +5,22 @@
 // Runs on every SessionStart event (startup/resume/clear/compact/fork) so the rules
 // survive context compaction (source="compact") — the only compaction-adjacent hook
 // that can re-inject context; PostCompact is side-effect only (no context injection).
+//
+// Emitted in shards. A single additionalContext value over 10,000 characters is
+// written to a file and replaced with a path plus a short preview, which silently
+// truncated the whole bundle (29.5KB) down to ~2KB of rules. Claude Code delivers
+// every value when several hook entries answer the same event, so hooks.json
+// registers this script once per shard index and each shard stays under the cap.
 const fs = require("node:fs");
 const path = require("node:path");
 
+const CAP = 9000; // headroom under Claude Code's 10,000-character additionalContext limit
+
 const root = process.env.CLAUDE_PLUGIN_ROOT;
 if (!root) process.exit(0);
+
+const shard = Number(process.argv[2] || 0);
+if (!Number.isInteger(shard) || shard < 0) process.exit(0);
 
 const rulesDir = path.join(root, "rules");
 let files;
@@ -25,13 +36,36 @@ const sections = files.map((f) => {
   return `<!-- ${f} -->\n${body}`;
 });
 
-const additionalContext =
-  "Always-on rules bundled with the interactive-mcp plugin. These apply to every " +
-  "session and have the same standing as user-level rules:\n\n" +
-  sections.join("\n\n---\n\n");
+// Greedy packing. A rule larger than CAP on its own still gets its own shard: it
+// would be truncated either way, and splitting mid-rule is worse than one long one.
+const shards = [];
+let current = [];
+let size = 0;
+for (const section of sections) {
+  if (current.length > 0 && size + section.length > CAP) {
+    shards.push(current);
+    current = [];
+    size = 0;
+  }
+  current.push(section);
+  size += section.length;
+}
+if (current.length > 0) shards.push(current);
+
+if (shard >= shards.length) process.exit(0); // spare slot — nothing left to emit
+
+const header =
+  shard === 0
+    ? "Always-on rules bundled with the interactive-mcp plugin. These apply to every " +
+      `session and have the same standing as user-level rules. Delivered in ${shards.length} ` +
+      "parts because of the per-message context limit; this is part 1:\n\n"
+    : `Always-on rules bundled with the interactive-mcp plugin, part ${shard + 1} of ${shards.length}:\n\n`;
 
 process.stdout.write(
   JSON.stringify({
-    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext },
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: header + shards[shard].join("\n\n---\n\n"),
+    },
   })
 );
