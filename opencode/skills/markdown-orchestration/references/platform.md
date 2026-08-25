@@ -10,7 +10,18 @@ OpenCode agents use bare file-derived `subagent_type` names listed in `routing.m
 
 ## Models
 
-Worker ladder: `md-worker-free` → `md-worker-terra` → `md-worker-luna` → `md-worker-sol`. Free handles explicit mechanical work; Terra handles narrow execution/checks; Luna handles routine reasoning/review; Sol is reserved for high-risk implementation, architecture, or disputed gates. Planning and verdict work never uses Free. Exact specialist variants are in `routing.md`.
+Worker ladder: `md-worker-free` → `md-worker-terra` → `md-worker-luna` → `md-worker-sol`. Chunk `complexity` picks the variant directly:
+
+| complexity | Worker | The chunk looks like |
+| --- | --- | --- |
+| `low` | `md-worker-free` | Mechanical and fully specified. Rename, move, config edit, add a field, apply a stated pattern to more call sites, docs edit. The Description leaves no judgement to the worker. |
+| `medium` | `md-worker-terra` | Ordinary feature or fix. One or two files, a known approach. |
+| `high` | `md-worker-luna` | Cross-cutting or novel. Many files or an unclear approach. |
+| `max` | `md-worker-sol` | High-risk implementation, architecture, or a disputed gate. |
+
+Force a chunk up one tier, never down, when it touches security/auth, data migrations, concurrency, money, or a public interface, whatever its size.
+
+Free is the default for `low`, not a special case to justify. Under-using it is the common failure: work fully specified in the Description does not get better on a bigger model. Planning and verdict work never uses Free. Exact specialist variants are in `routing.md`.
 
 ## Nested dispatch
 

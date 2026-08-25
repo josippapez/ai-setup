@@ -54,6 +54,8 @@ For qualifying UI work, establish and approve a concrete design direction before
 
 Create or refresh the epic and issue specs from templates. Every issue Description is the current executable spec and routing context. It must contain its exact context-pack slice, explicit empty results, validation, and handoff contract. Do not embed workflow templates in this dispatcher.
 
+Set `complexity` on every issue. It is the dispatch tier, not a label: `low` runs `md-worker-free`, `medium` `md-worker-terra`, `high` `md-worker-luna`, `max` `md-worker-sol`. Rate the work, not the topic. A chunk is `low` when the Description leaves no judgement to the worker, which is most mechanical chunks: renames, moves, config edits, applying an already-stated pattern to more call sites, docs edits. Rate up one tier for security/auth, data migrations, concurrency, money, or a public interface. Full table in `${skillRoot}/references/platform.md`.
+
 ### 6. Plan
 
 When the routing predicate applies, conceptually dry-run chunks and derive authoritative dependency waves. Otherwise record the skip and use a safe trivial ordering. No worker starts before its dependencies and wave are authoritative.

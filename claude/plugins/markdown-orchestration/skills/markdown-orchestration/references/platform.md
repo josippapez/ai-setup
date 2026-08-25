@@ -10,7 +10,22 @@ Plugin agents use namespaced `subagent_type: markdown-orchestration:<agent>`. Co
 
 ## Models
 
-Use task model overrides; frontmatter is fallback. Ladder: haiku → sonnet → opus → fable. Quick scouting/mechanical checks may use haiku. Workers scale by complexity. Planning/correctness/implementation-quality/design/WCAG use sonnet minimum; escalate high-risk work to opus and only highest-stakes reasoning to fable. Review verdicts and impl planning never use haiku. Routing row policy wins.
+Use task model overrides; frontmatter is fallback. Ladder: haiku → sonnet → opus → fable. Every agent here ships `model: sonnet` in frontmatter except `quality-gates-checker`, so **an override you do not pass is an agent running on sonnet**. Pass `model` on every dispatch.
+
+Chunk `complexity` maps to the build model directly:
+
+| complexity | Model | The chunk looks like |
+| --- | --- | --- |
+| `low` | haiku | Mechanical and fully specified. Rename, move, config edit, add a field, apply a stated pattern to more call sites, docs edit. The Description says exactly what to write and no judgement is left. |
+| `medium` | sonnet | Ordinary feature or fix. One or two files, a known approach, some judgement about structure. |
+| `high` | opus | Cross-cutting, novel, or risky. Many files, an unclear approach, or it touches security/auth, data migration, concurrency, money, or a public API. |
+| `max` | fable | Highest-stakes reasoning only. Rare: a decision that is hard to reverse and expensive to get wrong. |
+
+Force a chunk up one tier, never down, when it touches security/auth, data migrations, concurrency, money, or a public interface, whatever its size.
+
+Haiku is the default for `low`, not a special case to justify. Under-using it is the common failure: work that is fully specified in the Description does not get better on a bigger model, it only costs more.
+
+Read-only and mechanical roles take haiku regardless of chunk complexity: quick repo scouting and quality-gate command runs. Planning, correctness verdicts, implementation quality, design, and WCAG take sonnet minimum. **Review verdicts and impl planning never use haiku**, since a gate that cannot catch a subtle failure is worse than no gate. Routing row policy wins.
 
 ## Nested dispatch
 

@@ -56,6 +56,8 @@ For qualifying UI work, establish and approve a concrete design direction before
 
 Create or refresh the epic and issue specs from templates. Every issue Description is the current executable spec and routing context. It must contain its exact context-pack slice, explicit empty results, validation, and handoff contract. Do not embed workflow templates in this dispatcher.
 
+Set `complexity` on every issue. It is the dispatch model, not a label: `low` runs the worker on haiku, `medium` sonnet, `high` opus, `max` fable. Rate the work, not the topic. A chunk is `low` when the Description leaves no judgement to the worker, which is most mechanical chunks: renames, moves, config edits, applying an already-stated pattern to more call sites, docs edits. Rate up one tier for security/auth, data migrations, concurrency, money, or a public interface. Full table in `${skillRoot}/references/platform.md`.
+
 ### 6. Plan
 
 When the routing predicate applies, conceptually dry-run chunks and derive authoritative dependency waves. Otherwise record the skip and use a safe trivial ordering. No worker starts before its dependencies and wave are authoritative.
@@ -100,6 +102,7 @@ The store is authoritative. On resume, Read `${skillRoot}/references/store-proto
 - Routing predicates live only in `${skillRoot}/references/routing.md`; do not recreate or broaden them elsewhere.
 - Store schema, status ownership, append-only concurrency, relays, resume writes, and close-out writes live only in `${skillRoot}/references/store-protocol.md`.
 - Common phase mechanics live in `${skillRoot}/references/intake-design.md` and `${skillRoot}/references/execution.md`; platform names/models/isolation/install/landing mechanics live only in `${skillRoot}/references/platform.md`.
+- Every dispatch passes an explicit `model`. Agent frontmatter is sonnet almost everywhere, so omitting the override silently upgrades mechanical work and wastes the cheap tier. `low` complexity means haiku.
 - Every specialist decision is recorded as `dispatched` or `skipped: <reason>`. Empty precomputed input is inapplicable, never a fabricated pass.
 - Specialists receive required precomputed slices verbatim. A specialist never discovers another role's inputs.
 - Workers and the orchestrator change frontmatter status only at defined non-concurrent points. Reviewers/checkers append verdicts only and never move status.

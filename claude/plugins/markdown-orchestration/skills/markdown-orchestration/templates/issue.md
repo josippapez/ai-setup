@@ -3,7 +3,7 @@ id: NN-<slug>
 epic: <epic-slug>
 status: Todo
 labels: [agent-task]
-complexity: low # low | medium | high
+complexity: low # low | medium | high | max — sets the worker model, see references/platform.md
 wave: 1
 depends_on: []
 sessions: [] # append-only CLAUDE_CODE_SESSION_ID values

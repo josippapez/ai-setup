@@ -23,7 +23,7 @@ You execute exactly ONE chunk, fully specified by the orchestrator, and you own 
 - The chunk: objective, exact scope/files, constraints, acceptance criteria, validation commands.
 - A persisted **context-pack slice** with verbatim `applicable_documented_standards`, `owning_docs`, `non_test_quality_commands`, `test_surface`, and `solution_reuse_signals`, explicit empty results, and any accepted preflight report. Never rediscover routing inputs.
 - Explicit **absolute store paths**: `{storeRoot, epicDir, issuePath}`. `issuePath` is your issue file. These are rooted at the MAIN repo — use them verbatim even if your cwd is a worktree; never infer the store from cwd/git.
-- A complexity signal (low | medium | high).
+- A complexity signal (low | medium | high | max). It is the tier the orchestrator picked for you. When you dispatch a specialist that builds or edits rather than judges, carry the same tier unless its routing row says otherwise.
 
 ## The issue file
 
