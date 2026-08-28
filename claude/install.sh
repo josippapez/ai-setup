@@ -25,7 +25,7 @@ cp "$SRC/RTK.md" "$DEST/RTK.md"
 # scope in ~/.claude.json, never in this file.
 cp "$SRC/settings.json" "$DEST/settings.json"
 
-# Copy hook scripts referenced by settings.json (format-lint-edited-files + prompt-loop-reminder).
+# Copy hook scripts referenced by settings.json (format-lint-edited-files).
 # Their *.test.mjs siblings stay in the repo — settings.json never runs them.
 for f in "$SRC"/hooks/scripts/*.mjs; do
   case "$f" in
@@ -80,8 +80,9 @@ fi
 # Remove loose files migrated into the markdown-orchestration plugin (now plugin-provided).
 # Includes the grilling/domain-modeling/grill-with-docs skills relocated from skills/ into the plugin.
 rm -rf "$DEST/skills/markdown-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/md-worker.md" "$DEST/agents/md-reviewer.md" "$DEST/rules/markdown-orchestration.instructions.md"
-# Remove rules retired from source (deleting from src/ doesn't prune the deployed copy).
-rm -f "$DEST/rules/interactive-prompt-loop.instructions.md"
+# Remove rules and hook scripts retired from source (deleting from src/ doesn't prune the
+# deployed copy).
+rm -f "$DEST/rules/interactive-prompt-loop.instructions.md" "$DEST/hooks/scripts/prompt-loop-reminder.mjs" "$DEST/hooks/scripts/prompt-loop-reminder.test.mjs"
 # Remove rules migrated into the interactive-mcp plugin (now injected via its SessionStart
 # hook). Deleting the loose copies prevents them double-loading alongside the plugin's.
 rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md" "$DEST/rules/user-interaction.instructions.md"

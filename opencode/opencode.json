@@ -9,7 +9,6 @@
   "plugin": [
     "./plugins/rtk.ts",
     "./plugins/format-lint-edited-files.js",
-    "./plugins/prompt-loop-reminder.js",
     "./plugins/git-move-guard.js",
     ["./plugins/interactive-mcp/interactive-mcp.js", { "injectDebug": true }]
   ],
