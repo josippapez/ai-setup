@@ -1,11 +1,11 @@
 ---
 name: concise-pr-comments
-description: Write short, human PR review comments. Use when drafting or posting inline code review comments, especially when the user asks for concise, to-the-point, human-like comments. Triggers include "leave inline comments", "draft review comments", "make it short", "human like", and "PR comments".
+description: Write short, human review comments for anything posted to other people: PR review comments and replies, PR descriptions, and Azure DevOps, GitHub, or Jira work-item and issue comments. Use whenever text is about to be posted where other people will read it, especially when the user asks for concise, to-the-point, human-like comments. Triggers include "leave inline comments", "draft review comments", "post review comments", "reply on that thread", "comment on the ticket", "comment on the work item", "update the ADO comment", "make it short", "human like", and "PR comments".
 ---
 
 # Concise PR Comments
 
-Use this skill when drafting or posting PR review comments or replies. The style below is distilled from the user's own review history, match it.
+Use this skill when drafting or posting any comment that goes out to other people: PR review comments and replies, PR descriptions, and Azure DevOps / GitHub / Jira work-item and issue comments. The style below is distilled from the user's own review history, match it. What may appear in the comment at all is governed by the `outbound-content` rule.
 
 ## Style
 
@@ -32,6 +32,7 @@ These are the patterns that make a comment read bot-written. If a draft has any 
 - Headers, bold, or bullet lists inside an inline comment. Inline comments are prose.
 - Self-summarizing marketing tone: "a clean, backwards-compatible API addition", "net -43 lines". Nobody narrates their own diff like that.
 - Restating the obvious context back at the author before getting to the point.
+- References the reader did not ask for: Figma node links, acceptance-criteria numbers, ticket ids the thread already carries, local paths, branch names. See `outbound-content`.
 
 ## Examples
 

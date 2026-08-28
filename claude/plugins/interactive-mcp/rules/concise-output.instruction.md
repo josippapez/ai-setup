@@ -43,7 +43,7 @@ The diagnosis is not part of the deliverable. Say what a thing is, does, or chan
 This binds every artifact, and padding is worse outside chat because the audience asked you nothing at all.
 
 - **Chat.** Report the outcome. The investigation stays in the work.
-- **Posted text (issue and PR comments, replies sent for the user).** A fix announcement is the fix and the version. Post the short form. If you have drafted an explanation, cut it before sending instead of asking whether to keep it.
+- **Posted text (issue and PR comments, replies sent for the user).** A fix announcement is the fix and the version. Post the short form. If you have drafted an explanation, cut it before sending instead of asking whether to keep it. `outbound-content` covers what may appear in it at all.
 - **Commit messages.** Subject plus what changed and why it was needed. Not a transcript of the debugging.
 - **Code comments.** Comment why a line is surprising, never what it plainly does. No changelog entries, no "we tried X first", no restating the function name.
 - **Docs.** The instruction, the value, the command. Background only when the reader cannot act without it.
