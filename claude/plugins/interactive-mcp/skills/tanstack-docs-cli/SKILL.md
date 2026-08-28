@@ -1,6 +1,7 @@
 ---
 name: tanstack-docs-cli
-description: Use the TanStack CLI to find TanStack documentation. Use when working with TanStack Router, Start, Query, Form, Table, Store, DB, or other TanStack libraries; triggers include "TanStack docs", "router docs", "start docs", "query docs", and requests to check current TanStack behavior.
+description: 'Find current TanStack documentation with the TanStack docs CLI.'
+when_to_use: 'Triggers: "TanStack docs", "router docs", "start docs", "query docs", "table docs", "form docs", "is that still the TanStack API". Use when working with TanStack Router, Start, Query, Form, Table, Store, DB, or any other TanStack library, and whenever checking current TanStack behavior instead of recalling it.'
 ---
 
 # TanStack Docs CLI

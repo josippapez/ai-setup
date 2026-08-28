@@ -1,6 +1,7 @@
 ---
 name: markdown-orchestration
-description: Orchestrate non-trivial multi-step work through a local markdown store and conditional specialist agents. Use for multi-file work, tasks needing decomposition, tracked epics, or explicit "track this" / "orchestrate this" requests, and to resume an existing `.orchestration` epic. The main agent owns the user loop and state machine.
+description: 'Orchestrate non-trivial multi-step work through a local git-ignored markdown store and conditional specialist agents. The main agent owns the user loop and the state machine.'
+when_to_use: 'Triggers: "track this", "orchestrate this", "break this down", "manage this epic", "resume the epic", "pick up where we left off". Use for multi-file work, tasks that need decomposition into chunks, tracked epics, and resuming an existing `.orchestration` epic.'
 ---
 
 # Markdown orchestration dispatcher

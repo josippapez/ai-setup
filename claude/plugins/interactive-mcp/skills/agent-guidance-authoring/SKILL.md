@@ -1,6 +1,7 @@
 ---
 name: agent-guidance-authoring
-description: Author and evolve agent guidance — docs, patterns, skills, and instructions. Use when the user asks to change how the agent behaves in a repeatable way, add or update a skill, add or update an instruction, update docs/patterns/standards, harden a workflow, close a loophole, or make something "always happen". Triggers include phrases like "update this skill", "add a new skill", "change how you behave", "make the agent always do X", "add a rule", "this instruction is wrong", "update the docs/pattern/standard", "add an instruction", "fix this workflow", "improve this guidance".
+description: 'Author and evolve agent guidance: docs, patterns, skills, rules, and instructions. Use when the user asks to change how the agent behaves in a repeatable way.'
+when_to_use: 'Triggers: "update this skill", "add a new skill", "change how you behave", "make the agent always do X", "add a rule", "this instruction is wrong", "update the docs/pattern/standard", "add an instruction", "fix this workflow", "improve this guidance", "close that loophole", "make it always happen", "why did you not follow the rule". Also when a skill or rule is not being picked up reliably and its wording or triggers need work. Use self-improve for the step-by-step rollout once the change is decided.'
 ---
 
 # agent-guidance-authoring

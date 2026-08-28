@@ -1,6 +1,7 @@
 ---
 name: opensrc
-description: Use when you need to read library source code to understand internals, debug behaviour, or verify an API exists in the installed version. Resolves to a local cached path via `npx opensrc path <pkg>`.
+description: 'Read a library actual installed source. Resolves a local cached path with `npx opensrc path <pkg>`, then grep or read it.'
+when_to_use: 'Triggers: "read the source", "how does <library> actually do this", "does this version have X", "check the implementation", "the docs do not say", "why is <library> behaving like this". Use before assuming library internals (hooks, events, option shapes), when a library behaves unexpectedly, and to verify an option or API exists in the version installed here rather than a newer one. Prefer this over context7 when the exact installed version is what matters.'
 ---
 
 # opensrc — Source Code Lookup

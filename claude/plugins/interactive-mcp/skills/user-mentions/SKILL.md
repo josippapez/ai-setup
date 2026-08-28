@@ -1,6 +1,7 @@
 ---
 name: user-mentions
-description: Always re-open user-referenced files before updating code or generators.
+description: 'Re-open every file the user referenced before editing code or generators, so the edit reflects the file current content rather than an earlier read.'
+when_to_use: 'Triggers: any prompt with an @-mentioned or pasted file path, "this file", "that component", "the one I mentioned", "as shown in <path>", "I updated it", "I changed that file". Use before the first edit of a turn whenever the user pointed at a specific file, including files already read earlier in the session, and open the matching generator templates when generators mirror them.'
 ---
 
 # user-mentions

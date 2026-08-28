@@ -1,6 +1,7 @@
 ---
 name: self-improve
-description: Workflow for implementing user-requested changes to agent behavior across docs, skills, and instructions.
+description: 'Step-by-step rollout for a decided change to agent behavior: update the owning rule or skill first, then the mirrored copies under opencode/, then the agent definitions and routing if delegation changed.'
+when_to_use: 'Triggers: "make this change stick", "update your instructions", "apply this to all skills", "keep the copies in sync", "you keep doing X, stop", "harden this behavior". Use when the behavior change is already decided and needs carrying out consistently everywhere it is encoded. Use agent-guidance-authoring when the guidance wording itself still needs designing.'
 ---
 
 # self-improve

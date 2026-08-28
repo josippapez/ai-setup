@@ -1,6 +1,7 @@
 ---
 name: code-structure
-description: Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones.
+description: 'Decide where operational logic belongs: actions own domain rules (the why and when), a shared service layer owns reusable mechanics (the how).'
+when_to_use: 'Triggers: "this logic is duplicated", "where should this live", "extract this", "actions vs services", "refactor this shared logic", "the same code is in three flows", "the bug fix did not propagate". Use when multiple callers need the same low-level operation (sandbox creation, email sending, payment processing), when copy-pasting operational logic between action files, and when adding a feature that shares mechanics with an existing flow. Skip when the logic is genuinely domain-specific with one caller.'
 ---
 
 # Service Layer Architecture

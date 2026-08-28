@@ -1,6 +1,7 @@
 ---
 name: domain-modeling
-description: Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.
+description: 'Build and sharpen a project domain model: the CONTEXT.md ubiquitous-language glossary plus ADRs under docs/adr/, written the moment a term or decision settles.'
+when_to_use: 'Triggers: "pin down the terminology", "what do we call this", "write an ADR", "record this decision", "ubiquitous language", "glossary", "define the domain", "these two words mean the same thing". Use when changing the model, not when merely reading CONTEXT.md for vocabulary.'
 ---
 
 # Domain Modeling

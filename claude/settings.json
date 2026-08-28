@@ -45,6 +45,7 @@
     }
   },
   "effortLevel": "medium",
+  "skillListingBudgetFraction": 0.05,
   "tui": "fullscreen",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
