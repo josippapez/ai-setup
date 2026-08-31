@@ -1,6 +1,6 @@
 ---
 name: concise-pr-comments
-description: Write short, human review comments for anything posted to other people: PR review comments and replies, PR descriptions, and Azure DevOps, GitHub, or Jira work-item and issue comments. Use whenever text is about to be posted where other people will read it, especially when the user asks for concise, to-the-point, human-like comments. Triggers include "leave inline comments", "draft review comments", "post review comments", "reply on that thread", "comment on the ticket", "comment on the work item", "update the ADO comment", "make it short", "human like", and "PR comments".
+description: 'Write short, human review comments for anything posted to other people: PR review comments and replies, PR descriptions, and Azure DevOps, GitHub, or Jira work-item and issue comments. Use whenever text is about to be posted where other people will read it, especially when the user asks for concise, to-the-point, human-like comments. Triggers include "leave inline comments", "draft review comments", "post review comments", "reply on that thread", "comment on the ticket", "comment on the work item", "update the ADO comment", "make it short", "human like", and "PR comments".'
 ---
 
 # Concise PR Comments

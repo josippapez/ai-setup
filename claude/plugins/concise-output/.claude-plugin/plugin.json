@@ -1,6 +1,6 @@
 {
   "name": "concise-output",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Always-on rules for how output reads: short and plain in anything a person sees, and carrying only what was asked for in anything that leaves the machine. Ships concise-output, outbound-content, and the concise-pr-comments skill.",
   "author": {
     "name": "Personal AI Setup"

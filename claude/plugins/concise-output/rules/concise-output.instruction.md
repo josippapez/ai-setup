@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 name: concise-output
-description: Answer short, plain, and direct in anything a person sees or that leaves this machine. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Covers chat, code comments, commits, PR and issue text, docs, and logs. Agent-to-agent traffic is exempt and should be as detailed as the task needs.
+description: 'Answer short, plain, and direct in anything a person sees or that leaves this machine. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Covers chat, code comments, commits, PR and issue text, docs, and logs. Agent-to-agent traffic is exempt and should be as detailed as the task needs.'
 ---
 
 # Concise output
