@@ -9,7 +9,11 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 
 ## Core orchestration rules
 
-1. The main agent MUST remain the orchestrator and prompt-loop owner; custom agents never talk to the user directly, with one exception: an agent blocked on something only the user can answer (a missing credential, a choice between valid options, a requirement the task never stated) asks with `interactive_request_user_input`. Progress, findings, and scope changes still come back to the orchestrator.
+1. The main agent MUST remain the orchestrator and prompt-loop owner. Each side of the boundary has exactly one way to ask:
+   - **Main agent: always the built-in questions tool.** Never `interactive_request_user_input`, even though it is registered and callable.
+   - **Custom agents: always `interactive_request_user_input`**, and only when blocked on something only the user can answer (a missing credential, a choice between valid options, a requirement the task never stated).
+
+   Progress, findings, and scope changes still come back to the orchestrator rather than going to the user.
 2. For mapped domains, the main agent MUST delegate unless the change is truly trivial.
 3. Delegation prompts MUST include a full context pack in one message: objective, scope, constraints, validation commands, and handoff format.
 4. For empty/partial output on the same unresolved objective, the main agent MUST follow up with the same agent first before launching a new agent.

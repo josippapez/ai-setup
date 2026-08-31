@@ -14,7 +14,7 @@ The agent MUST consult the `agent-orchestration` skill and the `custom-orchestra
 
 - Implementation and execution work (coding, refactoring, file generation, running tests, lint fixes) MUST be delegated to lower-tier/faster/cheaper agents or models when a suitable one exists.
 - Planning, architecture, complex reasoning, ambiguity resolution, and safety-critical decisions SHOULD be routed to higher-tier/more expensive reasoning models.
-- The main agent MUST remain the orchestrator and prompt-loop owner. Custom agents never talk to the user directly, with one exception: an agent blocked on something only the user can answer asks with `interactive_request_user_input`. Progress, findings, and scope changes still come back to the orchestrator.
+- The main agent MUST remain the orchestrator and prompt-loop owner. When the main agent asks the user anything it MUST use the built-in questions tool, never `interactive_request_user_input`. Custom agents never talk to the user directly, with one exception: an agent blocked on something only the user can answer asks with `interactive_request_user_input`. Progress, findings, and scope changes still come back to the orchestrator.
 - Prefer free-tier subagents (`free-tier-coder`, `free-tier-explorer`) whenever they can handle the task satisfactorily. Escalate to paid tiers only when stronger reasoning, complex multi-file changes, or failure after retry requires it.
 
 ## Exceptions — tier-aware routing does not apply

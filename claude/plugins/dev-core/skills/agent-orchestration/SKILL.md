@@ -13,13 +13,18 @@ one carve-out below.
 
 ## Core orchestration rules
 
-1. The main agent MUST remain the orchestrator and prompt-loop owner; subagents
-   never talk to the user directly, with one exception: a subagent blocked on
-   something only the user can answer (a missing credential, a choice between
-   valid options, a requirement the task never stated) asks with
-   `request_user_input` from the `interactive` MCP. Claude Code withholds
-   `AskUserQuestion` from subagents, so that MCP tool is the only route.
-   Progress, findings, and scope changes still come back to the orchestrator.
+1. The main agent MUST remain the orchestrator and prompt-loop owner. Each side
+   of the boundary has exactly one way to ask:
+   - **Main agent: always the built-in `AskUserQuestion`.** Never the
+     `interactive` MCP, even though it is registered and callable.
+   - **Subagents: always `request_user_input` from the `interactive` MCP.**
+     Claude Code withholds `AskUserQuestion` from subagents, so that is their
+     only route, and they use it only when blocked on something only the user
+     can answer (a missing credential, a choice between valid options, a
+     requirement the task never stated).
+
+   Progress, findings, and scope changes still come back to the orchestrator
+   rather than going to the user.
 2. For mapped domains or clearly delegable work, the main agent MUST delegate
    unless the change is truly trivial.
 3. Delegation prompts MUST include a full context pack in one message:
