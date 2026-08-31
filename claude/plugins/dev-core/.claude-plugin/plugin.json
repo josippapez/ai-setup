@@ -1,0 +1,17 @@
+{
+  "name": "dev-core",
+  "version": "0.4.0",
+  "description": "Everyday defaults for Claude Code: repo grounding (repo-docs, context7, chrome-devtools, a question tool subagents can actually reach), the always-on engineering rules (evidence-first, external-facts, llm-coding-guidelines, proactive-execution, git-move, opensrc), core skills, and the tier and domain specialist agents.",
+  "author": {
+    "name": "Personal AI Setup"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "docs",
+    "skills",
+    "rtk",
+    "opencode"
+  ],
+  "mcpServers": "./.mcp.json"
+}

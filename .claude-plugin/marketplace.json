@@ -7,13 +7,22 @@
   },
   "plugins": [
     {
-      "name": "interactive-mcp",
-      "description": "Repo docs/libs and dependency MCP tools mirrored from the OpenCode custom plugin.",
+      "name": "dev-core",
+      "description": "Repo grounding, the always-on engineering rules, core skills, and the tier and domain specialist agents.",
       "author": {
         "name": "Personal AI Setup"
       },
       "category": "development",
-      "source": "./claude/plugins/interactive-mcp"
+      "source": "./claude/plugins/dev-core"
+    },
+    {
+      "name": "concise-output",
+      "description": "Always-on rules for how output reads: short and plain in anything a person sees, and only what was asked for in anything that leaves the machine.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/concise-output"
     },
     {
       "name": "markdown-orchestration",

@@ -14,8 +14,8 @@ You run only when the repo has a runnable test suite. If there is genuinely no s
 
 ## Process
 
-1. Detect the test command(s) from `package.json`/Makefile/CI, or a testing doc via the bundled repo-docs MCP (`interactive-mcp-standalone_find_docs`/`interactive-mcp-standalone_list_docs`/`interactive-mcp-standalone_read_doc`). Prefer the repo's canonical "run all tests" command.
-2. Run the **full** suite (or the broadest suite that runs in reasonable time — if the full run is prohibitively slow, run the suites covering the changed areas' dependents; use `interactive-mcp-standalone_get_file_dependents`/`interactive-mcp-standalone_get_blast_radius` reasoning from the diff, and SAY in your verdict what you scoped and why — never silently narrow).
+1. Detect the test command(s) from `package.json`/Makefile/CI, or a testing doc via the bundled repo-docs MCP (`repo-docs_find_docs`/`repo-docs_list_docs`/`repo-docs_read_doc`). Prefer the repo's canonical "run all tests" command.
+2. Run the **full** suite (or the broadest suite that runs in reasonable time — if the full run is prohibitively slow, run the suites covering the changed areas' dependents; use `repo-docs_get_file_dependents`/`repo-docs_get_blast_radius` reasoning from the diff, and SAY in your verdict what you scoped and why — never silently narrow).
 3. Identify tests that FAIL now. Distinguish a **regression** (a test that should still pass but now fails because of this change) from a test that was already failing/skipped on the base, or one legitimately updated by the chunk. Don't count pre-existing failures against the chunk.
 4. For each true regression, point at the likely root cause (the changed symbol/file the failing test exercises) — enough for the worker to fix the cause, not silence the test.
 5. Decide: any true regression → `fail` with the failing tests + root-cause pointers; a clean run → `pass`.

@@ -34,7 +34,7 @@ for f in "$SRC"/hooks/scripts/*.mjs; do
   cp "$f" "$DEST/hooks/scripts/"
 done
 
-# Rules are no longer copied loose into ~/.claude/rules/: the interactive-mcp plugin
+# Rules are no longer copied loose into ~/.claude/rules/: the dev-core plugin
 # now bundles them and injects them via its SessionStart hook (see cleanup below).
 
 # Copy user-level skills and agents as real copies, replacing any existing symlink or dir
@@ -58,15 +58,19 @@ if have claude; then
   claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
   claude plugin marketplace add "$REPO_ROOT"
 
-  # Install or update the interactive-mcp plugin.
-  if claude plugin list 2>/dev/null | grep -q "interactive-mcp@ai-setup"; then
-    claude plugin update interactive-mcp@ai-setup
-  else
-    claude plugin install interactive-mcp@ai-setup --scope user
-  fi
-
-  # Remove the pre-rename plugin (linear-orchestration -> markdown-orchestration) if still installed.
+  # Remove pre-rename plugins if still installed (linear-orchestration -> markdown-orchestration,
+  # interactive-mcp -> dev-core). Leaving them registered double-loads their rules.
   claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
+  claude plugin uninstall interactive-mcp@ai-setup >/dev/null 2>&1 || true
+
+  # Install or update dev-core and concise-output.
+  for plugin in dev-core concise-output; do
+    if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
+      claude plugin update "$plugin@ai-setup"
+    else
+      claude plugin install "$plugin@ai-setup" --scope user
+    fi
+  done
 
   # Install or update the markdown-orchestration plugin.
   if claude plugin list 2>/dev/null | grep -q "markdown-orchestration@ai-setup"; then
@@ -83,11 +87,11 @@ rm -rf "$DEST/skills/markdown-orchestration" "$DEST/skills/grilling" "$DEST/skil
 # Remove rules and hook scripts retired from source (deleting from src/ doesn't prune the
 # deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md" "$DEST/hooks/scripts/prompt-loop-reminder.mjs" "$DEST/hooks/scripts/prompt-loop-reminder.test.mjs"
-# Remove rules migrated into the interactive-mcp plugin (now injected via its SessionStart
+# Remove rules migrated into the dev-core plugin (now injected via its SessionStart
 # hook). Deleting the loose copies prevents them double-loading alongside the plugin's.
 rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md" "$DEST/rules/user-interaction.instructions.md"
 
-# interactive-mcp runtime deps (@huggingface/transformers) auto-install via the plugin's
+# dev-core runtime deps (@huggingface/transformers) auto-install via the plugin's
 # SessionStart hook into ${CLAUDE_PLUGIN_DATA}/node_modules on first session — no manual
 # npm step here, and the same mechanism works for any consumer who installs the plugin.
 
@@ -95,7 +99,8 @@ echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
 echo "  - skills/, agents/"
 if have claude; then
-  echo "  - interactive-mcp@ai-setup plugin (marketplace + deps)"
+  echo "  - dev-core@ai-setup plugin (marketplace + deps)"
+  echo "  - concise-output@ai-setup plugin"
   echo "  - markdown-orchestration@ai-setup plugin"
 else
   echo "  - plugins NOT installed (no 'claude' CLI on PATH)"

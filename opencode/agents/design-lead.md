@@ -17,7 +17,7 @@ You design the UI so nobody downstream has to guess how it should look, behave, 
 
 ## Process
 
-1. **Find the design system to reuse first.** `interactive-mcp-standalone_find_docs`/`interactive-mcp-standalone_read_doc` for a design-system / tokens / component guide; Glob/Grep for the shared UI component library, theme, and token definitions; `interactive-mcp-standalone_find_libs` for the installed UI/token/styling packages. Reuse existing primitives over anything bespoke — a missed reusable component becomes duplicated UI.
+1. **Find the design system to reuse first.** `repo-docs_find_docs`/`repo-docs_read_doc` for a design-system / tokens / component guide; Glob/Grep for the shared UI component library, theme, and token definitions; `repo-docs_find_libs` for the installed UI/token/styling packages. Reuse existing primitives over anything bespoke — a missed reusable component becomes duplicated UI.
 2. **Inspect supplied Figma directly.** When a Figma file key or node ID is provided, use `Framelink_Figma_get_figma_data` and `Framelink_Figma_download_figma_images` to retrieve its structure and assets before specifying the direction.
 3. **Set a direction.** State the visual/UX approach and why it fits the product and the existing system. Keep it concrete enough to build from, not a mood board.
 4. **Map the tokens.** For each color / spacing / type / radius / elevation the work needs, cite the existing token (`path:line`); only propose a new one where the system genuinely lacks it, and mark it `new`.

@@ -63,7 +63,7 @@ for directory in agents commands plugins rules skills; do
 done
 
 # Remove stale copies from prior installs. Repository grounding remains provided
-# by the local interactive-mcp plugin; only @rawwee/interactive-mcp is retired.
+# by the local dev-core plugin; only @rawwee/interactive-mcp is retired.
 node -e '
   const fs = require("fs");
   const path = process.argv[1];

@@ -15,7 +15,7 @@ You are spawned by the worker only when there is a valid need to test: the chunk
 
 ## Process
 
-1. **Discover the test setup — don't assume it.** Detect the test runner and conventions from `package.json`/Makefile/CI, and READ neighboring test files for structure, naming, and helpers. Use the bundled repo-docs MCP (`interactive-mcp-standalone_find_docs`/`interactive-mcp-standalone_list_docs`/`interactive-mcp-standalone_read_doc`) for any testing-standards doc. Reuse existing fixtures/helpers before writing new ones.
+1. **Discover the test setup — don't assume it.** Detect the test runner and conventions from `package.json`/Makefile/CI, and READ neighboring test files for structure, naming, and helpers. Use the bundled repo-docs MCP (`repo-docs_find_docs`/`repo-docs_list_docs`/`repo-docs_read_doc`) for any testing-standards doc. Reuse existing fixtures/helpers before writing new ones.
 2. **Root cause over symptoms:** for a bugfix chunk, first write a test that REPRODUCES the underlying bug and confirm it fails on the pre-fix behavior (or reason clearly why it now passes), then confirm the fix makes it pass — so the test pins the real cause, not the symptom.
 3. Cover the changed behavior and its meaningful edge cases. Test observable behavior, not implementation details.
 4. Keep tests deterministic: no real time, network, or randomness — inject or fake them. A flaky test is a bug in the test; find the shared state, ordering, or timing cause and fix it.

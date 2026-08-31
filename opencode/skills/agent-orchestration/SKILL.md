@@ -50,16 +50,16 @@ Sub-agents run in separate sessions and do NOT inherit the main agent's CLI exte
 
 ## Context-efficient grounding
 
-Before delegating or answering repo-specific questions, the main agent MUST prefer `interactive-mcp-standalone` plugin tools over broad file reads or web searches:
+Before delegating or answering repo-specific questions, the main agent MUST prefer `repo-docs` plugin tools over broad file reads or web searches:
 
-- Repo docs: `interactive-mcp-standalone_find_docs`, `interactive-mcp-standalone_list_docs`, `interactive-mcp-standalone_read_doc`
-- Package versions: `interactive-mcp-standalone_find_libs`
-- Dependency and impact analysis: `interactive-mcp-standalone_get_file_dependencies`, `interactive-mcp-standalone_get_file_dependents`, `interactive-mcp-standalone_get_blast_radius`
-- Graph readiness: `interactive-mcp-standalone_get_repository_index_status`
-- Subagent spawning: use the native `task` tool in a TUI session; the `interactive-mcp-standalone` plugin is for repo grounding tools only.
-- Persistent context: `interactive-mcp-standalone_manage_memories`
+- Repo docs: `repo-docs_find_docs`, `repo-docs_list_docs`, `repo-docs_read_doc`
+- Package versions: `repo-docs_find_libs`
+- Dependency and impact analysis: `repo-docs_get_file_dependencies`, `repo-docs_get_file_dependents`, `repo-docs_get_blast_radius`
+- Graph readiness: `repo-docs_get_repository_index_status`
+- Subagent spawning: use the native `task` tool in a TUI session; the `repo-docs` plugin is for repo grounding tools only.
+- Persistent context: `repo-docs_manage_memories`
 
-These tools are registered by the `interactive-mcp-standalone` plugin in `~/.config/opencode/plugins/interactive-mcp/` (or `~/Desktop/ai-setup/opencode/plugins/interactive-mcp/` in the mirror). Use them to ground decisions in repo conventions without loading large amounts of source code into context.
+These tools are registered by the `repo-docs` plugin in `~/.config/opencode/plugins/dev-core/` (or `~/Desktop/ai-setup/opencode/plugins/dev-core/` in the mirror). Use them to ground decisions in repo conventions without loading large amounts of source code into context.
 
 ## References
 

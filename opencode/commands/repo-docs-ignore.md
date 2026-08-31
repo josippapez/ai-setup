@@ -4,7 +4,7 @@ description: Configure Markdown paths excluded from repository-docs indexing.
 
 # Configure repository-docs ignore
 
-Manage this repository's `.opencode/repo-docs-ignore`, the gitignore-lite list excluded from `interactive-mcp-standalone_find_docs` and `interactive-mcp-standalone_list_docs`.
+Manage this repository's `.opencode/repo-docs-ignore`, the gitignore-lite list excluded from `repo-docs_find_docs` and `repo-docs_list_docs`.
 
 Do exactly these steps:
 

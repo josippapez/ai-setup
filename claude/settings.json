@@ -21,7 +21,8 @@
     "refreshInterval": 5
   },
   "enabledPlugins": {
-    "interactive-mcp@ai-setup": true,
+    "dev-core@ai-setup": true,
+    "concise-output@ai-setup": true,
     "markdown-orchestration@ai-setup": true,
     "superpowers@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,

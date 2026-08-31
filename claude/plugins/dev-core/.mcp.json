@@ -1,0 +1,42 @@
+{
+  "repo-docs": {
+    "command": "node",
+    "args": [
+      "${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"
+    ],
+    "env": {
+      "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules",
+      "REPO_DOCS_INJECT": "1"
+    }
+  },
+  "interactive": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@rawwee/interactive-mcp",
+      "-t",
+      "1200",
+      "--disable-tools",
+      "message_complete_notification"
+    ],
+    "timeout": 1210000
+  },
+  "context7": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@upstash/context7-mcp"
+    ]
+  },
+  "chrome-devtools": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "chrome-devtools-mcp@latest",
+      "--autoConnect"
+    ]
+  }
+}

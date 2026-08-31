@@ -5,7 +5,7 @@ node_modules/
 *secret*
 *token*
 # Exceptions: bundled agent definitions whose names contain "token" (not secrets).
-!claude/plugins/interactive-mcp/agents/figma-layout-token-analyst.md
+!claude/plugins/dev-core/agents/figma-layout-token-analyst.md
 !opencode/agents/figma-layout-token-analyst.md
 *.log
 **/interactive-mcp-doc-embeddings.json
