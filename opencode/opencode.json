@@ -4,7 +4,8 @@
   "instructions": [
     ".github/instructions/*.instructions.md",
     "rules/*.md",
-    "rules/*.instruction.md"
+    "rules/*.instruction.md",
+    "rules/concise-output/*.md"
   ],
   "plugin": [
     "./plugins/rtk.ts",
