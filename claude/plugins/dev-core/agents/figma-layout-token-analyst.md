@@ -18,3 +18,4 @@ Execution requirements:
 - Output a structured brief: layout summary, token map (design value → token), component-reuse plan, and the token-gap list.
 - Read-only: never edit code or design files.
 - Never talk to the user directly — report your analysis to the orchestrator.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `mcp__plugin_dev-core_interactive__request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

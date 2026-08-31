@@ -10,10 +10,17 @@
     "./plugins/rtk.ts",
     "./plugins/format-lint-edited-files.js",
     "./plugins/git-move-guard.js",
-    ["./plugins/dev-core/dev-core.js", { "injectDebug": true }]
+    [
+      "./plugins/dev-core/dev-core.js",
+      {
+        "injectDebug": true
+      }
+    ]
   ],
   "skills": {
-    "paths": ["./skills"]
+    "paths": [
+      "./skills"
+    ]
   },
   "subagent_depth": 2,
   "permission": {
@@ -33,20 +40,47 @@
   "mcp": {
     "Context7": {
       "type": "local",
-      "command": ["npx", "-y", "@upstash/context7-mcp"]
+      "command": [
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ]
     },
     "chrome-devtools": {
       "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--autoConnect"
+      ],
       "timeout": 120000
     },
     "Framelink Figma": {
       "type": "local",
-      "command": ["npx", "-y", "figma-developer-mcp", "--stdio"],
+      "command": [
+        "npx",
+        "-y",
+        "figma-developer-mcp",
+        "--stdio"
+      ],
       "environment": {
         "FIGMA_API_KEY": "{env:FIGMA_API_KEY}"
       },
       "timeout": 120000
+    },
+    "interactive": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@rawwee/interactive-mcp",
+        "-t",
+        "1200",
+        "--disable-tools",
+        "message_complete_notification"
+      ],
+      "timeout": 1210000
     }
   }
 }

@@ -62,16 +62,6 @@ for directory in agents commands plugins rules skills; do
   fi
 done
 
-# Remove stale copies from prior installs. Repository grounding remains provided
-# by the local dev-core plugin; only @rawwee/interactive-mcp is retired.
-node -e '
-  const fs = require("fs");
-  const path = process.argv[1];
-  const config = JSON.parse(fs.readFileSync(path, "utf8"));
-  if (config.mcp) delete config.mcp.interactive;
-  fs.writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
-' "$DEST/opencode.json"
-
 if command -v npm >/dev/null 2>&1; then
   npm install --omit=dev --prefix "$DEST"
 else
@@ -82,4 +72,4 @@ echo "Installed OpenCode config to $DEST:"
 echo "  - base config, plugins, rules, skills, and agents"
 echo "  - background subagents enabled for new shell sessions"
 echo "  - Markdown orchestration skills, commands, and OpenCode-compatible agents"
-echo "  - Repository-docs MCP retained; external @rawwee/interactive-mcp removed"
+echo "  - Repository-docs MCP plus the interactive question tool for subagents"

@@ -12,3 +12,4 @@ non-trivial refactors, and changes that span multiple files or modules.
 - Run or request the relevant validations before finishing.
 - Summarize what changed and why. Report to the orchestrator; never talk to the
   user directly.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `mcp__plugin_dev-core_interactive__request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

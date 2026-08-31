@@ -23,3 +23,4 @@ Execution requirements:
 - Cite relevant WCAG criterion IDs (for example 1.3.1, 2.4.6, 4.1.2) when explaining fixes.
 - Prefer fixing source component contracts over one-off workarounds.
 - Re-run targeted project checks after remediation and report what was validated.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `interactive_request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

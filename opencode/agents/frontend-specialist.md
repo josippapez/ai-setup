@@ -18,3 +18,4 @@ Execution requirements:
 - Run the repo's frontend checks (typecheck, lint, tests) after changes and report what you validated.
 - Run `repo-docs_get_file_dependents` before changing a shared component's public API. A one-hop `repo-docs_get_file_dependents` that returns `none`, or only barrel/`index` dependents, is NOT evidence the file is unused — consumers import the package/barrel. Confirm with `repo-docs_get_blast_radius` plus a repo-wide Grep of the exported symbol names before planning a deletion or an API change.
 - Never talk to the user directly — report findings and results to the orchestrator.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `interactive_request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

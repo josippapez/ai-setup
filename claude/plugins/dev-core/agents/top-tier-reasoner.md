@@ -13,3 +13,4 @@ resolution, and anything safety- or security-critical.
 - When requirements are ambiguous, surface the ambiguity to the orchestrator —
   never talk to the user directly.
 - Return a concise recommendation with reasoning and any risks.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `mcp__plugin_dev-core_interactive__request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

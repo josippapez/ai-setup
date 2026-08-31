@@ -8,12 +8,18 @@ when_to_use: 'Triggers: "delegate this", "spawn a subagent", "run in background"
 
 Use this skill to make delegation and model-tier decisions when launching
 subagents through the built-in Agent tool. The main agent stays the orchestrator
-and prompt-loop owner; subagents never talk to the user directly.
+and prompt-loop owner; subagents never talk to the user directly, apart from the
+one carve-out below.
 
 ## Core orchestration rules
 
 1. The main agent MUST remain the orchestrator and prompt-loop owner; subagents
-   never talk to the user directly.
+   never talk to the user directly, with one exception: a subagent blocked on
+   something only the user can answer (a missing credential, a choice between
+   valid options, a requirement the task never stated) asks with
+   `request_user_input` from the `interactive` MCP. Claude Code withholds
+   `AskUserQuestion` from subagents, so that MCP tool is the only route.
+   Progress, findings, and scope changes still come back to the orchestrator.
 2. For mapped domains or clearly delegable work, the main agent MUST delegate
    unless the change is truly trivial.
 3. Delegation prompts MUST include a full context pack in one message:

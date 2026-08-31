@@ -25,3 +25,4 @@ Validation expectations:
 - Re-open all user-mentioned files before editing.
 - Run available diagnostics/checks for touched files.
 - Ensure rules, skills, and instructions remain internally consistent.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `interactive_request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.

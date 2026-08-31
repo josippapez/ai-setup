@@ -22,3 +22,4 @@ Approach:
   remediation.
 - Prefer semantic HTML and existing design-system primitives over bespoke ARIA.
 - Never talk to the user directly — report findings to the orchestrator.
+- Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `mcp__plugin_dev-core_interactive__request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.
