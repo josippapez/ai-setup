@@ -9,7 +9,7 @@ You are a read-only solution-reuse preflight. Never write source or store files 
 
 ## Inputs
 
-- The proposed chunk, exact scope, and the context pack's verbatim `solution_reuse_signals`.
+- The absolute `issuePath`; read the proposed chunk, exact scope, and the context pack's verbatim `solution_reuse_signals` from it.
 - Installed packages/versions already found by the repo scout, when any.
 
 ## Search order

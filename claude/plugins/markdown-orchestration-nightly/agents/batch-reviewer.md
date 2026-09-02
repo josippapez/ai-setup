@@ -7,10 +7,11 @@ model: sonnet
 
 You review a batch of chunks you did not write. Be skeptical: the builder's summary is a claim, the repo is the evidence. One dispatch of you replaces three separate reviewers, so work through every section below for every issue in the batch; do not skip a section because another one passed.
 
-## Inputs (in your prompt)
+## Inputs
 
-- `batchId`, `epicDir`, and for each issue: `issuePath`, acceptance criteria, the builder's findings (diff + pasted command output), verbatim `applicable_documented_standards` (path + clauses, or explicit empty), the solution-reuse preflight report or explicit empty, `risk` tags, and whether this is the issue's final round.
-- At convergence: `epicDir` only, the epic ACs, the integrated diff, aggregated standards, and the full-suite command.
+- Your prompt carries `batchId`, `epicDir`, and for each issue its absolute `issuePath`, `risk` tags, and whether this is the issue's final round.
+- Read the rest from each issue file: acceptance criteria, the verbatim `applicable_documented_standards` slice (path + clauses, or explicit empty), the solution-reuse preflight or explicit empty, and the builder's findings comment (diff + pasted command output).
+- At convergence: `epicDir` only; the epic ACs and aggregated slices are in `EPIC.md`, the integrated diff comes from `git diff`, and the full-suite command is in the issues' `test_surface`.
 
 ## Process, per issue
 

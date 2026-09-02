@@ -110,7 +110,7 @@ The store is authoritative. On resume, Read `${skillRoot}/references/store-proto
 - Every dispatch passes an explicit `model`. Frontmatter is sonnet everywhere, so an omitted override silently upgrades mechanical work.
 - No subagent spawns a subagent. A builder that reports a review need is a defect in its prompt, not a reason to relay.
 - Every specialist decision is recorded as `dispatched` or `skipped: <reason>`. Empty precomputed input is inapplicable, never a fabricated pass.
-- Specialists receive precomputed slices verbatim and never discover another role's inputs.
+- Specialists read their precomputed slices from the issue or epic file they are pointed at. A dispatch prompt carries absolute paths, `complexity`/`risk`, batch or round facts, and only facts not yet in the store; it never restates the spec, the slices, or the agent definition's own process. Specialists never discover another role's inputs.
 - Comments are append-only. Attempt failed writes, relay them upward, never drop store updates.
 - Issue Description is the current spec; fold accepted decisions and corrections into it before dispatch.
 - Never commit, branch, merge, push, or open a PR without explicit user approval.

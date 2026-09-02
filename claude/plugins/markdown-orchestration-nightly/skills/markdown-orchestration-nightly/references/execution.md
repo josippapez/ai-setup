@@ -22,7 +22,7 @@ Dispatch the lowest open wave only after prerequisites are visible in its worksp
 
 Before each builder, evaluate solution-reuse routing and fold accepted findings into the Description.
 
-Set the issue to `In Progress`, then dispatch `md-builder` with absolute store paths, complexity, risk tags, complete Description, and exact slices. The builder builds, runs the validation commands, runs `non_test_quality_commands` and the runnable suite from `test_surface` verbatim, checks supplied `owning_docs`, appends one findings comment with the diff and pasted command output, and returns. It never spawns agents and never moves status.
+Set the issue to `In Progress`, then dispatch `md-builder` with absolute store paths, complexity, and risk tags; it reads the Description and every slice from `issuePath`, so the prompt does not repeat them or the builder's own process. The builder builds, runs the validation commands, runs `non_test_quality_commands` and the runnable suite from `test_surface` verbatim, checks supplied `owning_docs`, appends one findings comment with the diff and pasted command output, and returns. It never spawns agents and never moves status.
 
 On return: evaluate the test-specialist row; if dispatched, wait for it. Then set the issue to `In Review` and check whether a review batch is due (`routing.md`, Review batches). If it is, dispatch `batch-reviewer` and continue dispatching ready builders without waiting for the review.
 

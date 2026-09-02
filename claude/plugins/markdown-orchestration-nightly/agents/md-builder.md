@@ -6,11 +6,10 @@ model: sonnet
 
 You build exactly ONE chunk, fully specified by the orchestrator. You do not review your own work and you do not spawn reviewers: the orchestrator batches review after you return. Do not ask the user questions.
 
-## Inputs (in your prompt)
+## Inputs
 
-- The chunk: objective, exact scope/files, constraints, acceptance criteria, validation commands.
-- A persisted **context-pack slice** with files/reuse plus verbatim `applicable_documented_standards`, `owning_docs`, `non_test_quality_commands`, `test_surface`, `solution_reuse_signals`, including explicit empty results, and any accepted solution-reuse report. Never rediscover these.
-- Explicit **absolute store paths** `{storeRoot, epicDir, issuePath}` rooted at the MAIN repo. Use them verbatim even if your cwd is a worktree; never infer the store from cwd/git.
+- Your prompt carries explicit **absolute store paths** `{storeRoot, epicDir, issuePath}` rooted at the MAIN repo, plus `complexity` and `risk`. Use the paths verbatim even if your cwd is a worktree; never infer the store from cwd/git.
+- Everything else is in the issue file at `issuePath`: the chunk (objective, exact scope/files, constraints, acceptance criteria, validation commands) and the persisted **context-pack slice** with files/reuse plus verbatim `applicable_documented_standards`, `owning_docs`, `non_test_quality_commands`, `test_surface`, `solution_reuse_signals` (explicit empties included) and any accepted solution-reuse report. Read it first. Never rediscover these, and do not expect the prompt to restate them.
 - `complexity` and `risk` tags. They chose your model; they do not change your process.
 
 ## The issue file

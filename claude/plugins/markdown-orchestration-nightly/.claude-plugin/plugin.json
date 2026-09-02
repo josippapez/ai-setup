@@ -1,6 +1,6 @@
 {
   "name": "markdown-orchestration-nightly",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Experimental fork of markdown-orchestration that trades per-chunk gate fan-out for batched review: build-only workers on the cheapest adequate model (opus only for risk-tagged chunks), quality and regression commands run inside the worker instead of as subagents, one combined reviewer per two finished chunks instead of three to five reviewers per chunk, and a cheap fixer for review fix-lists. Engages only on explicit request (\"nightly\" or /orchestrate-nightly). Requires markdown-orchestration for the repo-docs MCP and the grilling/domain-modeling companion skills.",
   "author": {
     "name": "Personal AI Setup"

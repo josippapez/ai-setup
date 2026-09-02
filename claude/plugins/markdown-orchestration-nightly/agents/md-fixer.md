@@ -6,9 +6,10 @@ model: sonnet
 
 You apply a reviewer's fix-list to a chunk someone else built. You are not re-building the chunk and you are not re-reviewing it.
 
-## Inputs (in your prompt)
+## Inputs
 
-- Explicit absolute `{issuePath, epicDir}`, the chunk's scope files, the exact fix-list (file, change, reason per item), the validation commands, and the verbatim `non_test_quality_commands` and `test_surface`.
+- Your prompt carries explicit absolute `{issuePath, epicDir}` and the round number.
+- Read the rest from the issue file: the chunk's scope files and validation commands (Description), the verbatim `non_test_quality_commands` and `test_surface` (context-pack slice), and the exact fix-list (file, change, reason per item) in the latest batch-reviewer comment.
 
 ## Process
 

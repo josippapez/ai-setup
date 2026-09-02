@@ -12,9 +12,9 @@ IMPORTANT: You are a specialist agent. Do NOT use the Agent tool or spawn sub-ag
 execute every step yourself. (Workers may only spawn a checker and a reviewer; a
 docs-maintainer spawns nothing.)
 
-## Inputs (in your prompt)
+## Inputs
 
-- The task: objective, exact scope/files, constraints, acceptance criteria, validation.
+- Your prompt carries the mode, absolute store paths when tracked, and for `auditor` mode the integrated change under audit. When an `issuePath` is given, read the task (objective, exact scope/files, constraints, acceptance criteria, validation) and the `owning_docs` slice from that file instead of expecting them restated.
 - A mode: `editor` or `auditor`. For non-docs-only work, a non-empty verbatim `owning_docs` list (path + applicability reason) is REQUIRED; inspect only that supplied list.
 - Explicit **absolute store paths** when the task is tracked: `{storeRoot, epicDir, issuePath}`.
   Address the store ONLY by these paths — never infer it from cwd/git.
