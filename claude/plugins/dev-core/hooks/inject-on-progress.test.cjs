@@ -65,8 +65,10 @@ function writeTranscriptRows(root, rows) {
 function userRow(text) {
   return { type: 'user', message: { role: 'user', content: text } };
 }
-function assistantRow(content) {
-  return { type: 'assistant', message: { role: 'assistant', content } };
+function assistantRow(content, id) {
+  const message = { role: 'assistant', content };
+  if (id) message.id = id;
+  return { type: 'assistant', message };
 }
 
 // Run the hook as a child process (async so the in-process stub server can serve
@@ -85,13 +87,18 @@ function runHook(input, env) {
 test('injects when the agent\'s latest output text drives the query', async () => {
   const root = tmpRoot();
   const reply = { hits: [{ path: 'docs/y.md', startLine: 7, heading: 'Guide', snippet: 'body', score: 0.9 }], injected: true };
-  const { server } = await startMatchingStub(root, (q) => /react hook form/i.test(q), reply);
+  // Split across two rows sharing one message.id — the shape the CLI actually
+  // writes (one row per content block for the same model message) — so this
+  // both regresses to the thin-fallback if progressQuery stops unioning them.
+  const { server, getRequest } = await startMatchingStub(
+    root,
+    (q) => /react hook form/i.test(q) && /authForm\.tsx/.test(q),
+    reply,
+  );
   const transcript = writeTranscriptRows(root, [
     userRow('add a form'),
-    assistantRow([
-      { type: 'text', text: 'I will use react hook form for validation' },
-      { type: 'tool_use', name: 'Write', input: { file_path: 'src/authForm.tsx' } },
-    ]),
+    assistantRow([{ type: 'text', text: 'I will use react hook form for validation' }], 'msg-A'),
+    assistantRow([{ type: 'tool_use', name: 'Write', input: { file_path: 'src/authForm.tsx' } }], 'msg-A'),
   ]);
   try {
     const event = { cwd: root, session_id: 'sess-1', transcript_path: transcript, hook_event_name: 'PostToolBatch' };
@@ -100,6 +107,8 @@ test('injects when the agent\'s latest output text drives the query', async () =
     const parsed = JSON.parse(first);
     assert.strictEqual(parsed.hookSpecificOutput.hookEventName, 'PostToolBatch');
     assert.match(parsed.hookSpecificOutput.additionalContext, /docs\/y\.md:7/);
+    assert.match(getRequest().query, /react hook form/i);
+    assert.match(getRequest().query, /authForm\.tsx/);
 
     // Second identical run: same session, same hit path → deduped → silent.
     const second = await runHook(event);
@@ -191,6 +200,67 @@ test('silent for chit-chat filler even when the stub server would return hits', 
   } finally {
     server.close();
   }
+});
+
+test('tool-target: a Grep tool_use\'s input.pattern feeds the query', async () => {
+  const root = tmpRoot();
+  const reply = { hits: [{ path: 'docs/g.md', startLine: 2 }], injected: true };
+  const { server, getRequest } = await startMatchingStub(root, (q) => /useOptimisticUpdate/.test(q), reply);
+  const transcript = writeTranscriptRows(root, [
+    userRow('search for the hook'),
+    assistantRow([
+      { type: 'tool_use', name: 'Grep', input: { pattern: 'useOptimisticUpdate', path: 'src' } },
+    ], 'msg-grep'),
+  ]);
+  try {
+    const out = await runHook({ cwd: root, session_id: 'sess-grep', transcript_path: transcript, hook_event_name: 'PostToolBatch' });
+    const parsed = JSON.parse(out);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /docs\/g\.md:2/);
+    assert.match(getRequest().query, /useOptimisticUpdate/);
+  } finally {
+    server.close();
+  }
+});
+
+test('tool-target: a Glob tool_use\'s input.pattern feeds the query', async () => {
+  const root = tmpRoot();
+  const reply = { hits: [{ path: 'docs/gl.md', startLine: 5 }], injected: true };
+  const { server, getRequest } = await startMatchingStub(root, (q) => q.includes('**/*.stories.tsx'), reply);
+  const transcript = writeTranscriptRows(root, [
+    userRow('find the stories files'),
+    assistantRow([
+      { type: 'tool_use', name: 'Glob', input: { pattern: '**/*.stories.tsx' } },
+    ], 'msg-glob'),
+  ]);
+  try {
+    const out = await runHook({ cwd: root, session_id: 'sess-glob', transcript_path: transcript, hook_event_name: 'PostToolBatch' });
+    const parsed = JSON.parse(out);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /docs\/gl\.md:5/);
+    assert.match(getRequest().query, /\*\*\/\*\.stories\.tsx/);
+  } finally {
+    server.close();
+  }
+});
+
+test('hooks.json: PostToolUse no longer runs inject-on-progress; PostToolBatch still does', () => {
+  const hooksConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8'));
+  const commandsFor = (event) => (hooksConfig.hooks[event] || [])
+    .flatMap((entry) => entry.hooks || [])
+    .map((h) => h.command);
+  const postToolUse = commandsFor('PostToolUse');
+  assert.ok(
+    !postToolUse.some((c) => c.includes('inject-on-progress')),
+    'PostToolUse must not run inject-on-progress.cjs',
+  );
+  assert.ok(
+    postToolUse.some((c) => c.includes('reindex-on-edit')),
+    'PostToolUse must still run reindex-on-edit.cjs',
+  );
+  const postToolBatch = commandsFor('PostToolBatch');
+  assert.ok(
+    postToolBatch.some((c) => c.includes('inject-on-progress')),
+    'PostToolBatch must still run inject-on-progress.cjs',
+  );
 });
 
 test('uses default progress threshold 0.86 when no env override is set', async () => {

@@ -37,17 +37,35 @@ function toolTargets(content) {
     if (!b || b.type !== 'tool_use' || !b.input) continue;
     if (b.input.file_path) parts.push(base(b.input.file_path));
     if (b.input.path) parts.push(base(b.input.path));
+    if ((b.name === 'Grep' || b.name === 'Glob') && typeof b.input.pattern === 'string') parts.push(b.input.pattern);
     if (typeof b.input.command === 'string') parts.push(b.input.command.split(/\s+/).slice(0, 4).join(' '));
   }
   return parts.join(' ');
 }
 function progressQuery(transcriptPath) {
   const all = rows(transcriptPath);
-  let lastAssistant = null, lastUser = '';
+  const assistantRows = [];
+  let lastUser = '';
   for (const r of all) {
     const role = roleOf(r);
-    if (role === 'assistant') lastAssistant = (r.message || r).content;
+    if (role === 'assistant') assistantRows.push(r);
     else if (role === 'user') lastUser = textOf((r.message || r).content) || lastUser;
+  }
+  // Claude Code writes one transcript row per content block of the same model
+  // message, all sharing message.id. Union every row sharing the LAST such id
+  // so a text row followed by its sibling tool_use row(s) both feed the query;
+  // a row with no id (older/synthetic transcripts) is treated alone, as before.
+  let lastAssistant = null;
+  if (assistantRows.length) {
+    const last = assistantRows[assistantRows.length - 1];
+    const lastId = (last.message || last).id;
+    if (lastId) {
+      lastAssistant = assistantRows
+        .filter((r) => (r.message || r).id === lastId)
+        .reduce((acc, r) => acc.concat((r.message || r).content || []), []);
+    } else {
+      lastAssistant = (last.message || last).content;
+    }
   }
   let q = textOf(lastAssistant).trim();
   if (q.replace(/[^a-zA-Z]/g, '').length < 12) q = `${q} ${lastUser}`.trim(); // thin-fallback

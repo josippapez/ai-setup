@@ -36,7 +36,8 @@ function messageText(parts) {
 function toolQuery(input) {
   const args = input.args || {};
   const target = args.filePath || args.file_path || args.path || args.command || '';
-  return `${input.tool || ''} ${target}`.trim();
+  const pattern = typeof args.pattern === 'string' ? ` ${args.pattern}` : '';
+  return `${input.tool || ''} ${target}${pattern}`.trim();
 }
 
 function appendSystemContext(output, context) {

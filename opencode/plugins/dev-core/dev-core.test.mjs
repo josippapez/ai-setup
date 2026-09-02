@@ -104,6 +104,44 @@ test('injects relevant repository docs into system context for a user prompt', a
   await new Promise((resolve) => server.close(resolve));
 });
 
+test('tool.execute.after includes a Grep/Glob pattern arg in the query that reaches the inject socket', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-pattern-'));
+  const socketPath = path.join(root, '.opencode', 'repo-docs', 'inject.sock');
+  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
+  let capturedQuery = null;
+  const server = net.createServer((connection) => {
+    let buffer = '';
+    connection.on('data', (data) => {
+      buffer += data;
+      const newline = buffer.indexOf('\n');
+      if (newline === -1) return;
+      try { capturedQuery = JSON.parse(buffer.slice(0, newline)).query; } catch {}
+      connection.end(`${JSON.stringify({ hits: [], injected: false })}\n`);
+    });
+  });
+  await new Promise((resolve) => server.listen(socketPath, resolve));
+
+  const hooks = await devCorePlugin({
+    directory: root,
+    serverUrl: new URL('http://localhost:4096'),
+  });
+  await hooks['tool.execute.after']({
+    sessionID: 'session-pattern',
+    tool: 'grep',
+    args: { pattern: 'useOptimisticUpdate', path: 'src' },
+  });
+  const output = {
+    messages: [{
+      info: { id: 'message-pattern', role: 'user', sessionID: 'session-pattern' },
+      parts: [{ type: 'text', text: 'unrelated prompt text here' }],
+    }],
+  };
+  await hooks['experimental.chat.messages.transform']({}, output);
+  await new Promise((resolve) => server.close(resolve));
+  assert.ok(capturedQuery, 'expected a query to reach the inject socket');
+  assert.match(capturedQuery, /useOptimisticUpdate/);
+});
+
 test('source-file edits request dependency-graph invalidation over the socket', async () => {
   // Short prefix: the socket path below must stay under the 104-char unix
   // socket limit on macOS.
