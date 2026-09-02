@@ -32,6 +32,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/markdown-orchestration"
+    },
+    {
+      "name": "markdown-orchestration-nightly",
+      "description": "Experimental fork of markdown-orchestration: build-only workers on the cheapest adequate model, one batched reviewer per two chunks, cheap fixer. Explicit-trigger only; requires markdown-orchestration.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/markdown-orchestration-nightly"
     }
   ]
 }

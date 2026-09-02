@@ -29,7 +29,8 @@
     "skill-creator@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "claude-hud@claude-hud": true
+    "claude-hud@claude-hud": true,
+    "markdown-orchestration-nightly@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {

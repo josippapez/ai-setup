@@ -72,12 +72,15 @@ if have claude; then
     fi
   done
 
-  # Install or update the markdown-orchestration plugin.
-  if claude plugin list 2>/dev/null | grep -q "markdown-orchestration@ai-setup"; then
-    claude plugin update markdown-orchestration@ai-setup
-  else
-    claude plugin install markdown-orchestration@ai-setup --scope user
-  fi
+  # Install or update the markdown-orchestration plugin and its experimental nightly fork
+  # (nightly reuses stable's repo-docs MCP and companion skills, so stable goes first).
+  for plugin in markdown-orchestration markdown-orchestration-nightly; do
+    if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
+      claude plugin update "$plugin@ai-setup"
+    else
+      claude plugin install "$plugin@ai-setup" --scope user
+    fi
+  done
 else
   warn "the 'claude' CLI is not on PATH; skipped marketplace + plugin install. Install Claude Code, then re-run this script."
 fi
@@ -102,6 +105,7 @@ if have claude; then
   echo "  - dev-core@ai-setup plugin (marketplace + deps)"
   echo "  - concise-output@ai-setup plugin"
   echo "  - markdown-orchestration@ai-setup plugin"
+  echo "  - markdown-orchestration-nightly@ai-setup plugin (experimental)"
 else
   echo "  - plugins NOT installed (no 'claude' CLI on PATH)"
 fi
