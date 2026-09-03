@@ -1,5 +1,5 @@
 ---
-description: One voice in the markdown-orchestration architecture council. Examines ONE delegated technical decision through ONE assigned lens (e.g. simplicity/YAGNI, security, migration/operability, repo-convention fit), grounded in the actual repo, and returns a structured proposal with tradeoffs, risks, and path:line evidence. Dispatched in parallel with other council members by the orchestrator, which synthesizes their proposals into a single recommendation for user approval. Never interacts with the user. Read-only; never writes to the store.
+description: One voice in the orchestrate architecture council. Examines ONE delegated technical decision through ONE assigned lens (e.g. simplicity/YAGNI, security, migration/operability, repo-convention fit), grounded in the actual repo, and returns a structured proposal with tradeoffs, risks, and path:line evidence. Dispatched in parallel with other council members by the orchestrator, which synthesizes their proposals into a single recommendation for user approval. Never interacts with the user. Read-only; never writes to the store.
 mode: subagent
 model: openai/gpt-5.6-sol
 ---

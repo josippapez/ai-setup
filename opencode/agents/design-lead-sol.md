@@ -1,5 +1,5 @@
 ---
-description: Read-only design lead for the markdown-orchestration workflow. For a UI/visual/layout/design epic, turns the pinned spec + context pack into a design pack — a concrete design direction, a design-token map grounded in the repo's existing design system, a component-reuse plan, and (when accessibility is in scope) a WCAG 2.2 A/AA baseline — so the orchestrator can get one design direction approved and every UI chunk builds to it. Dispatched by the orchestrator in the Design phase (UI epics only). Never interacts with the user. Never writes anything.
+description: Read-only design lead for the orchestrate workflow. For a UI/visual/layout/design epic, turns the pinned spec + context pack into a design pack — a concrete design direction, a design-token map grounded in the repo's existing design system, a component-reuse plan, and (when accessibility is in scope) a WCAG 2.2 A/AA baseline — so the orchestrator can get one design direction approved and every UI chunk builds to it. Dispatched by the orchestrator in the Design phase (UI epics only). Never interacts with the user. Never writes anything.
 mode: subagent
 model: openai/gpt-5.6-sol
 ---

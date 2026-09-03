@@ -1,5 +1,5 @@
 ---
-description: Read-only implementation planner for the markdown-orchestration workflow. Conceptually implements ONE chunk (or one small group) against the real codebase — without writing anything — and reports what it would produce, what it must consume from sibling chunks, and where it collides with them, so the orchestrator can compute dispatch waves and run genuinely independent chunks in parallel. Also returns corrections to the chunk's spec it discovered while planning. Dispatched by the orchestrator in the Plan phase, in parallel with the other planners. Never interacts with the user. Never writes anything.
+description: Read-only implementation planner for the orchestrate workflow. Conceptually implements ONE chunk (or one small group) against the real codebase — without writing anything — and reports what it would produce, what it must consume from sibling chunks, and where it collides with them, so the orchestrator can compute dispatch waves and run genuinely independent chunks in parallel. Also returns corrections to the chunk's spec it discovered while planning. Dispatched by the orchestrator in the Plan phase, in parallel with the other planners. Never interacts with the user. Never writes anything.
 mode: subagent
 model: openai/gpt-5.6-luna
 ---

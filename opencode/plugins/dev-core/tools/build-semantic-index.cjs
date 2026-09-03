@@ -33,7 +33,7 @@ function ensureGitignore(dir) {
 }
 
 // Single-writer guard: only one process builds the shared index at a time. Two
-// byte-identical MCP servers (dev-core + markdown-orchestration), times N
+// byte-identical MCP servers (dev-core + orchestrate), times N
 // sessions, otherwise write the same repo-docs-index.json concurrently. Exclusive
 // create wins the lock; a stale lock (crashed build) is taken over.
 function acquireBuildLock(context) {

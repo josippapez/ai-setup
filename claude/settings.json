@@ -23,14 +23,14 @@
   "enabledPlugins": {
     "dev-core@ai-setup": true,
     "concise-output@ai-setup": true,
-    "markdown-orchestration@ai-setup": true,
+    "orchestrate@ai-setup": true,
     "superpowers@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-hud@claude-hud": true,
-    "markdown-orchestration-nightly@ai-setup": true
+    "orchestrate-nightly@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {

@@ -59,11 +59,15 @@ if have claude; then
   claude plugin marketplace add "$REPO_ROOT"
 
   # Remove pre-rename plugins if still installed (linear-orchestration -> markdown-orchestration,
-  # interactive-mcp -> dev-core). Leaving them registered double-loads their rules.
+  # interactive-mcp -> dev-core, markdown-orchestration(-nightly) -> orchestrate(-nightly)).
+  # Leaving them registered double-loads their rules, and the old names no longer
+  # resolve against marketplace.json (renamed in place, not duplicated).
   claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall interactive-mcp@ai-setup >/dev/null 2>&1 || true
+  claude plugin uninstall markdown-orchestration@ai-setup >/dev/null 2>&1 || true
+  claude plugin uninstall markdown-orchestration-nightly@ai-setup >/dev/null 2>&1 || true
 
-  # Install or update repo-docs first: dev-core and markdown-orchestration both depend
+  # Install or update repo-docs first: dev-core and orchestrate both depend
   # on its MCP tools (mcp__plugin_repo-docs_repo-docs__*) rather than bundling their own copy.
   if claude plugin list 2>/dev/null | grep -q "repo-docs@ai-setup"; then
     claude plugin update "repo-docs@ai-setup"
@@ -80,9 +84,9 @@ if have claude; then
     fi
   done
 
-  # Install or update the markdown-orchestration plugin and its experimental nightly fork
+  # Install or update the orchestrate plugin and its experimental nightly fork
   # (nightly reuses stable's companion skills, so stable goes first).
-  for plugin in markdown-orchestration markdown-orchestration-nightly; do
+  for plugin in orchestrate orchestrate-nightly; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"
     else
@@ -92,9 +96,9 @@ if have claude; then
 else
   warn "the 'claude' CLI is not on PATH; skipped marketplace + plugin install. Install Claude Code, then re-run this script."
 fi
-# Remove loose files migrated into the markdown-orchestration plugin (now plugin-provided).
+# Remove loose files migrated into the orchestrate plugin (now plugin-provided).
 # Includes the grilling/domain-modeling/grill-with-docs skills relocated from skills/ into the plugin.
-rm -rf "$DEST/skills/markdown-orchestration" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/md-worker.md" "$DEST/agents/md-reviewer.md" "$DEST/rules/markdown-orchestration.instructions.md"
+rm -rf "$DEST/skills/orchestrate" "$DEST/skills/grilling" "$DEST/skills/domain-modeling" "$DEST/skills/grill-with-docs" "$DEST/agents/md-worker.md" "$DEST/agents/md-reviewer.md" "$DEST/rules/orchestrate.instructions.md"
 # Remove rules and hook scripts retired from source (deleting from src/ doesn't prune the
 # deployed copy).
 rm -f "$DEST/rules/interactive-prompt-loop.instructions.md" "$DEST/hooks/scripts/prompt-loop-reminder.mjs" "$DEST/hooks/scripts/prompt-loop-reminder.test.mjs"
@@ -112,8 +116,8 @@ echo "  - skills/, agents/"
 if have claude; then
   echo "  - dev-core@ai-setup plugin (marketplace + deps)"
   echo "  - concise-output@ai-setup plugin"
-  echo "  - markdown-orchestration@ai-setup plugin"
-  echo "  - markdown-orchestration-nightly@ai-setup plugin (experimental)"
+  echo "  - orchestrate@ai-setup plugin"
+  echo "  - orchestrate-nightly@ai-setup plugin (experimental)"
 else
   echo "  - plugins NOT installed (no 'claude' CLI on PATH)"
 fi

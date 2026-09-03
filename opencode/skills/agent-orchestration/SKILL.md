@@ -76,4 +76,4 @@ These tools are registered by the `repo-docs` plugin in `~/.config/opencode/plug
 - `agents/free-tier-coder.md`
 - `agents/free-tier-maintainer.md`
 - `agents/free-tier-explorer.md`
-- `skills/markdown-orchestration/SKILL.md` — authoritative specialist routing predicates.
+- `skills/orchestrate/SKILL.md` — authoritative specialist routing predicates.

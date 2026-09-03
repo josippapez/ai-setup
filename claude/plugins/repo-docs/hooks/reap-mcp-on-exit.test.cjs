@@ -15,7 +15,7 @@ test('parsePsRows parses pid/ppid/command lines', () => {
 test('serversUnder selects ONLY standalone-mcp children of the given session pid', () => {
   const rows = [
     { pid: '201', ppid: '100', cmd: 'node /x/dev-core/runtime/standalone-mcp.cjs' }, // mine
-    { pid: '202', ppid: '100', cmd: 'node /x/markdown-orchestration/runtime/standalone-mcp.cjs' }, // mine
+    { pid: '202', ppid: '100', cmd: 'node /x/orchestrate/runtime/standalone-mcp.cjs' }, // mine
     { pid: '999', ppid: '777', cmd: 'node /x/dev-core/runtime/standalone-mcp.cjs' }, // OTHER session — must NOT match
     { pid: '203', ppid: '100', cmd: 'node something-else.cjs' }, // not an mcp server
   ];

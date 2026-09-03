@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "repo-docs",
-      "description": "Local semantic doc search, dependency-graph analysis, installed-package lookup, and proactive doc-context injection for one repository. Shared MCP server; dev-core and markdown-orchestration both require it.",
+      "description": "Local semantic doc search, dependency-graph analysis, installed-package lookup, and proactive doc-context injection for one repository. Shared MCP server; dev-core and orchestrate both require it.",
       "author": {
         "name": "Personal AI Setup"
       },
@@ -43,22 +43,22 @@
       "source": "./claude/plugins/rules-index"
     },
     {
-      "name": "markdown-orchestration",
+      "name": "orchestrate",
       "description": "Markdown-tracked orchestration with precomputed per-scope predicates, conditional solution-reuse research, separated standards/quality/correctness/implementation gates, and a local git-ignored store. Requires the repo-docs plugin.",
       "author": {
         "name": "Personal AI Setup"
       },
       "category": "development",
-      "source": "./claude/plugins/markdown-orchestration"
+      "source": "./claude/plugins/orchestrate"
     },
     {
-      "name": "markdown-orchestration-nightly",
-      "description": "Experimental fork of markdown-orchestration: build-only workers on the cheapest adequate model, one batched reviewer per two chunks, cheap fixer. Explicit-trigger only; requires markdown-orchestration.",
+      "name": "orchestrate-nightly",
+      "description": "Experimental fork of orchestrate: build-only workers on the cheapest adequate model, one batched reviewer per two chunks, cheap fixer. Explicit-trigger only; requires orchestrate.",
       "author": {
         "name": "Personal AI Setup"
       },
       "category": "development",
-      "source": "./claude/plugins/markdown-orchestration-nightly"
+      "source": "./claude/plugins/orchestrate-nightly"
     }
   ]
 }
