@@ -36,14 +36,23 @@ try {
 }
 if (!digest) process.exit(0);
 
+// Where the full rules live decides how the reminder describes them. A plugin
+// that ships an output style has them in the system prompt; one that ships
+// rules/ has them injected as session context. Checked rather than hardcoded so
+// this file stays copy-identical across plugins that use either mechanism.
+const viaOutputStyle = fs.existsSync(path.join(root, "output-styles"));
+const whereTheyLive = viaOutputStyle
+  ? "are in your system prompt as the active output style"
+  : "were injected in full at the start of this session";
+
 // Phrased as a statement of what is already in context. Text framed as an
 // out-of-band system command can trip prompt-injection defenses, which surfaces it
 // to the user instead of applying it.
 const additionalContext =
-  `[rules-reminder] The ${pluginName} plugin's always-on rules were injected in ` +
-  "full at the start of this session and still apply to this message. What follows " +
-  "is a condensed restatement of them, not a replacement or a relaxation: where the " +
-  "two differ, the full rules govern.\n\n" +
+  `[rules-reminder] The ${pluginName} plugin's always-on rules ${whereTheyLive} ` +
+  "and still apply to this message. What follows is a condensed restatement of " +
+  "them, not a replacement or a relaxation: where the two differ, the full rules " +
+  "govern.\n\n" +
   digest;
 
 process.stdout.write(

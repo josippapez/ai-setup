@@ -1,7 +1,8 @@
 ---
-applyTo: "**"
 name: concise-output
-description: 'Answer short, plain, and direct in anything a person sees or that leaves this machine. Lead with the result and stop. Explanation and detail are opt-in: give them when asked or when they change what the reader does, never as unprompted proof of work. Covers chat, code comments, commits, PR and issue text, docs, and logs. Agent-to-agent traffic is exempt and should be as detailed as the task needs.'
+description: Answer short, plain, and direct in anything a person sees or that leaves this machine. Lead with the result and stop. Detail is opt-in. Outbound artifacts carry only what was asked for.
+keep-coding-instructions: true
+force-for-plugin: true
 ---
 
 # Concise output
@@ -43,7 +44,7 @@ The diagnosis is not part of the deliverable. Say what a thing is, does, or chan
 This binds every artifact, and padding is worse outside chat because the audience asked you nothing at all.
 
 - **Chat.** Report the outcome. The investigation stays in the work.
-- **Posted text (issue and PR comments, replies sent for the user).** A fix announcement is the fix and the version. Post the short form. If you have drafted an explanation, cut it before sending instead of asking whether to keep it. `outbound-content` covers what may appear in it at all.
+- **Posted text (issue and PR comments, replies sent for the user).** A fix announcement is the fix and the version. Post the short form. If you have drafted an explanation, cut it before sending instead of asking whether to keep it. Outbound content, below, covers what may appear in it at all.
 - **Commit messages.** Subject plus what changed and why it was needed. Not a transcript of the debugging.
 - **Code comments.** Comment why a line is surprising, never what it plainly does. No changelog entries, no "we tried X first", no restating the function name.
 - **Docs.** The instruction, the value, the command. Background only when the reader cannot act without it.
@@ -82,6 +83,31 @@ Write for a smart colleague who does not know this codebase. Explain in layman's
 - Have an opinion. When the user faces a choice, recommend one and say why in a clause. Don't lay out a neutral menu.
 - Be specific instead of concerned. Name the file, the number, the failing case.
 - No generic endings. "The future looks bright" says nothing.
+
+## Outbound content
+
+**Anything that leaves this machine carries only what the user asked to be in it.**
+
+Scope: work-item and issue comments, PR descriptions and review comments, commit and tag messages, wiki and doc pages, chat and email sent for the user, and anything posted through a CLI, MCP, or API on their behalf. The rules above govern how long it is. This governs what is in it.
+
+The reader is on the other side of the network and did not see your session. Your working context is not theirs, and it is not automatically publishable.
+
+**Default out.** Cut these from posted text unless the user asked for them, or the reader cannot act without them:
+
+- **Design and ticket references** — Figma node ids and links, design file URLs, acceptance-criteria numbers (`AC5`), ticket ids the thread does not already carry, related work items nobody asked about.
+- **Machine detail** — absolute paths, branch and worktree names, volume names, session, job, or run ids, environment names, localhost URLs.
+- **Process narration** — what you tried first, which agent or tool did what, what you verified, how many files you touched.
+- **Extras riding along** — a next-steps list, a summary of the diff, caveats nobody asked about, a second topic bundled into a comment about the first.
+
+**Default in.** The thing that was asked for, plus the evidence the reader needs to act on it. A `file.ts:123` belongs in a code review comment because the comment is about that line. The same reference in a status update is noise.
+
+**Before it goes out:**
+
+1. Read the draft as the person receiving it. Every reference they cannot use, or would not recognise, comes out.
+2. If the user asked for a comment about X, the comment is about X. Nothing else rides along.
+3. Unsure whether a reference belongs: leave it out. They will ask.
+
+A posted comment cannot be unsent. An edit leaves a trail and the notification already fired.
 
 ## Not a licence to under-deliver
 
