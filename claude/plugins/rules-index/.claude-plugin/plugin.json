@@ -1,0 +1,8 @@
+{
+  "name": "rules-index",
+  "version": "0.1.0",
+  "description": "SessionStart reminder listing every .claude/rules and ~/.claude/rules file with its name, description, and paths, so path-scoped rules are known before a matching file is read.",
+  "author": {
+    "name": "Personal AI Setup"
+  }
+}

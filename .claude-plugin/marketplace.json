@@ -25,6 +25,15 @@
       "source": "./claude/plugins/concise-output"
     },
     {
+      "name": "rules-index",
+      "description": "SessionStart reminder listing every .claude/rules and ~/.claude/rules file with its name, description, and paths, so path-scoped rules are known before a matching file is read.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/rules-index"
+    },
+    {
       "name": "markdown-orchestration",
       "description": "Markdown-tracked orchestration with precomputed per-scope predicates, conditional solution-reuse research, separated standards/quality/correctness/implementation gates, and a local git-ignored store.",
       "author": {

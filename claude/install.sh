@@ -63,8 +63,8 @@ if have claude; then
   claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall interactive-mcp@ai-setup >/dev/null 2>&1 || true
 
-  # Install or update dev-core and concise-output.
-  for plugin in dev-core concise-output; do
+  # Install or update dev-core, concise-output, and rules-index.
+  for plugin in dev-core concise-output rules-index; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"
     else
