@@ -58,16 +58,34 @@ function statePath(root, session) {
 function loadState(p) {
   try {
     const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-    if (Array.isArray(raw)) return { tick: 0, seen: Object.fromEntries(raw.map((k) => [k, 0])) };
-    return { tick: Number(raw.tick) || 0, seen: raw.seen && typeof raw.seen === 'object' ? raw.seen : {} };
-  } catch { return { tick: 0, seen: {} }; }
+    if (Array.isArray(raw)) return { tick: 0, seen: Object.fromEntries(raw.map((k) => [k, 0])), remindedDocLookup: false };
+    return {
+      tick: Number(raw.tick) || 0,
+      seen: raw.seen && typeof raw.seen === 'object' ? raw.seen : {},
+      remindedDocLookup: !!raw.remindedDocLookup,
+    };
+  } catch { return { tick: 0, seen: {}, remindedDocLookup: false }; }
 }
 
 function saveState(p, state) {
   try {
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, JSON.stringify({ v: 2, tick: state.tick, seen: state.seen }));
+    fs.writeFileSync(p, JSON.stringify({
+      v: 2, tick: state.tick, seen: state.seen, remindedDocLookup: !!state.remindedDocLookup,
+    }));
   } catch {}
+}
+
+// Has the one-time "you haven't used find_docs yet" reminder already fired this
+// session? Reuses the per-session state file rather than a second file.
+function hasRemindedDocLookup(root, session) {
+  return loadState(statePath(root, session)).remindedDocLookup;
+}
+
+function markRemindedDocLookup(root, session) {
+  const p = statePath(root, session);
+  const state = loadState(p);
+  saveState(p, { ...state, remindedDocLookup: true });
 }
 
 // Drop hits injected within the last `windowTicks`, record the survivors, and
@@ -118,6 +136,8 @@ module.exports = {
   loadState,
   saveState,
   filterFreshHits,
+  hasRemindedDocLookup,
+  markRemindedDocLookup,
   queryInject,
   queryInjectWithWarmRetry,
   formatBlock,

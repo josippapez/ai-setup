@@ -53,6 +53,13 @@ async function startInjectServer(context, { rank = rankDocs, build = buildDocInd
         conn.end(JSON.stringify({ invalidated: true }) + '\n');
         return;
       }
+      // Has a doc-lookup MCP tool (find_docs/list_docs/read_doc/find_libs) been
+      // called yet this connection? Lets a PreToolUse hook remind at most once
+      // per session instead of nagging on every broad grep/glob.
+      if (req.op === 'used-status') {
+        conn.end(JSON.stringify({ docToolUsed: !!context.docToolUsed }) + '\n');
+        return;
+      }
       // Tell the client the embedder is still loading (or retrying after a
       // failed spawn) so "no hits yet" is distinguishable from "no matches".
       if (!ready()) {

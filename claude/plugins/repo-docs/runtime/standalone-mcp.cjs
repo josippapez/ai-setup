@@ -36,6 +36,11 @@ const toolsByName = new Map(
   registeredTools.map((tool) => [tool.definition.name, tool]),
 );
 
+// The tools that answer "how do we do X here" / "where is this documented"
+// questions — the ones a broad grep would otherwise stand in for. Dependency-graph
+// tools (get_file_dependents etc.) answer a different question and don't count.
+const DOC_LOOKUP_TOOLS = new Set(['find_docs', 'list_docs', 'read_doc', 'find_libs']);
+
 function writeMessage(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
 }
@@ -55,6 +60,7 @@ function textResult(text) {
 async function handleToolCall(name, args) {
   const tool = toolsByName.get(String(name));
   if (!tool) throw new Error(`Unknown tool: ${String(name)}`);
+  if (DOC_LOOKUP_TOOLS.has(String(name))) context.docToolUsed = true;
   return tool.execute(args || {}, context);
 }
 

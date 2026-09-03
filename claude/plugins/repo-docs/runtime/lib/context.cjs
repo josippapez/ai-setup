@@ -10,6 +10,7 @@ function createContext(rootArg) {
     dependencyIndex: null,
     dependencyIndexPromise: null,
     dependencyIndexState: { status: 'idle', processed: 0, total: 0 },
+    docToolUsed: false,
   };
 }
 

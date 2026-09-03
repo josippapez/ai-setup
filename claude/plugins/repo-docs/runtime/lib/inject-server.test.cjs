@@ -99,3 +99,24 @@ test('inject server handles an invalidate-deps op by clearing the cached graph',
   await new Promise(r => server.close(r));
   delete process.env.REPO_DOCS_INJECT;
 });
+
+test('inject server reports whether a doc-lookup tool has been used this connection', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'inject-used-'));
+  fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
+  const context = { root, maxFileSizeBytes: 1e6, docToolUsed: false };
+
+  process.env.REPO_DOCS_INJECT = '1';
+  const server = await startInjectServer(context, { rank: async () => [], ready: () => true });
+  assert.ok(server, 'server should start when enabled');
+
+  const before = await ask(injectSocketPath(root), { op: 'used-status' });
+  assert.strictEqual(before.docToolUsed, false);
+
+  context.docToolUsed = true; // simulates find_docs having been called
+
+  const after = await ask(injectSocketPath(root), { op: 'used-status' });
+  assert.strictEqual(after.docToolUsed, true);
+
+  await new Promise(r => server.close(r));
+  delete process.env.REPO_DOCS_INJECT;
+});

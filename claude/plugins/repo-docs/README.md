@@ -29,6 +29,10 @@ Automatically surfaces the most relevant local docs at natural points in a conve
 - `REPO_DOCS_INJECT_WARM_ATTEMPTS` (default 3) / `REPO_DOCS_INJECT_WARM_DELAY_MS` (default 250) — bounded retry on the UserPromptSubmit hook while the server answers `warming: true` (its embedder still loading, i.e. the first prompt of a fresh or resumed session). ~750ms worst case; costs nothing once warm, and a plain miss / absent socket / timeout is never retried. The progress hook deliberately does not retry — it runs between tool calls, where waiting would stall the agent loop rather than a single prompt.
 - `REPO_DOCS_INJECT_EVENTS` (default `prompt,batch`) — control which hooks are active
 
+## Usage enforcement
+
+A `PreToolUse` hook (matcher `Grep|Glob`, `hooks/enforce-doc-lookup.cjs`) reminds — once per session — to try `find_docs` before a broad search, if no repo-docs doc-lookup tool (`find_docs`/`list_docs`/`read_doc`/`find_libs`) has been called yet. It never blocks the tool call (`additionalContext` only, no `permissionDecision`), and goes silent for the rest of the session as soon as any doc-lookup tool is used, or after the first reminder. The MCP server tracks doc-lookup usage in memory and answers `{op: 'used-status'}` on the same inject socket.
+
 ## Reap on exit
 
 A `SessionEnd` hook (`hooks/reap-mcp-on-exit.cjs`) kills this session's own `standalone-mcp.cjs` process on exit — Claude Code doesn't always reap plugin MCP servers, so they'd otherwise accumulate across sessions.
