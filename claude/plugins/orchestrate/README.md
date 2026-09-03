@@ -31,7 +31,7 @@ Every dispatched specialist appends its own verdict and relays failed writes. Ev
 
 - **Repo grounding comes from the separate `repo-docs` plugin**, not from this one: `repo-scout`, `impl-planner`, `council-member`, `design-lead`, and `solution-reuse-scout` use its `mcp__plugin_repo-docs_repo-docs__*` tools (`find_docs`, `list_docs`, `read_doc`, `find_libs`, dependency graph). `claude/install.sh` installs `repo-docs` automatically alongside this plugin; if its tools are not callable, tell the user to run `claude plugin install repo-docs@ai-setup`. `/reindex` and `/repo-docs-ignore` now live in `claude/plugins/repo-docs/commands/`.
 - `skills/orchestrate/` — compact dispatcher, `references/` (`routing`, `store-protocol`, `intake-design`, `execution`, `platform`), and canonical `templates/` for PROJECT, EPIC, and issues.
-- Other `skills/` — grilling, domain-modeling, and design/accessibility companions.
+- Other `skills/` — `brainstorm` (pins the outcome/approach before Gate/Intake on new work), grilling, domain-modeling, and design/accessibility companions.
 - `commands/` — `/orchestrate`.
 - `agents/` — the specialists cataloged above and their contract test.
 

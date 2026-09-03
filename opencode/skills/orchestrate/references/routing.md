@@ -6,6 +6,7 @@ Reviewers and checkers append comments only. Workers change issue status at non-
 
 | Specialist | Phase | Exact predicate | Required precomputed inputs | Role | Output / store writer | OpenCode name and model policy |
 |---|---|---|---|---|---|---|
+| Brainstorm | Gate, before Intake | New (non-resumed) request whose outcome or approach is itself undecided, not just scope/AC gaps | none — freeform dialogue with the user | Blocking before Intake | Main agent folds approved outcome/approach into the pinned spec; no separate store write | `brainstorm`; main agent skill call |
 | Repo scout, quick | Intake | Tracked non-trivial task has code-answerable intake gaps and no complete current context pack | apparent scope, listed questions, repo root | Advisory | JSON context; no store write | `repo-scout`; Free |
 | Repo scout, deep | Explore | Confirmed scope is not already covered end-to-end by a current pack | pinned spec, candidate areas/chunks | Blocking before decomposition | JSON context; orchestrator persists pack | `repo-scout-luna`; Luna |
 | Grilling skill | Intake | Non-trivial spec has genuine unresolved scope/AC/term/constraint gaps | scout answers and remaining questions | Blocking | Main agent updates pinned spec | `grilling`; main agent skill call |

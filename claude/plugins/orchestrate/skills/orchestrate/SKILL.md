@@ -12,6 +12,8 @@ The MAIN agent is always the orchestrator, prompt-loop owner, store coordinator,
 
 Engage for non-trivial work that has multiple files or steps, needs decomposition or durable tracking, resumes a tracked epic, or is explicitly requested. Handle trivial one-offs inline. Honor explicit `track this` and `skip tracking` overrides.
 
+Before Gate/Intake, check whether the outcome or approach itself is still undecided — not just scope/AC details, which Intake's grilling covers. A request that names a goal without saying how to reach it, or where the data source, output shape, or approach is genuinely open, needs the `brainstorm` skill first: it turns the idea into an approved outcome and approach, which then feeds Intake's pinned spec. Don't engage tracking on an unbrainstormed idea just because the user mentioned orchestration or speed — orchestrate executes an already-decided plan.
+
 Tracking uses `<main-repo-root>/.orchestration/`. It requires no external tracker, account, or authentication. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos; do not pretend persistence exists.
 
 The `repo-docs` plugin must also be installed: repo-scout, impl-planner, council-member, design-lead, and solution-reuse-scout all use its `mcp__plugin_repo-docs_repo-docs__*` tools. `claude/install.sh` installs it automatically alongside this plugin. If `mcp__plugin_repo-docs_repo-docs__find_docs` is not callable, tell the user to run `claude plugin install repo-docs@ai-setup` before Explore.
@@ -37,7 +39,7 @@ Run phases in order. Persist the current state and every specialist predicate re
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go directly to the Resume rule below before new intake or decomposition.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go directly to the Resume rule below before new intake or decomposition. For new work, when the outcome or approach itself is still undecided (not just scope/AC gaps), run the `brainstorm` skill first and carry its approved outcome/approach into Intake.
 
 ### 1. Intake
 
@@ -83,6 +85,7 @@ At every phase boundary, the orchestrator MUST make the transition explicit in t
 
 The following transitions are prohibited:
 
+- Gate → Intake on new work while the outcome or approach itself is still undecided and `brainstorm` has not run and been approved.
 - Intake → Explore while genuine user decisions remain hidden in assumptions.
 - Explore → Refine/Design/Decompose without grounded file scopes and complete explicit conditional-input slices.
 - Refine → Decompose before required user approval and ADR/domain recording.

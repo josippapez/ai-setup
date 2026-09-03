@@ -1,6 +1,6 @@
 {
   "name": "orchestrate",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Markdown-tracked task orchestration: grill a task to a spec, scout the repo into a context pack (read-only repo-scout agent), track the epic in a local git-ignored .orchestration/ markdown store (long-lived per-repo PROJECT.md, the epic as EPIC.md, chunks as issue files), plan parallelism with read-only impl-planner agents that conceptually implement each chunk and yield its dispatch wave, then dispatch self-managing worker subagents wave by wave that build their chunk, run their own code-standards + review loop (spawning a checker and a tier-by-complexity reviewer), and write their own updates to the store (append-only comments; the worker applies status on join; attempt-then-relay, the orchestrator is writer of last resort). Everything addressed by explicit absolute path for concurrent multi-project safety. Requires the repo-docs plugin for repo grounding. Engages via skill-discovery on matching non-trivial tasks. Renamed from markdown-orchestration.",
   "author": {
     "name": "Personal AI Setup"

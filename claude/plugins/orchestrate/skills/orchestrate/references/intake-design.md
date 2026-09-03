@@ -6,6 +6,8 @@ This file owns detailed phases 0–4. Read `routing.md` before every dispatch an
 
 Engage per SKILL Gate. Resolve the main repo root. Before scouting, verify repo-docs index readiness; reindex when absent/empty and degrade to targeted file search only when indexing genuinely cannot run. Detect resume before creating a new epic.
 
+On new (non-resumed) work, check whether the outcome or approach itself is still open — a request that names a goal without saying how to reach it, an unclear data source or output shape, or a genuine choice between approaches. That is a `brainstorm` gap, not an Intake gap: run the `brainstorm` skill, get the user's approval on the resulting outcome and approach, then carry it into Intake as the starting spec. Skip `brainstorm` when the outcome is already stated and only scope/AC/constraint details are missing — that is ordinary Intake gap-checking, below.
+
 ## 1. Intake
 
 Gap-check scope, ACs, terms, constraints, validation, design inputs, and competing interpretations. A gap is genuinely undefined; never ask the user to choose what ACs already prescribe.

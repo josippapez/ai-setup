@@ -6,6 +6,7 @@ Reviewers and checkers append comments only. Workers change issue status at non-
 
 | Specialist | Phase | Exact predicate | Required precomputed inputs | Role | Output / store writer | Claude name and model policy |
 |---|---|---|---|---|---|---|
+| Brainstorm | Gate, before Intake | New (non-resumed) request whose outcome or approach is itself undecided, not just scope/AC gaps | none — freeform dialogue with the user | Blocking before Intake | Main agent folds approved outcome/approach into the pinned spec; no separate store write | `orchestrate:brainstorm`; main agent Skill call |
 | Repo scout, quick | Intake | Tracked non-trivial task has code-answerable intake gaps and no complete current context pack | apparent scope, listed questions, repo root | Advisory | JSON context; no store write | `orchestrate:repo-scout`; haiku — frontmatter is sonnet, so pass `model: haiku` explicitly |
 | Repo scout, deep | Explore | Confirmed scope is not already covered end-to-end by a current pack | pinned spec, candidate areas/chunks | Blocking before decomposition | JSON context; orchestrator persists pack | `orchestrate:repo-scout`; sonnet, higher only for exceptional survey |
 | Grilling skill | Intake | Non-trivial spec has genuine unresolved scope/AC/term/constraint gaps | scout answers and remaining questions | Blocking | Main agent updates pinned spec | `orchestrate:grilling`; main agent Skill call |
