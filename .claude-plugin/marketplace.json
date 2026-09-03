@@ -7,8 +7,17 @@
   },
   "plugins": [
     {
+      "name": "repo-docs",
+      "description": "Local semantic doc search, dependency-graph analysis, installed-package lookup, and proactive doc-context injection for one repository. Shared MCP server; dev-core and markdown-orchestration both require it.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/repo-docs"
+    },
+    {
       "name": "dev-core",
-      "description": "Repo grounding, the always-on engineering rules, core skills, and the tier and domain specialist agents.",
+      "description": "The always-on engineering rules, core skills, and the tier and domain specialist agents. Requires the repo-docs plugin for repo grounding.",
       "author": {
         "name": "Personal AI Setup"
       },
@@ -35,7 +44,7 @@
     },
     {
       "name": "markdown-orchestration",
-      "description": "Markdown-tracked orchestration with precomputed per-scope predicates, conditional solution-reuse research, separated standards/quality/correctness/implementation gates, and a local git-ignored store.",
+      "description": "Markdown-tracked orchestration with precomputed per-scope predicates, conditional solution-reuse research, separated standards/quality/correctness/implementation gates, and a local git-ignored store. Requires the repo-docs plugin.",
       "author": {
         "name": "Personal AI Setup"
       },

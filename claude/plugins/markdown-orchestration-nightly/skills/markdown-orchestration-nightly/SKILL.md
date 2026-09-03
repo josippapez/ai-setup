@@ -23,7 +23,7 @@ Goal to beat, per epic: less wall-clock than the stable workflow and no more tok
 
 Engage only on the explicit triggers in `when_to_use`. Tracking uses `<main-repo-root>/.orchestration/`, shared with the stable workflow. Record `workflow: nightly` in EPIC frontmatter so a resume picks the same workflow. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos.
 
-The stable `markdown-orchestration` plugin must be installed: nightly uses its repo-docs MCP tools and its grilling, grill-with-docs, domain-modeling, and wcag-guidelines skills. If `mcp__plugin_markdown-orchestration_repo-docs__find_docs` is not callable, tell the user before Explore.
+The stable `markdown-orchestration` plugin must be installed: nightly uses its grilling, grill-with-docs, domain-modeling, and wcag-guidelines skills. The `repo-docs` plugin must also be installed for its MCP tools. `claude/install.sh` installs both automatically; if either is missing, tell the user to run it (or `claude plugin install repo-docs@ai-setup` / `markdown-orchestration@ai-setup`) before Explore. If `mcp__plugin_repo-docs_repo-docs__find_docs` is not callable, tell the user before Explore.
 
 ## Mandatory progressive loading
 

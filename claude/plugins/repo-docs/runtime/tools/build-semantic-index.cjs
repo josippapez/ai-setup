@@ -31,10 +31,10 @@ function ensureGitignore(dir) {
   if (!fs.existsSync(gi)) fs.writeFileSync(gi, '*\n');
 }
 
-// Single-writer guard: only one process builds the shared index at a time. Two
-// byte-identical MCP servers (dev-core + markdown-orchestration), times N
-// sessions, otherwise write the same repo-docs-index.json concurrently. Exclusive
-// create wins the lock; a stale lock (crashed build) is taken over.
+// Single-writer guard: only one process builds the shared index at a time. Each
+// concurrent Claude Code session in this repo spawns its own repo-docs MCP server,
+// so N sessions would otherwise write the same repo-docs-index.json concurrently.
+// Exclusive create wins the lock; a stale lock (crashed build) is taken over.
 function acquireBuildLock(context) {
   const lock = lockPath(context);
   fs.mkdirSync(path.dirname(lock), { recursive: true });

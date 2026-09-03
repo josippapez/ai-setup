@@ -102,12 +102,15 @@ When delegating, copy whatever the subagent needs into its prompt:
 ## Context-efficient grounding
 
 Before delegating or answering repo-specific questions, prefer the
-`dev-core` plugin's repo-grounding tools over broad file reads or web
+`repo-docs` plugin's grounding tools over broad file reads or web
 search — they cover repo docs, installed package versions, and
-dependency/impact analysis. Use them to ground decisions in repo conventions
-without loading large amounts of source into context, then forward what you find
-(doc paths, versions) into the delegation prompt — subagents can ground
-themselves too, but only with what you already surfaced.
+dependency/impact analysis. `repo-docs` must be installed alongside `dev-core`
+(`claude/install.sh` does this automatically); if its `mcp__plugin_repo-docs_repo-docs__*`
+tools are not callable, tell the user to run `claude plugin install repo-docs@ai-setup`.
+Use them to ground decisions in repo conventions without loading large amounts of
+source into context, then forward what you find (doc paths, versions) into the
+delegation prompt — subagents can ground themselves too, but only with what you
+already surfaced.
 
 ## Background subagents
 

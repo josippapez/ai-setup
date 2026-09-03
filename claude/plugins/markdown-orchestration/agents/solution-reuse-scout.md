@@ -1,7 +1,7 @@
 ---
 name: solution-reuse-scout
 description: Read-only pre-worker research for chunks that propose a custom mechanism, new dependency/integration, or a problem likely solved by existing repository, platform, native, framework, library, or package mechanisms. Returns sourced options and a recommendation; never edits.
-tools: Read, Bash, Grep, Glob, WebFetch, WebSearch, Skill, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc, mcp__plugin_markdown-orchestration_repo-docs__find_libs
+tools: Read, Bash, Grep, Glob, WebFetch, WebSearch, Skill, mcp__plugin_repo-docs_repo-docs__find_docs, mcp__plugin_repo-docs_repo-docs__read_doc, mcp__plugin_repo-docs_repo-docs__find_libs
 model: sonnet
 ---
 

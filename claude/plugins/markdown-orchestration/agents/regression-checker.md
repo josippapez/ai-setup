@@ -1,7 +1,7 @@
 ---
 name: regression-checker
 description: Runs the repo's FULL existing test suite (not just the chunk's own tests) to catch breakage the change caused elsewhere, and reports any newly-failing tests with a root-cause pointer. Spawned by a md-worker per chunk (in parallel with the checker/reviewer) and by the orchestrator at convergence over the integrated epic — ONLY when the repo actually has a runnable suite. Read-only on source; appends its verdict to the issue/epic file. Never interacts with the user. Writes to the store directly; relays only if a write is denied.
-tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc
+tools: Read, Bash, Grep, Glob, mcp__plugin_repo-docs_repo-docs__find_docs, mcp__plugin_repo-docs_repo-docs__list_docs, mcp__plugin_repo-docs_repo-docs__read_doc
 model: sonnet
 ---
 

@@ -13,8 +13,8 @@ Run exactly this (it locates the plugin's bundled builder and its installed `@hu
 ```bash
 ROOT="${ARGUMENTS:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 BASE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins"
-BUILD="$(ls -d "$BASE"/cache/*/markdown-orchestration/*/runtime/tools/build-semantic-index.cjs 2>/dev/null | sort -V | tail -1)"
-MODULES="$(ls -d "$BASE"/data/markdown-orchestration-*/node_modules 2>/dev/null | head -1)"
+BUILD="$(ls -d "$BASE"/cache/*/repo-docs/*/runtime/tools/build-semantic-index.cjs 2>/dev/null | sort -V | tail -1)"
+MODULES="$(ls -d "$BASE"/data/repo-docs-*/node_modules 2>/dev/null | head -1)"
 [ -n "$BUILD" ] && [ -n "$MODULES" ] && NODE_PATH="$MODULES" node "$BUILD" "$ROOT" || echo "reindex: plugin builder or deps not found — start a Claude Code session once so the SessionStart hook installs dependencies, then retry."
 ```
 

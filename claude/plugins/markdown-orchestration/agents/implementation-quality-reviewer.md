@@ -1,7 +1,7 @@
 ---
 name: implementation-quality-reviewer
 description: Blocking post-implementation review for substantive source changes. Checks root-cause implementation quality, reuse/native/library fit, simplification, and avoidable dependency or maintenance burden. Does not enforce documented standards, run commands/tests, or re-check acceptance criteria.
-tools: Read, Bash, Grep, Glob, WebFetch, mcp__plugin_markdown-orchestration_repo-docs__find_libs
+tools: Read, Bash, Grep, Glob, WebFetch, mcp__plugin_repo-docs_repo-docs__find_libs
 model: sonnet
 ---
 

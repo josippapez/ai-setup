@@ -63,6 +63,14 @@ if have claude; then
   claude plugin uninstall linear-orchestration@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall interactive-mcp@ai-setup >/dev/null 2>&1 || true
 
+  # Install or update repo-docs first: dev-core and markdown-orchestration both depend
+  # on its MCP tools (mcp__plugin_repo-docs_repo-docs__*) rather than bundling their own copy.
+  if claude plugin list 2>/dev/null | grep -q "repo-docs@ai-setup"; then
+    claude plugin update "repo-docs@ai-setup"
+  else
+    claude plugin install "repo-docs@ai-setup" --scope user
+  fi
+
   # Install or update dev-core, concise-output, and rules-index.
   for plugin in dev-core concise-output rules-index; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
@@ -73,7 +81,7 @@ if have claude; then
   done
 
   # Install or update the markdown-orchestration plugin and its experimental nightly fork
-  # (nightly reuses stable's repo-docs MCP and companion skills, so stable goes first).
+  # (nightly reuses stable's companion skills, so stable goes first).
   for plugin in markdown-orchestration markdown-orchestration-nightly; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"

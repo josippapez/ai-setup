@@ -1,0 +1,8 @@
+{
+  "name": "repo-docs",
+  "version": "0.1.0",
+  "description": "Local semantic doc search, dependency-graph, and installed-package tools for one repository, plus proactive doc-context injection. Shared MCP server for dev-core and markdown-orchestration.",
+  "author": {
+    "name": "Personal AI Setup"
+  }
+}

@@ -29,11 +29,10 @@ Every dispatched specialist appends its own verdict and relays failed writes. Ev
 
 ## Layout
 
-- `.mcp.json` + `runtime/` — self-contained repo-docs MCP (`find_docs`, `list_docs`, `read_doc`, `find_libs`, dependency graph tools).
-- `hooks/` — SessionStart dependency setup and index lifecycle hooks.
+- **Repo grounding comes from the separate `repo-docs` plugin**, not from this one: `repo-scout`, `impl-planner`, `council-member`, `design-lead`, and `solution-reuse-scout` use its `mcp__plugin_repo-docs_repo-docs__*` tools (`find_docs`, `list_docs`, `read_doc`, `find_libs`, dependency graph). `claude/install.sh` installs `repo-docs` automatically alongside this plugin; if its tools are not callable, tell the user to run `claude plugin install repo-docs@ai-setup`. `/reindex` and `/repo-docs-ignore` now live in `claude/plugins/repo-docs/commands/`.
 - `skills/markdown-orchestration/` — compact dispatcher, `references/` (`routing`, `store-protocol`, `intake-design`, `execution`, `platform`), and canonical `templates/` for PROJECT, EPIC, and issues.
 - Other `skills/` — grilling, domain-modeling, and design/accessibility companions.
-- `commands/` — `/markdown-orchestration`, `/reindex`, and `/repo-docs-ignore`.
+- `commands/` — `/markdown-orchestration`.
 - `agents/` — the specialists cataloged above and their contract test.
 
 ## Browser research portability
@@ -42,4 +41,4 @@ The existing repository-owned `agent-browser` skill is not copied into this plug
 
 ## Prerequisites
 
-None for tracking. The store is created automatically. The bundled repo-docs dependencies install on SessionStart; WCAG lookups use the bundled CLI skill on demand. If the filesystem is read-only, the workflow reports that persistence is unavailable and falls back to in-session tracking.
+None for tracking. The store is created automatically. The `repo-docs` plugin must be installed for repo grounding (its dependencies install on its own SessionStart); WCAG lookups use the bundled CLI skill on demand. If the filesystem is read-only, the workflow reports that persistence is unavailable and falls back to in-session tracking.

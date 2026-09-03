@@ -1,7 +1,7 @@
 ---
 name: impl-planner
 description: Read-only implementation planner for the markdown-orchestration workflow. Conceptually implements ONE chunk (or one small group) against the real codebase — without writing anything — and reports what it would produce, what it must consume from sibling chunks, and where it collides with them, so the orchestrator can compute dispatch waves and run genuinely independent chunks in parallel. Also returns corrections to the chunk's spec it discovered while planning. Dispatched by the orchestrator in the Plan phase, in parallel with the other planners. Never interacts with the user. Never writes anything.
-tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc, mcp__plugin_markdown-orchestration_repo-docs__find_libs, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependencies, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependents, mcp__plugin_markdown-orchestration_repo-docs__get_blast_radius
+tools: Read, Bash, Grep, Glob, mcp__plugin_repo-docs_repo-docs__find_docs, mcp__plugin_repo-docs_repo-docs__list_docs, mcp__plugin_repo-docs_repo-docs__read_doc, mcp__plugin_repo-docs_repo-docs__find_libs, mcp__plugin_repo-docs_repo-docs__get_file_dependencies, mcp__plugin_repo-docs_repo-docs__get_file_dependents, mcp__plugin_repo-docs_repo-docs__get_blast_radius
 model: sonnet
 ---
 

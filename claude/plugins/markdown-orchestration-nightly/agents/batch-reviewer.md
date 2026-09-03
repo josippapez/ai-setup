@@ -1,7 +1,7 @@
 ---
 name: batch-reviewer
 description: Single combined review gate for a BATCH of one to two finished chunks (or the integrated epic at convergence) in the nightly orchestration. For each issue it checks acceptance criteria and correctness against actual repo state, scope, root-cause quality, the supplied documented standards clauses, implementation quality (reuse/simplification/maintenance), and that the builder's pasted command output really shows a pass. Appends one verdict per issue. Never moves status, never edits source, never interacts with the user. Dispatched only by the orchestrator.
-tools: Read, Bash, Grep, Glob, WebFetch, mcp__plugin_markdown-orchestration_repo-docs__find_libs
+tools: Read, Bash, Grep, Glob, WebFetch, mcp__plugin_repo-docs_repo-docs__find_libs
 model: sonnet
 ---
 

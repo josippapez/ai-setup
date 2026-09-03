@@ -1,7 +1,7 @@
 ---
 name: test-specialist
 description: Writes and stabilizes targeted tests for ONE chunk's changed behavior — reproduces bugs with a failing test first, covers edge cases, and makes flaky tests deterministic. Dispatched by the orchestrator after a build ONLY when the chunk has a real testable surface (source behavior changed AND the repo has, or should have, tests). Discovers the repo's test framework/conventions itself (via the bundled repo-docs MCP + neighboring tests), appends its findings to the issue file, and returns what it validated. Never interacts with the user. Writes to the store directly; relays only if a write is denied.
-tools: Read, Edit, Write, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc
+tools: Read, Edit, Write, Bash, Grep, Glob, mcp__plugin_repo-docs_repo-docs__find_docs, mcp__plugin_repo-docs_repo-docs__list_docs, mcp__plugin_repo-docs_repo-docs__read_doc
 model: sonnet
 ---
 

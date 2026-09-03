@@ -1,14 +1,4 @@
 {
-  "repo-docs": {
-    "command": "node",
-    "args": [
-      "${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"
-    ],
-    "env": {
-      "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules",
-      "REPO_DOCS_INJECT": "1"
-    }
-  },
   "interactive": {
     "type": "stdio",
     "command": "npx",

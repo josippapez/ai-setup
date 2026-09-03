@@ -1,7 +1,7 @@
 ---
 name: repo-scout
 description: Read-only exploration scout for markdown orchestration. Returns per-scope files, reuse signals, applicable documented standards, owning docs, non-test quality commands, and runnable test surfaces with explicit empty results. Never writes or interacts with the user.
-tools: Read, Bash, Grep, Glob, mcp__plugin_markdown-orchestration_repo-docs__find_docs, mcp__plugin_markdown-orchestration_repo-docs__list_docs, mcp__plugin_markdown-orchestration_repo-docs__read_doc, mcp__plugin_markdown-orchestration_repo-docs__find_libs, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependencies, mcp__plugin_markdown-orchestration_repo-docs__get_file_dependents, mcp__plugin_markdown-orchestration_repo-docs__get_blast_radius
+tools: Read, Bash, Grep, Glob, mcp__plugin_repo-docs_repo-docs__find_docs, mcp__plugin_repo-docs_repo-docs__list_docs, mcp__plugin_repo-docs_repo-docs__read_doc, mcp__plugin_repo-docs_repo-docs__find_libs, mcp__plugin_repo-docs_repo-docs__get_file_dependencies, mcp__plugin_repo-docs_repo-docs__get_file_dependents, mcp__plugin_repo-docs_repo-docs__get_blast_radius
 model: sonnet
 ---
 
