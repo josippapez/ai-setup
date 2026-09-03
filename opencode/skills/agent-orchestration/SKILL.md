@@ -1,6 +1,6 @@
 ---
 name: agent-orchestration
-description: Route tasks to the right agent or model tier based on task type, scope, and cost. Use when deciding whether to delegate coding, refactoring, file generation, tests, or validation to a cheaper/faster agent or model, when complex reasoning, design, or risk assessment requires a stronger model, or when choosing between the built-in tiered subagents and repo-specific custom agents. Triggers include phrases like "delegate this", "use a cheaper model", "route to fast agent", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", and "spawn a subagent".
+description: Route tasks to the right agent or model tier based on task type, scope, and cost. Any moment you are about to delegate a task, or are deciding whether to delegate at all — the decision, not the user's wording, is the trigger, since delegation is your own call and a user rarely phrases it explicitly. Use it when deciding whether to delegate coding, refactoring, file generation, tests, or validation to a cheaper/faster agent or model, when complex reasoning, design, or risk assessment requires a stronger model, or when choosing between the built-in tiered subagents and repo-specific custom agents. Skip only when a more specific routing authority already governs the dispatch. Triggers include phrases like "delegate this", "use a cheaper model", "route to fast agent", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", and "spawn a subagent".
 ---
 
 # agent-orchestration
