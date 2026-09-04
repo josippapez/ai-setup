@@ -184,7 +184,7 @@ install_codegraph() {
     warn "skipping codegraph install (AI_SETUP_SKIP_CODEGRAPH=1); the codegraph MCP server and prompt hook will fail until codegraph is on PATH."
     return 0
   fi
-  if have npm && npm i -g @colbymchenry/codegraph; then
+  if have npm && npm i -g --no-audit --no-fund @colbymchenry/codegraph; then
     codegraph telemetry off >/dev/null 2>&1 || true
     return 0
   fi

@@ -66,7 +66,10 @@ for directory in agents commands plugins rules skills; do
 done
 
 if command -v npm >/dev/null 2>&1; then
-  npm install --omit=dev --prefix "$DEST"
+  # --no-audit/--no-fund: the post-reify audit request to the registry has hung
+  # here for minutes with every package already installed, which reads as the
+  # installer being stuck at its last step.
+  npm install --omit=dev --no-audit --no-fund --prefix "$DEST"
 else
   echo "Warning: npm is unavailable; install dependencies in $DEST manually." >&2
 fi
