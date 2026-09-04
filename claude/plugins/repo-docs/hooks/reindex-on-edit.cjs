@@ -2,14 +2,12 @@
 'use strict';
 
 // PostToolUse hook: after a Markdown file is written/edited, ask the running MCP
-// server (which holds the warm embedder) to re-embed changed docs via the
-// injection socket, so mid-session doc edits become injectable without a
-// reconnect. After a source-file edit, send a cheap invalidate-deps op instead
-// so the dependency graph rebuilds lazily against current sources.
+// server (which holds the warm embedder) to re-embed changed docs via its
+// reindex socket, so mid-session doc edits are searchable without a reconnect.
 // Self-contained (node: builtins only), fire-and-forget, fail-safe.
 //
-// Registered in BOTH claude plugins' hooks.json, so a shared debounce lock keeps
-// a single edit from triggering two reindexes when both plugins are installed.
+// A cross-process debounce lock keeps a burst of edits (or a second runtime on
+// the same repo) from triggering duplicate reindexes.
 
 const net = require('node:net');
 const fs = require('node:fs');
@@ -30,8 +28,6 @@ const normalizeTool = (v) => {
 };
 
 const EDIT_TOOLS = new Set(['write', 'edit', 'multiedit', 'create', 'apply_patch']);
-// Mirrors SOURCE_EXTENSIONS in runtime/lib/dependency-index.cjs.
-const SOURCE_FILE_RE = /\.(cjs|cts|js|jsx|mjs|mts|ts|tsx)$/i;
 
 function editedPath(event) {
   const input = event.tool_input || event.toolInput || event.input || {};
@@ -73,14 +69,9 @@ const main = async () => {
   if (!EDIT_TOOLS.has(tool)) process.exit(0);
   const file = editedPath(event);
   const root = event.cwd || process.cwd();
-  if (/\.mdx?$/i.test(file)) {
-    if (!claimReindex(path.join(root, '.claude', 'repo-docs', 'reindex.lock'))) process.exit(0);
-    await sendOp(root, 'reindex');
-  } else if (SOURCE_FILE_RE.test(file)) {
-    // Undebounced on purpose: invalidation is an in-memory flag flip, and a
-    // missed one would leave dependency tools answering from a stale graph.
-    await sendOp(root, 'invalidate-deps');
-  }
+  if (!/\.mdx?$/i.test(file)) process.exit(0);
+  if (!claimReindex(path.join(root, '.claude', 'repo-docs', 'reindex.lock'))) process.exit(0);
+  await sendOp(root, 'reindex');
   process.exit(0);
 };
 

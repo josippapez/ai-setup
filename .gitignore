@@ -12,3 +12,5 @@ node_modules/
 /docs
 logs
 /tmp
+# CodeGraph index (per-machine, rebuilt by `codegraph init`)
+.codegraph/

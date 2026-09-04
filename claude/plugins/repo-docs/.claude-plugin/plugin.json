@@ -1,7 +1,7 @@
 {
   "name": "repo-docs",
-  "version": "0.2.0",
-  "description": "Local semantic doc search, dependency-graph, and installed-package tools for one repository, plus proactive doc-context injection. Shared MCP server for dev-core and orchestrate.",
+  "version": "0.3.0",
+  "description": "Local semantic doc search and installed-package tools for one repository, plus the CodeGraph code-graph MCP server (codegraph_explore). Shared by dev-core and orchestrate.",
   "author": {
     "name": "Personal AI Setup"
   }

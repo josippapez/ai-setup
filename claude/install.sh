@@ -16,6 +16,10 @@ mkdir -p "$DEST/skills" "$DEST/agents" "$DEST/hooks/scripts"
 # rtk (Rust Token Killer) backs the PreToolUse hook in settings.json.
 install_rtk
 
+# codegraph backs the repo-docs plugin's code-graph MCP server and the
+# UserPromptSubmit hook in settings.json. Per repo: `codegraph init`.
+install_codegraph
+
 # Copy top-level config files.
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"
 cp "$SRC/RTK.md" "$DEST/RTK.md"

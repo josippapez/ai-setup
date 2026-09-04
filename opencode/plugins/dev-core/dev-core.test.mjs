@@ -6,174 +6,61 @@ import path from 'node:path';
 import { test } from 'node:test';
 import devCorePlugin from './dev-core.js';
 
-test('injects relevant repository docs into system context for a user prompt', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-plugin-'));
+// Short prefix: the socket path must stay under the 104-char unix socket
+// limit on macOS.
+function rootWithStub(received) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-dc-'));
   const socketPath = path.join(root, '.opencode', 'repo-docs', 'inject.sock');
   fs.mkdirSync(path.dirname(socketPath), { recursive: true });
-  const server = net.createServer((connection) => {
-    connection.on('data', () => {
-      connection.end(`${JSON.stringify({
-        injected: true,
-        hits: [{
-          path: 'docs/auth.md',
-          startLine: 12,
-          heading: 'Authentication',
-          snippet: 'Use short-lived access tokens.',
-        }],
-      })}\n`);
-    });
-  });
-  await new Promise((resolve) => server.listen(socketPath, resolve));
-
-  const hooks = await devCorePlugin({
-    directory: root,
-    serverUrl: new URL('http://localhost:4096'),
-  }, { injectDebug: true });
-  const chatOutput = {
-    message: { id: 'message-test' },
-    parts: [{ type: 'text', text: 'How does authentication work in this repository?' }],
-  };
-  await hooks['chat.message'](
-    { sessionID: 'session-test' },
-    chatOutput,
-  );
-  assert.match(chatOutput.message.system, /<system-reminder>/);
-  assert.match(chatOutput.message.system, /docs\/auth\.md:12/);
-  const output = {
-    messages: [{
-      info: {
-        id: 'message-test',
-        role: 'user',
-        sessionID: 'session-test',
-        system: chatOutput.message.system,
-      },
-      parts: [{ type: 'text', text: 'How does authentication work in this repository?' }],
-    }],
-  };
-  await hooks['experimental.chat.messages.transform']({}, output);
-  const systemOutput = { system: ['BASE_SYSTEM'] };
-  await hooks['experimental.chat.system.transform'](
-    { sessionID: 'session-test' },
-    systemOutput,
-  );
-
-  const transformed = output.messages[0].info.system;
-  assert.match(transformed, /<system-reminder>/);
-  assert.match(transformed, /docs\/auth\.md:12/);
-  assert.match(transformed, /repo-docs_read_doc/);
-  assert.doesNotMatch(systemOutput.system[0], /docs\/auth\.md:12/);
-  assert.strictEqual(
-    output.messages[0].parts[0].text,
-    'How does authentication work in this repository?',
-  );
-
-  output.messages[0].info.system = undefined;
-  await hooks['tool.execute.after']({
-    sessionID: 'session-test',
-    tool: 'read',
-    args: { path: 'src/auth.ts' },
-  });
-  await hooks['experimental.chat.messages.transform']({}, output);
-  const progressSystem = { system: ['BASE_SYSTEM'] };
-  await hooks['experimental.chat.system.transform'](
-    { sessionID: 'session-test' },
-    progressSystem,
-  );
-  // Same session, same doc: already injected for the prompt above, so the
-  // progress pass must stay silent rather than repeat it.
-  assert.doesNotMatch(progressSystem.system[0], /docs\/auth\.md:12/);
-
-  const directOutput = {
-    messages: [{
-      info: { id: 'message-direct', role: 'user', sessionID: 'session-direct' },
-      parts: [{ type: 'text', text: 'Where are authentication rules documented?' }],
-    }],
-  };
-  await hooks['experimental.chat.messages.transform']({}, directOutput);
-  const directSystem = { system: ['BASE_SYSTEM'] };
-  await hooks['experimental.chat.system.transform'](
-    { sessionID: 'session-direct' },
-    directSystem,
-  );
-  assert.match(directSystem.system[0], /<system-reminder>/);
-  assert.match(directSystem.system[0], /docs\/auth\.md:12/);
-  assert.match(
-    fs.readFileSync(path.join(root, '.opencode', 'repo-docs', 'inject-debug.log'), 'utf8'),
-    /query result injected=true hits=1/,
-  );
-  await new Promise((resolve) => server.close(resolve));
-});
-
-test('tool.execute.after includes a Grep/Glob pattern arg in the query that reaches the inject socket', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-pattern-'));
-  const socketPath = path.join(root, '.opencode', 'repo-docs', 'inject.sock');
-  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
-  let capturedQuery = null;
-  const server = net.createServer((connection) => {
-    let buffer = '';
-    connection.on('data', (data) => {
-      buffer += data;
-      const newline = buffer.indexOf('\n');
-      if (newline === -1) return;
-      try { capturedQuery = JSON.parse(buffer.slice(0, newline)).query; } catch {}
-      connection.end(`${JSON.stringify({ hits: [], injected: false })}\n`);
-    });
-  });
-  await new Promise((resolve) => server.listen(socketPath, resolve));
-
-  const hooks = await devCorePlugin({
-    directory: root,
-    serverUrl: new URL('http://localhost:4096'),
-  });
-  await hooks['tool.execute.after']({
-    sessionID: 'session-pattern',
-    tool: 'grep',
-    args: { pattern: 'useOptimisticUpdate', path: 'src' },
-  });
-  const output = {
-    messages: [{
-      info: { id: 'message-pattern', role: 'user', sessionID: 'session-pattern' },
-      parts: [{ type: 'text', text: 'unrelated prompt text here' }],
-    }],
-  };
-  await hooks['experimental.chat.messages.transform']({}, output);
-  await new Promise((resolve) => server.close(resolve));
-  assert.ok(capturedQuery, 'expected a query to reach the inject socket');
-  assert.match(capturedQuery, /useOptimisticUpdate/);
-});
-
-test('source-file edits request dependency-graph invalidation over the socket', async () => {
-  // Short prefix: the socket path below must stay under the 104-char unix
-  // socket limit on macOS.
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-deps-'));
-  const socketPath = path.join(root, '.opencode', 'repo-docs', 'inject.sock');
-  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
-  const received = [];
   const server = net.createServer((connection) => {
     connection.on('data', (data) => {
       try { received.push(JSON.parse(String(data).trim())); } catch {}
-      connection.end(`${JSON.stringify({ ok: true })}\n`);
+      connection.end(`${JSON.stringify({ reindexed: true })}\n`);
     });
   });
-  await new Promise((resolve) => server.listen(socketPath, resolve));
+  return new Promise((resolve) => server.listen(socketPath, () => resolve({ root, server })));
+}
 
-  const hooks = await devCorePlugin({
-    directory: root,
-    serverUrl: new URL('http://localhost:4096'),
-  });
-  await hooks['tool.execute.after']({
-    sessionID: 'session-deps',
-    tool: 'edit',
-    args: { filePath: path.join(root, 'src/app.ts') },
-  });
+async function settle(received) {
   for (let i = 0; i < 50 && received.length === 0; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
-  // Close before asserting so a failure can't leave the server holding the
-  // event loop open (node --test would hang instead of reporting).
+}
+
+test('registers the repo-docs MCP server and the session id in the system prompt', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-dc-cfg-'));
+  const hooks = await devCorePlugin({ directory: root, serverUrl: new URL('http://localhost:4096') });
+  const config = { mcp: { existing: { type: 'remote', url: 'http://x' } } };
+  await hooks.config(config);
+  assert.ok(config.mcp.existing, 'existing servers are preserved');
+  assert.strictEqual(config.mcp['repo-docs'].type, 'local');
+  assert.match(config.mcp['repo-docs'].command[1], /standalone-mcp\.cjs$/);
+  assert.strictEqual(config.mcp['repo-docs'].command[2], root);
+
+  const systemOutput = { system: ['BASE_SYSTEM'] };
+  await hooks['experimental.chat.system.transform']({ sessionID: 's1' }, systemOutput);
+  assert.match(systemOutput.system[0], /Current OpenCode session ID: s1/);
+  const env = { env: {} };
+  await hooks['shell.env']({ sessionID: 's1' }, env);
+  assert.strictEqual(env.env.OPENCODE_SESSION_ID, 's1');
+});
+
+test('a Markdown edit requests a reindex over the socket', async () => {
+  const received = [];
+  const { root, server } = await rootWithStub(received);
+  const hooks = await devCorePlugin({ directory: root, serverUrl: new URL('http://localhost:4096') });
+  await hooks['tool.execute.after']({ sessionID: 's', tool: 'edit', args: { filePath: path.join(root, 'docs/auth.md') } });
+  await settle(received);
   await new Promise((resolve) => server.close(resolve));
-  assert.ok(
-    received.some((message) => message.op === 'invalidate-deps'),
-    'a source edit must send an invalidate-deps op',
-  );
+  assert.deepStrictEqual(received, [{ op: 'reindex' }]);
+});
+
+test('a source-file edit sends nothing', async () => {
+  const received = [];
+  const { root, server } = await rootWithStub(received);
+  const hooks = await devCorePlugin({ directory: root, serverUrl: new URL('http://localhost:4096') });
+  await hooks['tool.execute.after']({ sessionID: 's', tool: 'edit', args: { filePath: path.join(root, 'src/app.ts') } });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => server.close(resolve));
+  assert.deepStrictEqual(received, []);
 });

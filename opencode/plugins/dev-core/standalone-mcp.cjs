@@ -4,26 +4,19 @@
 const readline = require('node:readline');
 const { createContext } = require('./lib/context.cjs');
 const { warmUp, shutdown } = require('./lib/semantic-index.cjs');
-const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { buildDocIndex } = require('./tools/build-semantic-index.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
 const { findLibsTool } = require('./tools/find-libs.cjs');
 const {
-  repositoryIndexStatusTool,
-} = require('./tools/get-repository-index-status.cjs');
-const { fileDependenciesTool } = require('./tools/get-file-dependencies.cjs');
-const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
-const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
-const {
   ensureMemoryStorage,
   manageMemoriesTool,
 } = require('./tools/manage-memories.cjs');
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
-const { startInjectServer } = require('./lib/inject-server.cjs');
+const { startReindexServer } = require('./lib/reindex-server.cjs');
 
-const SERVER_INFO = { name: 'repo-docs', version: '0.1.0' };
+const SERVER_INFO = { name: 'repo-docs', version: '0.3.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
 const context = createContext(process.argv[2], process.argv[3]);
 const registeredTools = [
@@ -31,22 +24,18 @@ const registeredTools = [
   listDocsTool,
   readDocTool,
   findLibsTool,
-  repositoryIndexStatusTool,
-  fileDependenciesTool,
-  fileDependentsTool,
-  blastRadiusTool,
   manageMemoriesTool,
 ];
 
 const toolsByName = new Map(
   registeredTools.map((tool) => [tool.definition.name, tool]),
 );
-let injectServer = null;
+let reindexServer = null;
 
 async function stopBackgroundWork() {
-  if (injectServer) {
-    await new Promise((resolve) => injectServer.close(resolve)).catch(() => {});
-    injectServer = null;
+  if (reindexServer) {
+    await new Promise((resolve) => reindexServer.close(resolve)).catch(() => {});
+    reindexServer = null;
   }
   await shutdown();
 }
@@ -82,7 +71,7 @@ async function handleRequest(message) {
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
       instructions:
-        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup; find_libs to check installed packages and versions; and ALWAYS run get_file_dependents / get_blast_radius before you move, rename, delete, or change the public API of any module (and get_file_dependencies before editing a file) — they are faster and more reliable than grepping imports because they resolve both relative imports and tsconfig `paths` aliases (only bare third-party imports stay external). Paths are repo-root-relative POSIX.',
+        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup, and find_libs to check installed packages and versions. For code structure (callers, callees, blast radius before a rename/move/API change) use codegraph_codegraph_explore from the codegraph MCP server, or `codegraph explore` in the shell, in repos that have a .codegraph/ directory. Paths are repo-root-relative POSIX.',
     });
     // Ensure the OpenCode server is reachable; if not, start it in the
     // background at the configured port so tools that rely on it work without
@@ -99,12 +88,9 @@ async function handleRequest(message) {
     buildDocIndex(context).catch(() => {});
     // Reuse this process's warm model for incremental reindex requests from the
     // OpenCode plugin after Markdown edits.
-    startInjectServer(context)
-      .then((server) => { injectServer = server; })
+    startReindexServer(context)
+      .then((server) => { reindexServer = server; })
       .catch(() => {});
-    // Start building the dependency graph in the background on connect so the
-    // index is ready (or observably in progress) before the first tool call.
-    startDependencyIndex(context).catch(() => {});
     return;
   }
   if (method === 'shutdown') {

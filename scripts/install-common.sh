@@ -174,6 +174,23 @@ install_homebrew() {
 
 # rtk (Rust Token Killer) backs the PreToolUse hook in claude/settings.json.
 # Never fatal: a missing rtk only means the hook no-ops.
+install_codegraph() {
+  if have codegraph; then
+    printf 'codegraph already installed: %s\n' "$(codegraph version 2>/dev/null || echo present)"
+    codegraph telemetry off >/dev/null 2>&1 || true
+    return 0
+  fi
+  if [ "${AI_SETUP_SKIP_CODEGRAPH:-0}" = "1" ]; then
+    warn "skipping codegraph install (AI_SETUP_SKIP_CODEGRAPH=1); the codegraph MCP server and prompt hook will fail until codegraph is on PATH."
+    return 0
+  fi
+  if have npm && npm i -g @colbymchenry/codegraph; then
+    codegraph telemetry off >/dev/null 2>&1 || true
+    return 0
+  fi
+  warn "could not install codegraph via npm; install it manually: curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh"
+}
+
 install_rtk() {
   if have rtk; then
     printf 'rtk already installed: %s\n' "$(rtk --version 2>/dev/null || echo present)"

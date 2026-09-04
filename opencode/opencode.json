@@ -11,12 +11,7 @@
     "./plugins/rtk.ts",
     "./plugins/format-lint-edited-files.js",
     "./plugins/git-move-guard.js",
-    [
-      "./plugins/dev-core/dev-core.js",
-      {
-        "injectDebug": true
-      }
-    ]
+    "./plugins/dev-core/dev-core.js"
   ],
   "skills": {
     "paths": [
@@ -82,6 +77,18 @@
         "message_complete_notification"
       ],
       "timeout": 1210000
+    },
+    "codegraph": {
+      "type": "local",
+      "command": [
+        "codegraph",
+        "serve",
+        "--mcp"
+      ],
+      "enabled": true,
+      "environment": {
+        "CODEGRAPH_TELEMETRY": "0"
+      }
     }
   }
 }
