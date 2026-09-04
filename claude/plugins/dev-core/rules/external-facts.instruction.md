@@ -39,12 +39,15 @@ Cheapest sufficient source wins, but *sufficient* is the requirement:
 
 `agent-browser` is the default for real pages: it renders JS, follows the docs site's own navigation, and can screenshot what it saw. Reach for it — not memory — the moment the question leaves this repo.
 
+Step 4 is not optional for a claim about how a third party behaves today. Open `agent-browser` on the page, or use `WebSearch` to find it and `WebFetch` to read it. One fetch of the page that answers the question beats three greps that cannot.
+
 ## What "verified" means
 
 - Every external claim carries a **source you actually retrieved this session**: a URL you fetched, a `path:line` in vendored source, or a tool output. Same citation test as `evidence-first`, extended to the web.
 - Copy the specific detail from what you fetched. "The docs say it's supported" without the option name is not a fetch, it's a paraphrase of a memory.
 - A search result is a pointer, not a source. Its title and snippet say a page exists; they do not say what it says. Fetch the page before you cite it or characterize its content.
 - If a fetch fails or the source is ambiguous, say so and label the claim `unverified` **in the same sentence you make it**. Do not silently fall back to recall.
+- Not having tried is not a failed fetch. Before you write `unverified` about anything outside this repo, attempt step 4 and name the tool that failed and how.
 - Never fabricate or reconstruct a URL, version, option name, or quote. If you did not read it, you do not have it.
 
 ## Never build on unfetched externals

@@ -20,6 +20,7 @@ Claims about how specific code behaves, what changing it would break, or how ris
 
 - Before claiming how something behaves or what changing it risks, **open it**. If you haven't read it, you don't have a finding — you have a guess, and it MUST be worded as one.
 - **The citation test:** if you can't point to a `file:line`, a command output, or a URL you fetched this session, it isn't a finding. Either go check, or downgrade the wording to "I haven't verified this yet".
+- **The label is a fallback, not a choice.** When the check is available and cheap, a command you can run, a file you can open, a page you can fetch, run it and report what it said. `unverified` is for what you could not settle, never a cheaper substitute for settling it.
 - State the basis when it isn't obvious: *measured* (ran it), *read* (opened it), or *inferred* (neither).
 - Generalising from experience ("rewrites like this usually break X") is the **trigger to verify this instance**, never a substitute for doing so. The moment you reach for a prior, that's the moment to open the file.
 - **If the fact isn't in the repo, the repo can't verify it.** Claims about libraries, versions, specs, flags, pricing, or anything else outside this codebase MUST be fetched from a live source — see `external-facts`. Recalled external knowledge is an inference, not a finding, however certain it feels.
