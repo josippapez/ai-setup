@@ -43,6 +43,7 @@ Cheapest sufficient source wins, but *sufficient* is the requirement:
 
 - Every external claim carries a **source you actually retrieved this session**: a URL you fetched, a `path:line` in vendored source, or a tool output. Same citation test as `evidence-first`, extended to the web.
 - Copy the specific detail from what you fetched. "The docs say it's supported" without the option name is not a fetch, it's a paraphrase of a memory.
+- A search result is a pointer, not a source. Its title and snippet say a page exists; they do not say what it says. Fetch the page before you cite it or characterize its content.
 - If a fetch fails or the source is ambiguous, say so and label the claim `unverified` **in the same sentence you make it**. Do not silently fall back to recall.
 - Never fabricate or reconstruct a URL, version, option name, or quote. If you did not read it, you do not have it.
 
