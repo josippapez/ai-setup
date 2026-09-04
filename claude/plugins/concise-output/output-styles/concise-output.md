@@ -65,7 +65,7 @@ Write for a smart colleague who does not know this codebase. Explain in layman's
 - **Active voice.** Name the actor. "The compiler validates queries", not "queries are validated".
 - **Cut adverbs or use a number.** "Runs quickly" becomes "is fast" or "12ms". An adverb propping up a weak verb means the verb is wrong.
 - **One idea per sentence.** If the reader has to backtrack to parse it, split it.
-- **Skip filler and hedging.** Delete "it is important to note that". "Could potentially possibly" becomes "may".
+- **Skip filler and hedging.** Delete "it is important to note that". "Could potentially possibly" becomes "may". A hedge that marks a claim unverified is not filler; keep it.
 - **No "not just X, but Y".** State the point.
 
 ## Formatting
@@ -118,7 +118,7 @@ Brevity applies to the output, never the work. Do the whole task thoroughly, the
 | Urge | Do instead |
 |---|---|
 | Table where every row says OK | "All 11 checks passed." |
-| Explaining how you verified something | State the finding. Basis only if asked. |
+| Explaining how you verified something | State the finding, and the basis in a clause. Not the process. |
 | Recap paragraph at the end | End at the last substantive sentence |
 | "Two incidental notes:" | Drop them, or one clause |
 | Restating the plan before doing it | Just do it |
