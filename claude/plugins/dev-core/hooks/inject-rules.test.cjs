@@ -22,13 +22,23 @@ function pluginRoot(rules, name) {
   return root;
 }
 
-function runShard(root, shard) {
-  const out = execFileSync('node', [HOOK, String(shard)], {
+function runShard(root, shard, event) {
+  const args = event === undefined ? [HOOK, String(shard)] : [HOOK, String(shard), event];
+  const out = execFileSync('node', args, {
     env: { ...process.env, CLAUDE_PLUGIN_ROOT: root },
     encoding: 'utf8',
   });
   if (!out.trim()) return null;
   return JSON.parse(out).hookSpecificOutput.additionalContext;
+}
+
+function runShardRaw(root, shard, event) {
+  const args = event === undefined ? [HOOK, String(shard)] : [HOOK, String(shard), event];
+  const out = execFileSync('node', args, {
+    env: { ...process.env, CLAUDE_PLUGIN_ROOT: root },
+    encoding: 'utf8',
+  });
+  return out.trim() ? JSON.parse(out).hookSpecificOutput : null;
 }
 
 function allShards(root, slots = 8) {
@@ -132,4 +142,54 @@ test('a plugin with no manifest falls back to its directory name instead of fail
   const root = pluginRoot({ 'a.md': 'A'.repeat(100) });
   const [first] = allShards(root);
   assert.match(first, new RegExp(`bundled with the ${path.basename(root)} plugin`));
+});
+
+test('the reply labels itself with the event that fired, so Claude Code keeps the value', () => {
+  const root = pluginRoot({ 'a.md': 'x' });
+  assert.strictEqual(runShardRaw(root, 0, 'SessionStart').hookEventName, 'SessionStart');
+  assert.strictEqual(runShardRaw(root, 0, 'SubagentStart').hookEventName, 'SubagentStart');
+});
+
+test('the event argument defaults to SessionStart', () => {
+  const root = pluginRoot({ 'a.md': 'x' });
+  assert.strictEqual(runShardRaw(root, 0).hookEventName, 'SessionStart');
+});
+
+test('an unrecognised event name emits nothing rather than a wrongly-labelled value', () => {
+  const root = pluginRoot({ 'a.md': 'x' });
+  assert.strictEqual(runShard(root, 0, 'PostToolUse'), null);
+  assert.strictEqual(runShard(root, 0, 'sessionstart'), null);
+});
+
+test('a subagent is told the rules apply to its task, not to a session it cannot see', () => {
+  const root = pluginRoot({ 'a.md': 'x' });
+  assert.match(runShard(root, 0, 'SubagentStart'), /they apply to this task/);
+  assert.match(runShard(root, 0, 'SessionStart'), /they apply to every session/);
+});
+
+test('every shard stays under the cap for SubagentStart too', () => {
+  const root = pluginRoot({ 'a.md': 'A'.repeat(8000), 'b.md': 'B'.repeat(8000) });
+  for (let i = 0; i < 8; i += 1) {
+    const c = runShard(root, i, 'SubagentStart');
+    if (c === null) break;
+    assert.ok(c.length < 10000, `shard ${i} too big: ${c.length}`);
+  }
+});
+
+test('hooks.json registers the rules for both audiences, with equal shard capacity', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8')).hooks;
+  const commands = (event) => hooks[event].flatMap((g) => g.hooks.map((h) => h.command));
+  const session = commands('SessionStart');
+  const subagent = commands('SubagentStart');
+  assert.strictEqual(session.length, subagent.length, 'both events need the same number of shard slots');
+  session.forEach((c, i) => assert.match(c, new RegExp(`inject-rules\\.cjs" ${i}$`)));
+  subagent.forEach((c, i) => assert.match(c, new RegExp(`inject-rules\\.cjs" ${i} SubagentStart$`)));
+});
+
+test('the shipped rules fit the registered shard slots', () => {
+  const root = path.join(__dirname, '..');
+  const slots = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8'))
+    .hooks.SessionStart.length;
+  assert.strictEqual(runShard(root, slots - 1, 'SessionStart'), null,
+    `rules now need every one of the ${slots} slots; add more before adding rules`);
 });
