@@ -16,7 +16,7 @@ Before Gate/Intake, check whether the outcome or approach itself is still undeci
 
 Tracking uses `<main-repo-root>/.orchestration/`. It requires no external tracker, account, or authentication. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos; do not pretend persistence exists.
 
-The `repo-docs` plugin must also be installed: repo-scout, impl-planner, council-member, design-lead, and solution-reuse-scout all use its `mcp__plugin_repo-docs_repo-docs__*` tools. `claude/install.sh` installs it automatically alongside this plugin. If `mcp__plugin_repo-docs_repo-docs__find_docs` is not callable, tell the user to run `claude plugin install repo-docs@ai-setup` before Explore.
+The `repo-docs` plugin must also be installed: repo-scout, impl-planner, council-member, design-lead, and solution-reuse-scout all use its `mcp__plugin_repo-docs_repo-docs__*` tools. `claude/install.sh` installs it automatically alongside this plugin. MCP tools are **deferred** in this harness: they appear as bare names and cannot be invoked until you load them by name with tool search. Load `mcp__plugin_repo-docs_repo-docs__find_docs` that way first, and tell the user to run `claude plugin install repo-docs@ai-setup` only if that load fails — a deferred tool is present, not absent. The Gate's `codegraph init` needs the `codegraph` CLI on PATH, which `claude/install.sh` also installs; if it is absent, say so and continue without an index rather than stopping.
 
 ## Mandatory progressive loading
 
