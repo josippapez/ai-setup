@@ -139,16 +139,18 @@ whether it is in scope for a given conformance target.
 ## Freshness and offline
 
 A complete dataset ships inside the package, so **every command works with no
-network and no cache** — an answer never waits on w3.org.
+network and no cache**, and a network problem never turns a lookup into an error.
 
-The first command on a new install also refreshes in the background of that same
-call and writes the result to `$XDG_CACHE_HOME/wcag-cli` (or `~/.cache/wcag-cli`),
-so freshness runs from your first use rather than from the package's publish date.
-That request is conditional — the bundle ships with its own ETag — so it is
-normally a `304` with an empty body. After that the cache is reused for a week,
-and Understanding pages are cached per criterion as you read them. A refresh that
-cannot complete prints a note to stderr and answers from cache, then bundle; it
-never turns a lookup into an error.
+The data you get back is kept current, not just bundled. The first command on a
+new install refreshes **before it answers, in the same call**: one conditional
+request for `wcag.json` (the bundle ships with its own ETag, so this is normally a
+`304` with an empty body), written to `$XDG_CACHE_HOME/wcag-cli` (or
+`~/.cache/wcag-cli`), so freshness runs from your first use rather than from the
+package's publish date. After that the cache is reused for a week. Understanding
+and technique pages are fetched the first time you read each one and cached per
+page, so `get-criterion` and `get-technique` return the page as W3C publishes it
+today. Every request is bounded by a 5 s timeout; a refresh that cannot complete
+prints a note to stderr and answers from cache, then bundle.
 
 - `--refresh` forces a refresh now (valid before or after the command)
 - `WCAG_CLI_NO_NETWORK=1` guarantees zero requests — use it in CI or when egress
