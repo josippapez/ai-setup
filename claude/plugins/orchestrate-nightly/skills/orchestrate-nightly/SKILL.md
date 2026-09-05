@@ -23,7 +23,7 @@ Goal to beat, per epic: less wall-clock than the stable workflow and no more tok
 
 Engage only on the explicit triggers in `when_to_use`. Tracking uses `<main-repo-root>/.orchestration/`, shared with the stable workflow. Record `workflow: nightly` in EPIC frontmatter so a resume picks the same workflow. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos.
 
-The stable `orchestrate` plugin must be installed: nightly uses its grilling, grill-with-docs, domain-modeling, and wcag-guidelines skills. The `repo-docs` plugin must also be installed for its MCP tools. `claude/install.sh` installs both automatically; if either is missing, tell the user to run it (or `claude plugin install repo-docs@ai-setup` / `orchestrate@ai-setup`) before Explore. If `mcp__plugin_repo-docs_repo-docs__find_docs` is not callable, tell the user before Explore.
+The stable `orchestrate` plugin must be installed: nightly uses its grilling, grill-with-docs, domain-modeling, and accessibility skills. The `repo-docs` plugin must also be installed for its MCP tools. `claude/install.sh` installs both automatically; if either is missing, tell the user to run it (or `claude plugin install repo-docs@ai-setup` / `orchestrate@ai-setup`) before Explore. If `mcp__plugin_repo-docs_repo-docs__find_docs` is not callable, tell the user before Explore.
 
 ## Mandatory progressive loading
 
@@ -44,7 +44,7 @@ Immediately define the absolute skill root:
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go to the Resume rule.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph is what makes impact analysis real, and without it every agent silently falls back to grep. Init writes `.codegraph/.gitignore`; confirm it carries `!.gitignore` under its `*` line and add that line if missing, so the ignore rule is itself committable and teammates inherit it rather than seeing an untracked `.codegraph/`. If resuming, go to the Resume rule.
 
 ### 1. Intake
 

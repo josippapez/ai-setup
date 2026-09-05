@@ -19,4 +19,4 @@ Source it returns is the current on-disk source, line-numbered. Treat it as a `r
 
 The `grep` tool remains correct for a literal string sweep and for everything the graph does not index: Markdown, config, generated files.
 
-**No `.codegraph/` directory means the repo is not indexed.** Use the built-in tools and say so if it matters. Do not run `codegraph init` yourself — indexing is the user's decision.
+**No `.codegraph/` directory means the repo is not indexed.** Use the built-in tools and say so if it matters. Do not run `codegraph init` yourself — indexing is the user's decision — **unless a workflow you are running tells you to**. The `orchestrate` and `orchestrate-nightly` skills do exactly that at their Gate, because starting an orchestration is itself the opt-in.

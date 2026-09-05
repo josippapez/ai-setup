@@ -4,7 +4,7 @@ This file owns detailed phases 0–4. Read `routing.md` before every dispatch an
 
 ## 0. Gate
 
-Engage per SKILL Gate. Resolve the main repo root. Before scouting, verify repo-docs index readiness; reindex when absent/empty and degrade to targeted file search only when indexing genuinely cannot run. Detect resume before creating a new epic.
+Engage per SKILL Gate. Resolve the main repo root. Before scouting, confirm the doc index answers: a `find_docs` call returning hits is the readiness check (there is no status tool). Run `/reindex` when it comes back empty, and degrade to targeted file search only when indexing genuinely cannot run. Confirm `.codegraph/` exists too, per the SKILL Gate — without it, impact analysis is grep, and the scout must say so. Detect resume before creating a new epic.
 
 On new (non-resumed) work, check whether the outcome or approach itself is still open — a request that names a goal without saying how to reach it, an unclear data source or output shape, or a genuine choice between approaches. That is a `brainstorm` gap, not an Intake gap: run the `brainstorm` skill, get the user's approval on the resulting outcome and approach, then carry it into Intake as the starting spec. Skip `brainstorm` when the outcome is already stated and only scope/AC/constraint details are missing — that is ordinary Intake gap-checking, below.
 

@@ -8,7 +8,7 @@ Claude Code substitutes `${CLAUDE_SKILL_DIR}` with the absolute directory contai
 
 Plugin agents use namespaced `subagent_type: orchestrate-nightly:<agent>`. Agents: `repo-scout`, `solution-reuse-scout`, `impl-planner`, `council-member`, `design-lead`, `docs-maintainer`, `test-specialist`, `wcag-reviewer`, `md-builder`, `batch-reviewer`, `md-fixer`.
 
-Companion skills come from the stable plugin, which must stay installed: `orchestrate:grilling`, `orchestrate:grill-with-docs`, `orchestrate:domain-modeling`, `orchestrate:wcag-guidelines`. The `mcp__plugin_repo-docs_repo-docs__*` tools come from the separate `repo-docs` plugin, which must also stay installed. Use the Skill tool, not slash shorthand.
+Companion skills come from the stable plugin, which must stay installed: `orchestrate:grilling`, `orchestrate:grill-with-docs`, `orchestrate:domain-modeling`, `orchestrate:accessibility`. The `mcp__plugin_repo-docs_repo-docs__*` tools come from the separate `repo-docs` plugin, which must also stay installed. Use the Skill tool, not slash shorthand.
 
 ## Models
 

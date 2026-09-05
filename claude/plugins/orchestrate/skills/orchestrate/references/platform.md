@@ -6,7 +6,7 @@ Claude Code substitutes `${CLAUDE_SKILL_DIR}` with the absolute directory contai
 
 ## Names and tools
 
-Plugin agents use namespaced `subagent_type: orchestrate:<agent>`. Companion Skill IDs are `orchestrate:grilling`, `orchestrate:grill-with-docs`, `orchestrate:domain-modeling`, and `orchestrate:wcag-guidelines`. Use the Skill tool, not slash shorthand. Repo-docs tools are provided by the plugin MCP. Browser/design tools remain orchestrator-owned unless an agent explicitly declares them.
+Plugin agents use namespaced `subagent_type: orchestrate:<agent>`. Companion Skill IDs are `orchestrate:grilling`, `orchestrate:grill-with-docs`, `orchestrate:domain-modeling`, and `orchestrate:accessibility`. Use the Skill tool, not slash shorthand. Repo-docs tools are provided by the plugin MCP. Browser/design tools remain orchestrator-owned unless an agent explicitly declares them.
 
 ## Models
 

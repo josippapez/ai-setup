@@ -39,7 +39,7 @@ Run phases in order. Persist the current state and every specialist predicate re
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go directly to the Resume rule below before new intake or decomposition. For new work, when the outcome or approach itself is still undecided (not just scope/AC gaps), run the `brainstorm` skill first and carry its approved outcome/approach into Intake.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph is what makes impact analysis real, and without it every agent silently falls back to grep. Init writes `.codegraph/.gitignore`; confirm it carries `!.gitignore` under its `*` line and add that line if missing, so the ignore rule is itself committable and teammates inherit it rather than seeing an untracked `.codegraph/`. If resuming, go directly to the Resume rule below before new intake or decomposition. For new work, when the outcome or approach itself is still undecided (not just scope/AC gaps), run the `brainstorm` skill first and carry its approved outcome/approach into Intake.
 
 ### 1. Intake
 
