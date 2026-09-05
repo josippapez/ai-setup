@@ -4,7 +4,7 @@ Experimental fork of `orchestrate`. Same git-ignored `.orchestration/` store, sa
 
 Goal per epic, against the stable workflow on comparable work: less wall-clock and no more tokens.
 
-Requires the stable `orchestrate` plugin to stay installed. Nightly reuses its repo-docs MCP tools and its grilling, grill-with-docs, domain-modeling, and wcag-guidelines skills, and registers no MCP server of its own.
+Requires the stable `orchestrate` plugin to stay installed. Nightly reuses its repo-docs MCP tools and its grilling, grill-with-docs, domain-modeling, and accessibility skills, and registers no MCP server of its own.
 
 ## What changed
 

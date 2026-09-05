@@ -6,7 +6,7 @@ The native skill tool loads `SKILL.md` and reports the skill's absolute Base dir
 
 ## Names and tools
 
-OpenCode agents use bare file-derived `subagent_type` names listed in `routing.md`. Companion skills are `grilling`, `grill-with-docs`, `domain-modeling`, `wcag-guidelines`, and existing `agent-browser`; load them with the native `skill` tool. Repository grounding uses `repo-docs_*` tools. Use the native `task` tool for subagents and `question` for every user prompt.
+OpenCode agents use bare file-derived `subagent_type` names listed in `routing.md`. Companion skills are `grilling`, `grill-with-docs`, `domain-modeling`, `accessibility`, and existing `agent-browser`; load them with the native `skill` tool. Repository grounding uses `repo-docs_*` tools. Use the native `task` tool for subagents and `question` for every user prompt.
 
 ## Models
 

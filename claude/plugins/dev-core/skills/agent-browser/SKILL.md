@@ -1,7 +1,7 @@
 ---
 name: agent-browser
 description: 'Fetch facts from the live web and drive a real browser. Use for ANY question whose answer is not already in this repo or in a file you read: library APIs, current versions, changelogs, config keys, CLI flags, specs, error messages, pricing, docs of any kind. Also for interacting with websites: navigating, filling forms, clicking, screenshots, extracting data, testing web apps.'
-when_to_use: 'Any moment you are about to answer an external question from memory. Triggers: "look this up", "check the docs", "is that still true", "what is the latest version", "how does <library> do X", "verify this", "find out", "search for", "read this page", "what does this error mean", "open a website", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "test this web app", "login to a site", "automate browser actions". Prefer a narrower skill when one owns the subject: opensrc for installed source, context7 for library docs, wcag-guidelines for WCAG, claude-api for Claude/Anthropic, tanstack-docs-cli for TanStack.'
+when_to_use: 'Any moment you are about to answer an external question from memory. Triggers: "look this up", "check the docs", "is that still true", "what is the latest version", "how does <library> do X", "verify this", "find out", "search for", "read this page", "what does this error mean", "open a website", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "test this web app", "login to a site", "automate browser actions". Prefer a narrower skill when one owns the subject: opensrc for installed source, context7 for library docs, accessibility for WCAG, claude-api for Claude/Anthropic, tanstack-docs-cli for TanStack.'
 ---
 
 # agent-browser — fetch the fact, don't recall it
@@ -47,7 +47,7 @@ agent-browser read https://example.com/docs/api --max-output 8000
 
 **Use it for:** current library versions and changelogs, API signatures and option names, CLI flags, config keys, spec wording, error-message meanings, pricing and limits, GitHub issues and release notes, upstream migration guides, anything dated after your training cutoff.
 
-**Prefer a narrower tool when one owns the subject** (see `external-facts` for the full ladder): `repo-docs` for our conventions and installed versions, `opensrc` for the exact installed source, `context7` for library docs, `wcag-guidelines` for WCAG, `claude-api` for Claude/Anthropic facts. Come back here when they don't cover it, or when you need the *live current* state of the world.
+**Prefer a narrower tool when one owns the subject** (see `external-facts` for the full ladder): `repo-docs` for our conventions and installed versions, `opensrc` for the exact installed source, `context7` for library docs, `accessibility` for WCAG, `claude-api` for Claude/Anthropic facts. Come back here when they don't cover it, or when you need the *live current* state of the world.
 
 ## 2. Interaction workflow
 

@@ -46,7 +46,7 @@ agent-browser read https://example.com/docs/api --max-output 8000
 
 **Use it for:** current library versions and changelogs, API signatures and option names, CLI flags, config keys, spec wording, error-message meanings, pricing and limits, GitHub issues and release notes, upstream migration guides, anything dated after your training cutoff.
 
-**Prefer a narrower tool when one owns the subject** (see `external-facts` for the full ladder): `repo-docs` for our conventions and installed versions, `opensrc` for the exact installed source, `context7` for library docs, `wcag-guidelines` for WCAG, `claude-api` for Claude/Anthropic facts. Come back here when they don't cover it, or when you need the *live current* state of the world.
+**Prefer a narrower tool when one owns the subject** (see `external-facts` for the full ladder): `repo-docs` for our conventions and installed versions, `opensrc` for the exact installed source, `context7` for library docs, `accessibility` for WCAG, `claude-api` for Claude/Anthropic facts. Come back here when they don't cover it, or when you need the *live current* state of the world.
 
 ## 2. Interaction workflow
 

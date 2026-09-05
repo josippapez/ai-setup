@@ -1,9 +1,9 @@
 ---
-name: wcag-guidelines
+name: accessibility
 description: Use whenever accessibility (a11y) or WCAG comes up — building, reviewing, remediating, or auditing UI/markup for accessibility, or answering any WCAG 2.2 / WCAG 2.1 question — even when the user does not name WCAG explicitly. Covers success criteria (e.g. 1.1.1, 1.4.3, 2.4.7, 2.5.8), conformance levels A/AA/AAA, sufficient techniques and common failures, the WCAG glossary, and what changed in WCAG 2.2. Reach for it for color/contrast ratios, alt text, ARIA roles/states/attributes, accessible names, roles and labels, keyboard navigation and focus order, focus visible, form labels and errors, headings and landmarks, live regions, screen-reader behavior, semantic HTML, target/touch size, reflow, motion, and Section 508 / EN 301 549 / ADA conformance mapping — before writing, fixing, or citing accessibility requirements. Resolves via `npx @rawwee/wcag-cli <command>` (or global `wcag`).
 ---
 
-# wcag-guidelines — WCAG 2.2 Lookup CLI
+# accessibility — WCAG 2.2 lookup, via the wcag CLI
 
 `@rawwee/wcag-cli` is a standalone CLI over the full WCAG 2.2 dataset — principles → guidelines → success criteria → techniques → glossary, including the Understanding text. Invoke via `npx @rawwee/wcag-cli <command>` (or the global `wcag <command>` if installed globally). Output is markdown, and it costs 0 context tokens until you actually call it.
 
