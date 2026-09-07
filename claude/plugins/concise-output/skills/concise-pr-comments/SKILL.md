@@ -6,7 +6,7 @@ when_to_use: 'Triggers: "leave inline comments", "draft review comments", "post 
 
 # Concise PR Comments
 
-Use this skill when drafting or posting any comment that goes out to other people: PR review comments and replies, PR descriptions, and Azure DevOps / GitHub / Jira work-item and issue comments. The style below is distilled from the user's own review history, match it. What may appear in the comment at all is governed by the `outbound-content` rule.
+Use this skill when drafting or posting any comment that goes out to other people: PR review comments and replies, PR descriptions, and Azure DevOps / GitHub / Jira work-item and issue comments. The style below is distilled from the user's own review history, match it. What may appear in the comment at all is governed by the Outbound content section of the `concise-output` style.
 
 ## Style
 
@@ -33,7 +33,7 @@ These are the patterns that make a comment read bot-written. If a draft has any 
 - Headers, bold, or bullet lists inside an inline comment. Inline comments are prose.
 - Self-summarizing marketing tone: "a clean, backwards-compatible API addition", "net -43 lines". Nobody narrates their own diff like that.
 - Restating the obvious context back at the author before getting to the point.
-- References the reader did not ask for: Figma node links, acceptance-criteria numbers, ticket ids the thread already carries, local paths, branch names. See `outbound-content`.
+- References the reader did not ask for: Figma node links, acceptance-criteria numbers, ticket ids the thread already carries, local paths, branch names. See Outbound content in the `concise-output` style.
 
 ## Examples
 
