@@ -52,6 +52,14 @@
       ],
       "timeout": 120000
     },
+    "computer-use": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "computer-use-mcp"
+      ]
+    },
     "Framelink Figma": {
       "type": "local",
       "command": [

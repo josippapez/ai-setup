@@ -28,5 +28,13 @@
       "chrome-devtools-mcp@latest",
       "--autoConnect"
     ]
+  },
+  "computer-use": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "computer-use-mcp"
+    ]
   }
 }
