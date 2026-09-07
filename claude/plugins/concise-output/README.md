@@ -32,6 +32,24 @@ Frontmatter that matters:
 Output styles reach the main conversation only, not subagents. That matches the rules'
 own agent-to-agent exemption, and hook-injected context never reached subagents either.
 
+## The post-compaction exemplars
+
+`hooks/inject-post-compact-exemplars.cjs` runs on `SessionStart` and exits without output
+unless `source` is `compact`. Then it injects three short specimen question-and-answer
+pairs, on subjects unrelated to any repo, so only the target length and shape transfer.
+
+Compaction leaves the style itself untouched, which is the point of shipping it as an
+output style. What it removes is the session's own short answers. Measured with the
+benchmark's arms N and Q (identical plugins, `/compact` after turn 37, four questions
+re-asked verbatim): without the hook the re-asked answers grew past their originals on all
+four (median 510 chars against a 389 pre-boundary median); with it, three of four came back
+shorter and the median fell to 327. More copies of the rules is not what was missing, and
+re-injection already happens: dev-core's `SessionStart` hook re-fires on the compact source
+and both per-prompt digests keep firing. `PostCompact` is the wrong event here, since it
+carries no `additionalContext`.
+
+There is no OpenCode mirror: this hangs off a Claude Code `SessionStart` source.
+
 ## The per-prompt reminder
 
 `hooks/inject-rules-digest.cjs` restates `rules-digest.md` on every prompt, because the
@@ -45,3 +63,7 @@ copy-identical with the `dev-core` version, which still injects `rules/` at Sess
 ```bash
 node --test claude/plugins/concise-output/output-styles/output-style.test.cjs
 ```
+
+Five tests: the style's frontmatter contract, that the former rules are not double-injected,
+that the style carries both former rules' substance, that the digest points at the full rules,
+and that the exemplar hook stays silent unless the session started from a compaction.

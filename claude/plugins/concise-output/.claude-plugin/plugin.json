@@ -1,7 +1,7 @@
 {
   "name": "concise-output",
-  "version": "0.2.3",
-  "description": "Always-on rules for how output reads: short and plain in anything a person sees, and carrying only what was asked for in anything that leaves the machine. Ships the concise-output output style and the concise-pr-comments skill.",
+  "version": "0.2.4",
+  "description": "Always-on rules for how output reads: short and plain in anything a person sees, and carrying only what was asked for in anything that leaves the machine. Ships the concise-output output style, post-compaction length exemplars, and the concise-pr-comments skill.",
   "author": {
     "name": "Personal AI Setup"
   }

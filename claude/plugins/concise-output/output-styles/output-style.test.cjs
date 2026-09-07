@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 const STYLE = path.join(__dirname, 'concise-output.md');
@@ -31,7 +32,23 @@ test('the rules the style replaced are no longer double-injected as rules/', () 
   assert.ok(!fs.existsSync(path.join(PLUGIN, 'rules')), 'rules/ moved into the output style');
   assert.ok(!fs.existsSync(path.join(PLUGIN, 'hooks', 'inject-rules.cjs')), 'SessionStart rule injection removed');
   const hooks = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks', 'hooks.json'), 'utf8')).hooks;
-  assert.deepStrictEqual(Object.keys(hooks), ['UserPromptSubmit'], 'only the per-prompt digest remains');
+  assert.deepStrictEqual(Object.keys(hooks).sort(), ['SessionStart', 'UserPromptSubmit'],
+    'the per-prompt digest, plus the compact-only exemplars');
+  const cmds = JSON.stringify(hooks.SessionStart);
+  assert.match(cmds, /inject-post-compact-exemplars\.cjs/);
+  assert.doesNotMatch(cmds, /inject-rules\.cjs/, 'rules injection is the output style\'s job now');
+});
+
+test('the exemplar hook speaks only after a compaction', () => {
+  const hook = path.join(PLUGIN, 'hooks', 'inject-post-compact-exemplars.cjs');
+  const run = (source) => execFileSync('node', [hook], { input: JSON.stringify({ source }), encoding: 'utf8' });
+  assert.strictEqual(run('startup').trim(), '', 'silent on a normal session start');
+  assert.strictEqual(run('resume').trim(), '', 'silent on resume');
+  const ctx = JSON.parse(run('compact')).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /^\[length-calibration\]/);
+  // Specimens, not a restatement of the rules: short Q/A pairs the model can measure against.
+  assert.ok(ctx.split('\nQ: ').length - 1 >= 3, 'carries at least three specimen answers');
+  assert.ok(ctx.length < 2000, `exemplars are ${ctx.length} chars; keep them small`);
 });
 
 test('style carries the substance of both former rules', () => {
