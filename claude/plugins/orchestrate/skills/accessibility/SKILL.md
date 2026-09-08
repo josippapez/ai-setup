@@ -1,17 +1,20 @@
 ---
 name: accessibility
-description: 'Use whenever accessibility or a11y work comes up, and for any WCAG question — even when WCAG is never named. Looks up authoritative WCAG 2.2 / 2.1 text with the bundled wcag CLI (`npx @rawwee/wcag-cli`) instead of recalling it from memory: success criteria, conformance levels A/AA/AAA, techniques, common failures, glossary terms. Load it before writing, reviewing, fixing, or citing anything accessibility-related.'
-when_to_use: 'Any accessibility or a11y work, even when WCAG is never named: contrast ratios, alt text, ARIA roles/states/attributes, accessible names, labels, keyboard navigation, focus order, focus visible, form errors, headings, landmarks, live regions, screen readers, semantic HTML, target/touch size, reflow, motion, Section 508 / EN 301 549 / ADA mapping. Direct asks: "wcag cli", "check the wcag", "run wcag", "a11y check", "accessibility audit", "accessibility review", "is this accessible", any criterion number (1.1.1, 1.4.3, 2.4.7, 2.5.8), "what changed in WCAG 2.2". Never guess criterion text, levels, or CLI flags. Not for scanning a live page (drive the browser) or for the repo own a11y conventions.'
+description: 'Use whenever accessibility or a11y work comes up, and for any WCAG question — even when WCAG is never named. Two halves: scan a running page for real violations with the bundled axe-core harness driven through the chrome-devtools MCP, and look up authoritative WCAG 2.2 / 2.1 text with the bundled wcag CLI (`npx @rawwee/wcag-cli`) instead of recalling it from memory. Load it before writing, reviewing, fixing, auditing, or citing anything accessibility-related.'
+when_to_use: 'Any accessibility or a11y work, even when WCAG is never named: contrast ratios, alt text, ARIA roles/states/attributes, accessible names, labels, keyboard navigation, focus order, focus visible, form errors, headings, landmarks, live regions, screen readers, semantic HTML, target/touch size, reflow, motion, Section 508 / EN 301 549 / ADA mapping. Direct asks: "accessibility audit", "accessibility review", "a11y check", "run axe", "is this accessible", "check the focus indicators", "keyboard walk", "wcag cli", "check the wcag", any criterion number (1.1.1, 1.4.3, 2.4.7, 2.5.8), "what changed in WCAG 2.2". Never guess criterion text, levels, or CLI flags. A repo with its own accessibility policy, skill, or PR gate outranks this one — follow that instead.'
 ---
 
-# accessibility — WCAG 2.2 lookup, via the wcag CLI
+# accessibility — scan the page, look up the criterion
 
 `@rawwee/wcag-cli` is a standalone CLI over the full WCAG 2.2 dataset — principles → guidelines → success criteria → techniques → glossary, including the Understanding text. Invoke via `npx @rawwee/wcag-cli <command>` (or the global `wcag <command>` if installed globally). Output is markdown, and it costs 0 context tokens until you actually call it.
 
-This is the WCAG lookup path in this setup — use it instead of recalling criterion text from memory.
+This is the WCAG lookup path in this setup — use it instead of recalling criterion text from memory. Finding real violations in a running page is the other half: see [Scanning a live page](#scanning-a-live-page).
+
+**A repo with its own accessibility policy, skill, or PR gate outranks this file.** Follow that one; this is the fallback for repos that have none.
 
 ## When to use
 
+- You need to find actual violations in a running page — see [Scanning a live page](#scanning-a-live-page)
 - You are about to write or review UI/markup and need to check what a success criterion actually requires
 - You need to cite the correct conformance level (A/AA/AAA) for a criterion
 - You need known techniques or common failures for a criterion
@@ -160,9 +163,90 @@ prints a note to stderr and answers from cache, then bundle.
 `--normative` and `--understanding` need **>= 0.2.0**; `npx` may hold an older
 cached copy, so check `get-server-info` if a flag is rejected.
 
+## Scanning a live page
+
+The CLI cannot find a violation. `scripts/a11y-audit.js`, beside this file, can: it runs axe-core
+over the page and adds a tab-order, accessible-name and focus-indicator probe. It works against any
+web app with no per-repo setup, because axe comes from the CDN rather than the repo's
+`node_modules`. Driven through the chrome-devtools MCP.
+
+Two entry points, and only the second is trusted for focus indicators:
+
+- `window.__a11yAudit()` — screening pass: axe violations, tab order, accessible names, landmarks,
+  headings, plus a programmatic focus probe. That probe **over-reports**, calling controls
+  unindicated that do paint under real keyboard focus.
+- `window.__a11yWalkStart()` / `window.__a11yWalkRead()` — the real-keyboard walk, and the oracle.
+  Never report a "no focus indicator" finding from the screening pass alone.
+
+### The loop
+
+1. **Serve the harness and axe together.** A page cannot load either off the filesystem, so put
+   both behind a local HTTP server, on a port nothing else holds:
+
+   ```bash
+   SKILL=$(ls -dt ~/.claude/plugins/cache/*/dev-core/*/skills/accessibility \
+                  ~/.config/opencode/skills/accessibility 2>/dev/null | head -1)
+   AXE=$(ls -t ~/.claude/plugins/data/dev-core-*/node_modules/axe-core/axe.min.js 2>/dev/null | head -1)
+   PORT=4398
+   lsof -nP -iTCP:$PORT -sTCP:LISTEN            # must print nothing
+   SERVE=$(mktemp -d)
+   ln -s "$SKILL/scripts/a11y-audit.js" "$SERVE/a11y-audit.js"
+   [ -n "$AXE" ] && ln -s "$AXE" "$SERVE/axe.min.js"
+   (cd "$SERVE" && python3 -m http.server $PORT --bind 127.0.0.1 &)
+   curl -sS http://127.0.0.1:$PORT/a11y-audit.js | grep -c __a11yAudit
+   ```
+
+   The port check and the `curl` are not ceremony. A stale server left on that port by earlier work
+   answers happily with a different script, `python3 -m http.server` fails silently into the
+   background when the bind is refused, and the audit then measures something other than what you
+   shipped. Delete `$SERVE` and stop the server when you are done.
+
+   An empty `$AXE` means the plugin's install hook has not run in this session yet; the harness
+   falls back to the same pinned version on the CDN, and says so in `axeFrom`.
+
+2. **Inject it** with `evaluate_script`: append a `<script src="http://127.0.0.1:4398/a11y-audit.js">`
+   and resolve the promise on `onload`. Chrome treats `127.0.0.1` as a trustworthy origin, so this
+   loads into an `https://` page too. Allow a long timeout; the first injection on a slow page can
+   run past a minute.
+
+3. **Screen** with `await window.__a11yAudit()`, returning only the fields you need — the full object
+   is large. Measured: 7.4 s on a 56-control page.
+
+4. **Confirm every negative focus finding** with the walk: `__a11yWalkStart()`, then real `press_key`
+   Tabs, one per control, then `__a11yWalkRead()`. Wait about half a second after the last Tab: each
+   step is recorded on a 350 ms delay, and a read that races it silently drops steps.
+
+5. **Look up** what each violation's criterion actually demands with the CLI above, then report.
+
+### Where axe comes from
+
+`axe.min.js` served next to the harness, which is the plugin's own pinned copy
+(`axe-core` in the plugin `package.json`, installed into the plugin data dir by a SessionStart
+hook). No network needed. If that file is not being served, the harness falls back to the same
+version on jsDelivr.
+
+The result reports both: `axeVersion` is what actually ran, `axeFrom` is where it came from. Trust
+those over the pin, because the harness reuses a `window.axe` that is already on the page and a
+browser extension can put one there.
+
+Two knobs, both set on `window` before the script loads:
+
+- `__A11Y_AXE_URL` — force a specific axe URL, skipping both defaults.
+- `__A11Y_IGNORE` — CSS selector for chrome that is not the product under audit. Defaults to the
+  TanStack Router/Query devtools overlays.
+
+### What it cannot do
+
+- **Log in.** Audit the public routes, then ask the user to log in in the driven browser and carry
+  on. Do not script around the login.
+- **Hear anything.** It reads computed styles and the DOM, not announcements. Screen-reader output
+  needs a real or virtual reader.
+- **Decide.** axe finds a fraction of WCAG failures, and some of what it reports is not a product
+  bug. Read `incomplete` as "look at this", not as a violation.
+
 ## When NOT to use
 
-- **Auditing a live page** — this is a reference dataset, not a scanner. To find actual violations in a running UI, drive the page (Chrome DevTools / Lighthouse) and use this CLI only to look up what the failing criterion requires.
+- **Finding violations in a running UI** — the CLI is a reference dataset, not a scanner. Use the harness in [Scanning a live page](#scanning-a-live-page), then the CLI to look up what each failing criterion requires.
 - **Reading the repo's own a11y conventions** — check the repo's docs/standards first; this CLI is the upstream spec, not local policy.
 - **Section 508 / EN 301 549 / ADA mapping** — the dataset has no such mapping and no command emits one. Both standards incorporate WCAG Level AA by reference, so look up the AA criteria here (`list-success-criteria --level AA`, then `--normative` for each) and be explicit that the legal mapping itself came from you, not from the dataset.
 
