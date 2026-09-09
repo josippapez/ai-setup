@@ -1,7 +1,7 @@
 ---
 name: exhaustive-code-review
 description: 'Review that finishes instead of stopping. Freeze the review surface in a ledger, fan out one subagent per review lane over the whole surface, and require a verdict for every unit so a later re-run cannot surface issues that were sitting there the whole time.'
-when_to_use: 'Any review that has to be complete rather than representative: before a merge or release, on a change you will not get to look at twice, and any time a previous review "finished" and a re-run then found pre-existing problems. Triggers: "exhaustive review", "full review", "review everything", "did you check all of it", "you missed this last time", "review it again properly", "why did the second pass find more", "complete audit of this branch". Use instead of a single-pass review when the diff spans more than a couple of files or the cost of a miss is high. The built-in /code-review is the fast path for a quick look; this is the one that has to come back empty on a re-run.'
+when_to_use: 'Any review that has to be complete rather than representative: before a merge or release, on a change you will not get to look at twice, and any time a previous review "finished" and a re-run then found pre-existing problems. Triggers: "exhaustive review", "full review", "review everything", "did you check all of it", "you missed this last time", "review it again properly", "why did the second pass find more", "complete audit of this branch". Use instead of a single-pass review when the diff spans more than a couple of files or the cost of a miss is high. The built-in /code-review is the fast path for a quick look; this is the one that has to come back empty on a re-run. NEVER start it unasked: it spends six subagents per pass and every pass re-reads the whole surface, so Step 0 is a confirmation gate. On a plain "review this" with no word asking for completeness, run the built-in /code-review and offer this one in a line instead.'
 ---
 
 # exhaustive-code-review
@@ -16,6 +16,56 @@ Three things make it hold:
 1. The surface is **enumerated and frozen before any reviewing**, so "how much is left" is a number.
 2. Lanes run as **separate subagents with their own context**, so no lane gets crowded out by another and no file gets a thinner look for being 40th.
 3. Every unit needs an explicit verdict, **including "checked, clean"**. Silence is treated as uncovered, not as clean.
+
+## What it costs
+
+Thoroughness here is bought with usage, not cleverness, and the bill is real:
+
+- **Six subagents per pass**, one per lane, each reading **every** unit rather than a slice.
+- The re-dispatch of a lane that left cells empty is more reading on top of that.
+- A fix-then-re-review cycle is **another six**, because the fixes moved the code.
+- Cost scales with units, and units grow faster than files: each changed file contributes its
+  hunks, its whole self, and every caller of every symbol it changed.
+
+So it earns its keep on a merge you cannot re-open, and wastes a lot of budget on a diff that
+one careful pass would have covered. It is not the default review, and it is never the review
+you start because a request contained the word "review".
+
+## Step 0 — Confirm before spending
+
+**Ask, every time, before enumerating anything.** The only exception is a user message that
+already named this skill or asked for exhaustive, complete, or full coverage in their own
+words. Even then, say the agent count in one line before you dispatch.
+
+Sizing comes first, because the user cannot judge the price without it. Run
+`git diff --stat <base>...HEAD` and report: files changed, lines changed, and the rough unit
+count. Then put the choice to them with `AskUserQuestion`, offering at least:
+
+| Option | What runs |
+|---|---|
+| **Full six lanes** | The whole skill as written below |
+| **Reduced lanes** | Only the lanes the diff can actually violate (see Cheaper modes) |
+| **Built-in `/code-review`** | One fast pass, no fan-out, no ledger |
+
+If the answer does not come back, do not default to running it. Fall back to the built-in
+review and say that is what you did.
+
+## Cheaper modes
+
+Lanes are defined in Step 2. Dropping lanes is legitimate when the diff cannot violate them. Dropping lanes to save time on
+a diff that *can* violate them is the early stopping this skill exists to prevent, so name the
+lanes you dropped and why in the report.
+
+| Diff shape | Lanes worth running |
+|---|---|
+| Docs, comments, copy only | F alone |
+| Config, CI, dependency bumps | C, D |
+| Pure rename or move | D, F |
+| Test-only change | E, A |
+| Anything touching auth, money, user data, or migrations | All six, no reduction |
+
+Below roughly three units, run the lanes yourself in sequence and still write the ledger. Six
+subagents to read forty lines costs more than they can possibly find.
 
 ## Why the last review stopped early
 
@@ -131,7 +181,7 @@ This is where the original complaint comes from. Fixes move the code, so the sur
 - Do not fix anything during the review. Reviewing and editing in one pass is how the second half of the surface gets skipped.
 - Do not stop on the first serious finding to go discuss it. Finish the grid, then report everything at once.
 - Do not skip lanes because the diff "is only a rename" or "is only config". A rename is lane D's whole job; config is lane C's.
-- Do not fan out on a two-line diff. Below roughly three units, run the lanes yourself in sequence and still write the ledger.
+- Do not fan out on a two-line diff, and do not fan out at all before Step 0 gets an answer.
 
 ## References
 
