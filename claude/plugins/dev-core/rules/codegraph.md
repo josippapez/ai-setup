@@ -20,3 +20,5 @@ Source it returns is the current on-disk source, line-numbered. Treat it as a Re
 Grep remains correct for a literal string sweep and for everything the graph does not index: Markdown, config, generated files.
 
 **No `.codegraph/` directory means the repo is not indexed.** Use the built-in tools and say so if it matters. Do not run `codegraph init` yourself — indexing is the user's decision — **unless a workflow you are running tells you to**. The `orchestrate` and `orchestrate-nightly` skills do exactly that at their Gate, because starting an orchestration is itself the opt-in.
+
+**After a workflow-authorised `codegraph init`, strip `!.gitignore`.** Init writes `.codegraph/.gitignore` holding `*` and `!.gitignore`, which keeps that one file tracked and lands it in the repo. Delete the `!.gitignore` line so the whole `.codegraph/` directory stays untracked. The `*` line remains, so CodeGraph does not regenerate the file on the next init.

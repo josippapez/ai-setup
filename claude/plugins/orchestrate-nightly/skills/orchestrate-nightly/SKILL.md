@@ -44,7 +44,7 @@ Immediately define the absolute skill root:
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph is what makes impact analysis real, and without it every agent silently falls back to grep. Init writes `.codegraph/.gitignore`; confirm it carries `!.gitignore` under its `*` line and add that line if missing, so the ignore rule is itself committable and teammates inherit it rather than seeing an untracked `.codegraph/`. If resuming, go to the Resume rule.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph is what makes impact analysis real, and without it every agent silently falls back to grep. Init writes `.codegraph/.gitignore` holding `*` and `!.gitignore`; delete the `!.gitignore` line so the whole `.codegraph/` directory stays untracked. Keep the `*` line, so CodeGraph does not regenerate the file on a later init. If resuming, go to the Resume rule.
 
 ### 1. Intake
 
