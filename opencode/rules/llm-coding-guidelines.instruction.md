@@ -96,5 +96,6 @@ Fix the underlying cause, not the surface symptom. A patch that only hides the s
 - No symptom-masking: don't swallow errors, wrap a bug in defensive `try/catch`, add retries, sprinkle `?.`/null-guards, bump timeouts, or insert sleeps to paper over a race — unless the root cause is genuinely external and outside your control (say so explicitly).
 - If you can only treat the symptom now, name the real root cause and mark the stopgap with a `debt:` comment (or a follow-up) so it isn't mistaken for a real fix.
 - The fix isn't done until you can explain WHY the bug happened — not just that it stopped reproducing.
+- One cause that fits is not the cause. Before you act on it, rule out the nearest rival — see Gate 3 (rule out before committing) in the always-on `evidence-first` rule, which also covers verifying an option before you recommend it and re-reading state when the user contradicts you.
 
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

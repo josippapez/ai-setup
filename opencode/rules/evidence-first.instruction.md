@@ -1,12 +1,12 @@
 ---
 applyTo: "**"
 name: evidence-first
-description: Two hard gates on evidence - never assert an unverified inference as a finding, and never build anything that does not improve an observed case. Applies to every claim and every change, in any language or task type.
+description: Three hard gates on evidence - never assert an unverified inference as a finding, never build anything that does not improve an observed case, and never commit to a cause or an approach without ruling out its nearest rival. Applies to every claim and every change, in any language or task type.
 ---
 
 # Evidence First
 
-Two gates. Both are cheap to run, both are checkable, and both fail loudly when skipped.
+Three gates. Each is cheap to run, each is checkable, and each fails loudly when skipped.
 
 They are deliberately kept out of the longer coding guidelines: these get skipped precisely when buried, and they apply to far more than code — research answers, analysis, reviews, and recommendations included.
 
@@ -27,6 +27,7 @@ Claims about how specific code behaves, what changing it would break, or how ris
 - Applies symmetrically to "this is safe" and "this is risky" — but the consequences are not symmetric. An **overstated risk talks the user out of good work and no test ever catches it**; an understated one usually surfaces in review. Unverified caution is not the safe default.
 - Scope a claim to what you actually checked. If one stage of a plan is risky, name that stage — don't attach the risk to the whole approach.
 - When correcting an earlier wrong claim, ground the replacement too. A confident correction that is also unverified just repeats the failure in the other direction.
+- **Verify along the path the user actually triggers.** A fix exercised by hand, in isolation, or on a happy path is verified for *that* path only. Before calling it done, run it the way it will really be invoked — same entry point, same caller, same timing, same repeat presses — or say plainly which path you did not exercise.
 
 > Worked example. Asserted that changing a screen's render path "carries real regression risk on focus restoration" — without ever opening the render function. Reading it later showed the opposite: the screen destroyed its DOM on every render, and the ~20 focus-restore call sites existed *because* of that. The proposed change removed the reason they had to run. The claim wasn't just unverified, it was backwards, and it argued against a change that was both valuable and de-risking.
 
@@ -60,6 +61,22 @@ When something looks genuinely worth doing but has no observed case yet, **repor
 
 ---
 
-These gates are working if: assessments the user acts on trace back to something actually opened or run, and every shipped change can name the observation that justified it.
+## Gate 3 — Rule out before committing
+
+**Before you act on a cause, or recommend an approach, name its nearest rival and say what rules that rival out.**
+
+Gate 1 makes you verify the candidate you picked. It is fully satisfied by confirming the first thing that fit, which is how a verified, well-evidenced, wrong answer gets shipped. This gate is about the candidates you never wrote down.
+
+- **One candidate is not a diagnosis.** The first explanation that fits the symptom is a lead. Before acting on it, name at least the layer above where it surfaced and the path you did not take, and say what each is ruled out by. "It's the only thing I found" is not ruling out.
+- **Check the option before you offer it.** A recommendation you have not tested for feasibility is a guess with a preference attached. If a cheap check would show the option cannot work — a timing, a version, an API that does not exist — run it **before** the user spends a decision on it, not after they approve.
+- **When the user contradicts you, re-read the state before you explain.** A reply that opens by telling the user they have conflated two things, when you have not re-checked the system since they last changed it, is the single most expensive way to be wrong. Re-read first. If they are right, they just handed you the finding.
+- **Three failed attempts means the model is wrong, not the fix.** After the third attempt at one problem, stop fixing and re-derive the cause from scratch. Ship the fourth attempt only after the earlier three are explained.
+- **Scope.** Skip this when the action is cheap to retry and cheap to reverse. Run it when the change is hard to reverse, ships to someone else, costs the user a test cycle on real hardware or real data, when the symptom appeared a layer away from where you found the cause, or when a previous fix in this area did not hold.
+
+> Worked example. Asked to fix a toggle that hung, offered two designs, recommended the first, and got approval for it. Only then did checking the timing show that design could never work: the boot hook runs about a minute after boot, while the service it had to precede reads its config within ~11 seconds. The check cost one command and would have cost nothing before the recommendation; after it, it cost the user a decision they had to take back.
+
+---
+
+These gates are working if: assessments the user acts on trace back to something actually opened or run, every shipped change can name the observation that justified it, and every diagnosis names what else it could have been.
 
 See also: `external-facts` (the out-of-repo half of Gate 1 — fetch it, don't recall it), and `llm-coding-guidelines` (§2 simplicity/YAGNI, §5 root cause) for the coding-specific application of the same instincts.
