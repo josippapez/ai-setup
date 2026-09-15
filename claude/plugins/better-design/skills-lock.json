@@ -1,0 +1,381 @@
+{
+  "$comment": "Source manifest AND lock for the vendored skills under skills/. Add an entry (without `commit`/`files`) and run `node scripts/sync-skills.mjs` to vendor it; the script fills in the resolved commit and per-file sha256. Run with --check in CI or before committing to see upstream drift.",
+  "version": 2,
+  "skills": {
+    "animation-systems": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/animation-systems",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "ae1e51b8eede6f4d05fda5388f61bbc1d29ea88b7a5d7a488c3ecfed5f18e262"
+      }
+    },
+    "apple-design": {
+      "repo": "emilkowalski/skills",
+      "ref": "main",
+      "dir": "skills/apple-design",
+      "commit": "d23d7f88a2e21c9e4b1418c7abe420f5c1052ba7",
+      "files": {
+        "SKILL.md": "11840b24a11d7f94f39c6aaab074750ae4e4de4ef54ee4b1dd97e16ebd485e61"
+      }
+    },
+    "atmosphere-background": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/atmosphere-background",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "ded4a155cf5676f2aab3f1873634e08766ad31aa6ae1107e5a29c114dc1cf213"
+      }
+    },
+    "audit-ai-design-slop": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/ui/audit-ai-design-slop",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "0a880d009eed16c04491f3a1333e5e3c093e73fa4029923633ab1c3e7fbcbe2f",
+        "SKILL.md": "91e1e68e624d911fd66f672db5930484c6d024ba1834bb837acc3af4e14601ca"
+      }
+    },
+    "baseline-ui": {
+      "repo": "ibelick/ui-skills",
+      "ref": "main",
+      "dir": "skills/baseline-ui",
+      "commit": "c5bcd86450b3582ba25204c622b9213b07464938",
+      "files": {
+        "SKILL.md": "fea3322f36d58fdafafce2aef56e4556dd2ac7b20876b7dff7d8be7f25fa597f"
+      }
+    },
+    "beautiful-shadows": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/beautiful-shadows",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "10b6cc0964919118218ffe0845e4a00954f39788d89d4ec29827d100f254e135"
+      }
+    },
+    "build-awwwards-quality-sites": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/build-awwwards-quality-sites",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "1568e003d112e72df0ea2ec925829a5039b762c27174e063c192d7ccf7f4f9e6"
+      }
+    },
+    "cinematic-gsap-lenis-motion-system": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/cinematic-gsap-lenis-motion-system",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "0f4bf70304d3011b22b4f06a27cc13b006a92212857b010850126b2ee50e9c3c",
+        "SKILL.md": "7b8f5745f34ef4ba507e19fabd6acf9cd3b8d70efda81746d0f4090af0f84e06"
+      }
+    },
+    "cinematic-scroll-storytelling": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/cinematic-scroll-storytelling",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "3081cc44be9af770a61db6db13c6cd0d73f650caecd9ac7ac10bc70866705d2b",
+        "SKILL.md": "3e203d1a38917004396f07b5887418e9e13dc832506754f5a4ad6303525b1572"
+      }
+    },
+    "container-lines": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/container-lines",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "b2eb19356c14c034d8e077452ede319835b841b7aa046ec3cd0a4460cc7911b6"
+      }
+    },
+    "css-border-gradient": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/css-border-gradient",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "6c5e1924a7ec55044aca52801cd30efb06cb922fa47e4c4b85d16b39471c922a"
+      }
+    },
+    "editorial-portfolio-chapters": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/editorial-portfolio-chapters",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "ARTICLE.md": "8a8f5895b6df25810f09e58f8d3100a099acec0b129cafca6e67c38e28f7a256",
+        "REFERENCES.md": "00b5d9e1c573197518f15afd475afb489d5855e1b05e84da5d247ec4356c2c23",
+        "SKILL.md": "763b2eb851228aee7af65914b2f45f062677e03a17f8d2dd50441bdd733b5d8e"
+      }
+    },
+    "emil-design-eng": {
+      "repo": "emilkowalski/skills",
+      "ref": "main",
+      "dir": "skills/emil-design-eng",
+      "commit": "d23d7f88a2e21c9e4b1418c7abe420f5c1052ba7",
+      "files": {
+        "SKILL.md": "e71de849347050c2c573c1cf24d742d5a13459557ecffa6e562f08006f46b5b7"
+      }
+    },
+    "find-animation-opportunities": {
+      "repo": "emilkowalski/skills",
+      "ref": "main",
+      "dir": "skills/find-animation-opportunities",
+      "commit": "d23d7f88a2e21c9e4b1418c7abe420f5c1052ba7",
+      "files": {
+        "SKILL.md": "91c1243164057fbf824088d12faea937878a757a7ac653e8288b775e8b27b882"
+      }
+    },
+    "globe-particles": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/globe-particles",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "b29b372a1790954ea97746dc1ca62d82cc605c00ba4b88d95c3a1f0dcba4e171"
+      }
+    },
+    "gsap": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/gsap",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "d6ad0e2552a4c4b6b6d27f7722c20b36653a9836335523ebe50eaf3a59fde40d",
+        "SKILL.md": "eb9a0a84f0747fa19ce693cf776328945aebee1205ddc42c518c133c2ab6cb42"
+      }
+    },
+    "gsap-core": {
+      "repo": "greensock/gsap-skills",
+      "ref": "main",
+      "dir": "skills/gsap-core",
+      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+      "files": {
+        "SKILL.md": "3887b47e050ab5afbe2a9a820f23d39fa02ab785e06a343be44c6f91d84d12b3"
+      }
+    },
+    "gsap-performance": {
+      "repo": "greensock/gsap-skills",
+      "ref": "main",
+      "dir": "skills/gsap-performance",
+      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+      "files": {
+        "SKILL.md": "cb5408d6fba707aabcbfe3320317a14c1f8fca6070074e5261047930f50d441e"
+      }
+    },
+    "gsap-react": {
+      "repo": "greensock/gsap-skills",
+      "ref": "main",
+      "dir": "skills/gsap-react",
+      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+      "files": {
+        "SKILL.md": "88e2a5312b45e8cc7b3c496637ff5bc9af2ae9c925b555c8b235b34cbc989d74"
+      }
+    },
+    "gsap-scrolltrigger": {
+      "repo": "greensock/gsap-skills",
+      "ref": "main",
+      "dir": "skills/gsap-scrolltrigger",
+      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+      "files": {
+        "SKILL.md": "9351b6666a4749c0740406ea363aaccb99a087ff45cc5e8b99a0f367facf3ef4"
+      }
+    },
+    "gsap-scrolltrigger-storytelling": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/gsap-scrolltrigger-storytelling",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "c388738853064f4bbb4293b910efc0fb82f957298a49c94214c2522b138ae939"
+      }
+    },
+    "gsap-timeline": {
+      "repo": "greensock/gsap-skills",
+      "ref": "main",
+      "dir": "skills/gsap-timeline",
+      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+      "files": {
+        "SKILL.md": "1a8b0f39cc4be3ed3d834b89672e4ae2f151b901dc3450bebf10bbc45379fe02"
+      }
+    },
+    "image-first-grid-layout": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/image-first-grid-layout",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "76aa7e263f9c5b81920622c6c9e175a09eef10bf3d8c11a7d3edf5c95fe58abf"
+      }
+    },
+    "improve-ui": {
+      "repo": "ibelick/ui-skills",
+      "ref": "main",
+      "dir": "skills/improve-ui",
+      "commit": "c5bcd86450b3582ba25204c622b9213b07464938",
+      "files": {
+        "SKILL.md": "fa2ac808f6d9dab7bb3620880b014d2c18e227e5b006102856038096e573e69a",
+        "references/plan-template.md": "8faca7a14659a7f951d3b89fb730a43a4ce99966cc00481bf83d82b90f34b868"
+      }
+    },
+    "make-interfaces-feel-better": {
+      "repo": "jakubkrehel/make-interfaces-feel-better",
+      "ref": "main",
+      "dir": "skills/make-interfaces-feel-better",
+      "commit": "35545ea1512ad59fa463e6b1f95ca9c052981fe6",
+      "files": {
+        "SKILL.md": "c1d508fa7bef8e47ee682b4f214c7a4ed1416b91d05a97285e555bad1c41a23e",
+        "animations.md": "248ad6d995b4a80038c7fec2ec2c4761fdad49738aca070bd3ca727e19a5f2c8",
+        "icons.md": "746601dcf81a322c8ba5cc5730f991496dd94dc63279bc363f781666f84fa6b0",
+        "performance.md": "f1e8b9f22de1081d1d22cd2923fdec4441ff6192082dc6988435310635e76e8f",
+        "surfaces.md": "36d7845774eb331d9889112c5339c80bbe72a342c61dd941372e5e168b9ebf45",
+        "typography.md": "518cae9f0d48d48081cd87739993d76e145c0fe2394bb9f95cbde2b003c44549"
+      }
+    },
+    "masked-reveal": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/masked-reveal",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "a3e4fb96f6092ac382530db24fdd15da559e959c5b7e02d0503918c1358dcf03"
+      }
+    },
+    "no-ai-design-slop": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/ui/no-ai-design-slop",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "ARTICLE.md": "e53853cf0eadba1cac1e3095d942cfaa07eee133884f8028159bc650833beec7",
+        "REFERENCES.md": "0a880d009eed16c04491f3a1333e5e3c093e73fa4029923633ab1c3e7fbcbe2f",
+        "SKILL.md": "a433154b01f99eed1f0c0744cee557451c898253dd7abc5f1921f234ff592998"
+      }
+    },
+    "optimize-web-animations": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/codex/optimize-web-animations",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "37a8f512bb22a4f2112e4ed388068c0cd184d312d64ee00a993da5bf04ded947",
+        "references/browser-profiling.md": "69df1bc96bdd4ee2d149527b7fce4065801b83afff33b5b70a2d654bb300f53d"
+      }
+    },
+    "progressive-blur": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/progressive-blur",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "202004db5ff37fb8add044cf00288d984c9a680c2fb07e4bb2dacc3df90ac2a1"
+      }
+    },
+    "scroll-scrubbed-word-reveal": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/scroll-scrubbed-word-reveal",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "c781bb17a4aafa1314f1152ab38b290eddf33de89e7b9ca5de87d6622fe418b8",
+        "SKILL.md": "40b48acaf16b5da6413b48d70f064c488c7bb33252bb934b743450f4f11b537e"
+      }
+    },
+    "staggered-word-reveal": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/staggered-word-reveal",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "79061529376810788b1d824e0f16a18c048d1c426d6909442888c9507ead08c9"
+      }
+    },
+    "stitched-full-page-capture": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/codex/stitched-full-page-capture",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "SKILL.md": "0ff78c19ffd8162e4cb3c44d5e225ab570c55082d2098a73ffb7dad8d295ed01"
+      }
+    },
+    "threejs": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/threejs",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "b4025d3e5a5ce293131229ca01329be5a676af4e3c53b61f3778e83eb454b33f",
+        "SKILL.md": "e6ebd6e0354b7d05fbfb87a63403b6c2a8c62450f86ff7a9316d55283d586813"
+      }
+    },
+    "threejs-geometry": {
+      "repo": "CloudAI-X/threejs-skills",
+      "ref": "main",
+      "dir": "skills/threejs-geometry",
+      "commit": "b1c623076c661fc9b03dac19292e825a5d106823",
+      "files": {
+        "SKILL.md": "8337bcf86621411f54ef39727b338c84890815e4b3612ce635d593dd9c321a3e"
+      }
+    },
+    "threejs-lighting": {
+      "repo": "CloudAI-X/threejs-skills",
+      "ref": "main",
+      "dir": "skills/threejs-lighting",
+      "commit": "b1c623076c661fc9b03dac19292e825a5d106823",
+      "files": {
+        "SKILL.md": "777875f7d6a75219d009ac69310772236231eec7cb57287c0509bb53e994af9d"
+      }
+    },
+    "threejs-materials": {
+      "repo": "CloudAI-X/threejs-skills",
+      "ref": "main",
+      "dir": "skills/threejs-materials",
+      "commit": "b1c623076c661fc9b03dac19292e825a5d106823",
+      "files": {
+        "SKILL.md": "d5846d1b8254b903eacb3014486efbe331101518604b451098fd31989c3e7fe7"
+      }
+    },
+    "threejs-shaders": {
+      "repo": "CloudAI-X/threejs-skills",
+      "ref": "main",
+      "dir": "skills/threejs-shaders",
+      "commit": "b1c623076c661fc9b03dac19292e825a5d106823",
+      "files": {
+        "SKILL.md": "6702267bd3ee70d458b54078211db36b1c3738c3faa0570e88e33dceaf478a4d"
+      }
+    },
+    "web-interface-guidelines": {
+      "repo": "vercel-labs/web-interface-guidelines",
+      "ref": "main",
+      "rename": {
+        "command.md": "SKILL.md"
+      },
+      "only": [
+        "command.md"
+      ],
+      "transform": "command-to-skill",
+      "commit": "e3d624baaf29dc1fc645aff3e38f03e564d2d6b1",
+      "files": {
+        "SKILL.md": "2b1a12dc177fbb2cadfe69dbb3c751c9e2b7ebafe6d12a76c3cf5e21bb82991f"
+      }
+    },
+    "webgl-landing-steering": {
+      "repo": "MengTo/Skills",
+      "ref": "main",
+      "dir": "agent-skills/web-design/webgl-landing-steering",
+      "commit": "321c769739b823de5eb94eb3a52aa1974fe783a2",
+      "files": {
+        "REFERENCES.md": "0db35f710352de6d5090d40af3b0cbd200c7ad06ef0335a5172869989e7bea46",
+        "SKILL.md": "a5310ca2912c1c5ae8eb38f14284e5876da88bdbb9ee8034838aafba462a5127"
+      }
+    }
+  }
+}

@@ -67,7 +67,8 @@
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-hud@claude-hud": true,
-    "orchestrate-nightly@ai-setup": true
+    "orchestrate-nightly@ai-setup": true,
+    "better-design@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {
