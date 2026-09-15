@@ -59,6 +59,7 @@
   "enabledPlugins": {
     "dev-core@ai-setup": true,
     "concise-output@ai-setup": true,
+    "rules-index@ai-setup": true,
     "orchestrate@ai-setup": true,
     "superpowers@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
