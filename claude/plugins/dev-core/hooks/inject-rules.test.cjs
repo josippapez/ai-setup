@@ -178,7 +178,9 @@ test('every shard stays under the cap for SubagentStart too', () => {
 
 test('hooks.json registers the rules for both audiences, with equal shard capacity', () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8')).hooks;
-  const commands = (event) => hooks[event].flatMap((g) => g.hooks.map((h) => h.command));
+  // SessionStart also carries the dependency-install hook; only the shard slots matter here.
+  const commands = (event) =>
+    hooks[event].flatMap((g) => g.hooks.map((h) => h.command)).filter((c) => c.includes('inject-rules.cjs'));
   const session = commands('SessionStart');
   const subagent = commands('SubagentStart');
   assert.strictEqual(session.length, subagent.length, 'both events need the same number of shard slots');
@@ -189,7 +191,7 @@ test('hooks.json registers the rules for both audiences, with equal shard capaci
 test('the shipped rules fit the registered shard slots', () => {
   const root = path.join(__dirname, '..');
   const slots = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8'))
-    .hooks.SessionStart.length;
+    .hooks.SubagentStart.length;
   assert.strictEqual(runShard(root, slots - 1, 'SessionStart'), null,
     `rules now need every one of the ${slots} slots; add more before adding rules`);
 });

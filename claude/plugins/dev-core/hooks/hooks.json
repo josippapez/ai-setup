@@ -40,38 +40,6 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 3"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 4"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 5"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 6"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 7"
-          }
-        ]
       }
     ],
     "SubagentStart": [
@@ -106,38 +74,6 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 3 SubagentStart"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 4 SubagentStart"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 5 SubagentStart"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 6 SubagentStart"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 7 SubagentStart"
-          }
-        ]
       }
     ],
     "UserPromptSubmit": [
@@ -146,6 +82,61 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules-digest.cjs\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" writing-code"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" reading-libraries '(^|[^\\w.-])(node_modules|\\.opensrc)/'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" writing-code '(^|[\\s;&|])(sed\\s+-i|tee)\\b|>>?\\s*(?!/dev/|/tmp/)[^\\s&|>]+\\.[A-Za-z0-9]{1,6}(\\s|$)'"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching '(^|[\\s;&|])(grep|rg|ag|find|codegraph)\\b'"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" reading-libraries '(^|[^\\w.-])(node_modules|\\.opensrc)/'"
+          },
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" git-commit '(^|[\\s;&|])git\\s+commit\\b'"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/git-mv-guard.cjs\""
           }
         ]
       }

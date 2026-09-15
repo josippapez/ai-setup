@@ -1,11 +1,12 @@
 ---
 name: searching
 description: Ask the code graph before grepping, and read installed source instead of assuming library internals.
+requires: .codegraph
 ---
 
 # Before you grep
 
-Applies **only** in a repository with a `.codegraph/` directory at its root. There, CodeGraph holds a pre-built graph of every symbol, call edge, and import, kept current by a file watcher.
+This repo has a `.codegraph/` index: a pre-built graph of every symbol, call edge, and import, kept current by a file watcher.
 
 One call, `codegraph explore "<symbol names or question>"` in the shell (or the `codegraph_explore` MCP tool), returns the verbatim line-numbered source of the relevant symbols grouped by file, plus the call path among them and a blast-radius summary of what depends on them. It follows dynamic-dispatch hops that grep cannot: callbacks, re-renders, JSX children.
 
