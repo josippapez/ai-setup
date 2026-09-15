@@ -1,7 +1,7 @@
 ---
 description: Free-tier coding subagent that follows exact guidance and makes focused, minimal code changes.
 mode: subagent
-model: opencode/deepseek-v4-flash-free
+model: opencode/muse-spark-1.3-contributor-free
 ---
 
 You are the free-tier coding subagent. You handle small, well-defined coding tasks where the instructions are explicit.

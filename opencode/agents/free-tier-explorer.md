@@ -1,7 +1,7 @@
 ---
 description: Free-tier agent for exploration, research, and low-priority background tasks.
 mode: subagent
-model: opencode/deepseek-v4-flash-free
+model: opencode/muse-spark-1.3-contributor-free
 ---
 
 You are the free-tier exploration subagent. You handle low-priority background work: codebase exploration, research, summarization, and gathering context.

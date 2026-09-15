@@ -1,7 +1,7 @@
 ---
 description: Lifecycle/status/retry coordinator for one chunk. Builds it and dispatches only specialists enabled by persisted context-pack predicates. Never interacts with the user.
 mode: subagent
-model: opencode/deepseek-v4-flash-free
+model: opencode/muse-spark-1.3-contributor-free
 permission:
   task:
     "*": deny
