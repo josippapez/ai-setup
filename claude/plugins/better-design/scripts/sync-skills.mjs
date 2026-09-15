@@ -3,7 +3,12 @@
 // into skills/, and records the resolved commit plus a sha256 per file so a
 // later run can tell "upstream changed" from "we edited it locally".
 //
-//   node scripts/sync-skills.mjs            # fetch + write skills/ + update the lock
+// It writes the OpenCode mirror (opencode/skills/) from the same fetch rather
+// than leaving it to a hand copy: every existing hand-ported skill has drifted
+// from its Claude source, and OpenCode reads the same name/description/license
+// frontmatter, so there is nothing to port.
+//
+//   node scripts/sync-skills.mjs            # fetch + write both trees + update the lock
 //   node scripts/sync-skills.mjs --check    # report drift, write nothing, exit 1 if any
 //
 // GITHUB_TOKEN is used when set; the unauthenticated API allows 60 requests/hour.
@@ -15,7 +20,11 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const lockPath = join(root, "skills-lock.json");
-const skillsDir = join(root, "skills");
+// Both trees get the identical files. root is claude/plugins/better-design.
+const targets = [
+  join(root, "skills"),
+  resolve(root, "../../../opencode/skills"),
+];
 const check = process.argv.includes("--check");
 
 const headers = {
@@ -29,6 +38,12 @@ const headers = {
 const DEFAULT_EXCLUDE = ["demo/", "agents/"];
 
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
+
+// Compared as strings, so both sides must agree on key order. Default sort, not
+// localeCompare: the two disagree on "SKILL.md" vs "animations.md" and reported
+// identical trees as drifted.
+const canon = (map) =>
+  JSON.stringify(Object.fromEntries(Object.entries(map).sort(([a], [b]) => (a < b ? -1 : 1))));
 
 async function api(url) {
   const response = await fetch(url, { headers });
@@ -59,10 +74,10 @@ function commandToSkill(text, name) {
 
 const transforms = { "command-to-skill": commandToSkill };
 
-/** Every tracked file under skills/<name>, repo-relative, sorted. */
-async function listVendored(name) {
-  const base = join(skillsDir, name);
-  const out = [];
+/** Path -> sha256 for everything currently under <target>/<name>. */
+async function hashTree(target, name) {
+  const base = join(target, name);
+  const out = {};
   async function walk(dir) {
     let entries;
     try {
@@ -73,11 +88,11 @@ async function listVendored(name) {
     for (const entry of entries) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) await walk(full);
-      else out.push(relative(base, full));
+      else out[relative(base, full)] = sha256(await readFile(full, "utf8"));
     }
   }
   await walk(base);
-  return out.sort();
+  return out;
 }
 
 // One commit lookup and one tree listing per repo, not per skill: 39 skills
@@ -144,16 +159,9 @@ for (const name of names) {
   const entry = lock.skills[name];
   const { commit, files, contents } = await syncSkill(name, entry);
 
-  const local = Object.fromEntries(
-    await Promise.all(
-      (await listVendored(name)).map(async (path) => [
-        path,
-        sha256(await readFile(join(skillsDir, name, path), "utf8")),
-      ]),
-    ),
-  );
-  const changed =
-    JSON.stringify(local) !== JSON.stringify(files) || entry.commit !== commit;
+  const want = canon(files);
+  const trees = await Promise.all(targets.map((target) => hashTree(target, name)));
+  const changed = trees.some((tree) => canon(tree) !== want) || entry.commit !== commit;
 
   if (check) {
     if (changed) drift.push(name);
@@ -161,11 +169,13 @@ for (const name of names) {
     continue;
   }
 
-  await rm(join(skillsDir, name), { recursive: true, force: true });
-  for (const [path, text] of contents) {
-    const target = join(skillsDir, name, path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, text);
+  for (const target of targets) {
+    await rm(join(target, name), { recursive: true, force: true });
+    for (const [path, text] of contents) {
+      const file = join(target, name, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, text);
+    }
   }
   entry.commit = commit;
   entry.files = files;
@@ -178,4 +188,6 @@ if (check) {
 }
 
 await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
-console.log(`\nWrote ${names.length} skill(s) and updated skills-lock.json.`);
+console.log(
+  `\nWrote ${names.length} skill(s) to ${targets.length} tree(s) and updated skills-lock.json.`,
+);

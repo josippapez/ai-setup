@@ -36,9 +36,15 @@ UI review skills, GreenSock's official GSAP skills, and MengTo's shadow and grad
 directory; the sync script fills in the resolved `commit` and a sha256 per vendored file.
 
 ```bash
-node scripts/sync-skills.mjs            # re-fetch everything, rewrite skills/, update the lock
+node scripts/sync-skills.mjs            # re-fetch everything, rewrite both trees, update the lock
 node scripts/sync-skills.mjs --check    # report drift only, exit 1 if anything moved
 ```
+
+Both trees means `skills/` here and the OpenCode mirror at `opencode/skills/`, written from the same
+fetch. OpenCode reads the same `name` / `description` / `license` frontmatter, so the files are
+byte-identical and there is nothing to port; `--check` fails if either tree stops matching. The
+other skills under `opencode/skills/` are hand-ported and have drifted from their Claude sources —
+these 39 are kept out of that by construction.
 
 Add a skill by appending an entry (repo, ref, dir) and running the script. It vendors markdown only:
 upstream folders also carry `demo/` pages with multi-megabyte images and `agents/openai.yaml` files
