@@ -98,17 +98,5 @@
         "CODEGRAPH_TELEMETRY": "0"
       }
     }
-  },
-  "agent": {
-    "build": {
-      "permission": {
-        "interactive_*": "deny"
-      }
-    },
-    "plan": {
-      "permission": {
-        "interactive_*": "deny"
-      }
-    }
   }
 }
