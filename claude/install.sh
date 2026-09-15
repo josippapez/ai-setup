@@ -29,6 +29,18 @@ cp "$SRC/RTK.md" "$DEST/RTK.md"
 # scope in ~/.claude.json, never in this file.
 cp "$SRC/settings.json" "$DEST/settings.json"
 
+# Copy config for third-party plugins installed from their own marketplaces. These live
+# under ~/.claude/plugins/<name>/, which the plugin installer does not manage, so without
+# this a reinstall leaves the machine on whatever config it happened to have. Source-owned
+# and overwritten, same as settings.json: edit it here, not with the plugin's own
+# /configure command, or the next install reverts it.
+for d in "$SRC"/plugin-config/*/; do
+  [ -d "$d" ] || continue
+  name="$(basename "$d")"
+  mkdir -p "$DEST/plugins/$name"
+  cp -R "$d." "$DEST/plugins/$name/"
+done
+
 # Copy hook scripts referenced by settings.json (format-lint-edited-files).
 # Their *.test.mjs siblings stay in the repo — settings.json never runs them.
 for f in "$SRC"/hooks/scripts/*.mjs; do
@@ -116,6 +128,7 @@ rm -f "$DEST/rules/llm-coding-guidelines.instruction.md" "$DEST/rules/opensrc.md
 
 echo "Installed Claude config to $DEST:"
 echo "  - CLAUDE.md, RTK.md, settings.json"
+echo "  - plugin-config/ (claude-hud)"
 echo "  - skills/, agents/"
 if have claude; then
   echo "  - dev-core@ai-setup plugin (marketplace + deps)"

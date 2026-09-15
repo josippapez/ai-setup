@@ -1,0 +1,63 @@
+{
+  "display": {
+    "showTools": true,
+    "showAgents": true,
+    "showTodos": true,
+    "showDuration": true,
+    "showConfigCounts": true,
+    "showSessionName": true,
+    "showEffortLevel": true,
+    "showContextBar": true,
+    "showMemoryUsage": true,
+    "showPromptCache": true,
+    "promptCacheTtlSeconds": 3600,
+    "showCost": true,
+    "showMcp": true,
+    "showSkills": true,
+    "showSpeed": true,
+    "sevenDayThreshold": 0,
+    "mergeGroups": [
+      [
+        "context",
+        "usage",
+        "memory"
+      ],
+      [
+        "skills",
+        "mcp"
+      ]
+    ],
+    "showUsage": true,
+    "showTokenBreakdown": true,
+    "showSessionTokens": true,
+    "showCompactions": true
+  },
+  "elementOrder": [
+    "project",
+    "addedDirs",
+    "context",
+    "usage",
+    "memory",
+    "promptCache",
+    "environment",
+    "tools",
+    "skills",
+    "mcp",
+    "agents",
+    "todos",
+    "sessionTime"
+  ],
+  "pathLevels": "full",
+  "projectLineOrder": [
+    "project",
+    "model"
+  ],
+  "gitStatus": {
+    "enabled": true,
+    "showDirty": true,
+    "showAheadBehind": true,
+    "showFileStats": false
+  },
+  "lineLayout": "expanded",
+  "showSeparators": false
+}
