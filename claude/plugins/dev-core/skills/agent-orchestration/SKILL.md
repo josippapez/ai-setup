@@ -25,8 +25,15 @@ one carve-out below.
 
    Progress, findings, and scope changes still come back to the orchestrator
    rather than going to the user.
-2. For mapped domains or clearly delegable work, the main agent MUST delegate
-   unless the change is truly trivial.
+2. **Delegation is gated before this skill applies.** Claude Code's own default
+   is not to spawn subagents unless the user, a CLAUDE.md, or a skill calls for
+   it, and that gate wins: this skill decides *how* to delegate once something
+   has opened the gate, not *that* you should. The gate is open when the user
+   asks for it, when a workflow or skill you are running dispatches agents, or
+   when the work is a read-heavy fan-out whose file dumps you do not need.
+   With the gate open and a mapped domain or clearly delegable chunk in front
+   of you, delegate rather than grinding through it inline, unless the change
+   is truly trivial.
 3. Delegation prompts MUST include a full context pack in one message:
    objective, scope, constraints, validation commands, and handoff format (see
    Context forwarding — subagents do NOT inherit the main session's context).
@@ -190,10 +197,25 @@ agent's frontmatter `model` is only a fallback default.
 
 **Domain specialists:**
 
+- `frontend-specialist` (sonnet) — UI components and frontend refactors, with
+  design-system reuse, accessibility, and i18n as defaults.
+- `test-specialist` (sonnet) — new tests, test refactors, flaky-test
+  stabilization.
+- `infrastructure-specialist` (sonnet) — build, CI, and deploy config.
+  Containers go to `dockerfile-specialist` instead.
+- `dockerfile-specialist` (sonnet) — Dockerfile and image hardening, base-image
+  and digest pinning, compose validation.
+- `figma-layout-token-analyst` (sonnet) — read-only Figma analysis: layout
+  intent and design-value-to-token mapping, before building UI from a design.
+- `wcag-a11y-aa-specialist` (sonnet) — WCAG 2.2 A/AA audit and remediation.
 - `docs-maintainer` (sonnet) — keep owning docs/rules/skills aligned with changes.
 - `self-improve-specialist` (sonnet) — durable behavior/guidance changes across
   rules + skills.
-- `wcag-a11y-aa-specialist` (sonnet) — WCAG 2.2 A/AA audit and remediation.
+
+`test-specialist` and `docs-maintainer` also exist under the `orchestrate` and
+`orchestrate-nightly` plugins with the same short name and a narrower,
+workflow-bound brief. Outside one of those workflows, dispatch the `dev-core:`
+one.
 
 The `orchestrate` plugin's workflow skill is authoritative for its specialists: precomputed non-empty slices dispatch standards/quality/docs gates, solution-reuse research is conditional and pre-worker, and implementation-quality review blocks only substantive source changes. Empty predicates are recorded skips, never fabricated passes.
 
@@ -204,4 +226,4 @@ questions) — plus any skill surfaced via skill-discovery.
 
 ## References
 
-- `agent-guidance-authoring` skill — authoring/maintaining this guidance.
+- `self-improve` skill — authoring/maintaining this guidance.
