@@ -8,7 +8,7 @@
       "-t",
       "1200",
       "--disable-tools",
-      "message_complete_notification"
+      "message_complete_notification,intensive_chat"
     ],
     "timeout": 1210000
   },
