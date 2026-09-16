@@ -75,4 +75,16 @@ These tools are registered by the `repo-docs` plugin in `~/.config/opencode/plug
 - `agents/free-tier-coder.md`
 - `agents/free-tier-maintainer.md`
 - `agents/free-tier-explorer.md`
+
+Domain specialists:
+
+- `agents/frontend-specialist.md` — UI components and frontend refactors.
+- `agents/test-specialist.md` — new tests, refactors, flaky-test stabilization.
+- `agents/infrastructure-specialist.md` — build, CI, deploy config.
+- `agents/dockerfile-specialist.md` — Dockerfile and image hardening.
+- `agents/figma-layout-token-analyst.md` — read-only Figma layout and token analysis.
+- `agents/wcag-a11y-aa-specialist.md` — WCAG 2.2 A/AA audit and remediation.
+- `agents/docs-maintainer.md` — keep owning docs/rules/skills aligned.
+- `agents/self-improve-specialist.md` — durable guidance changes across rules + skills.
+
 - `skills/orchestrate/SKILL.md` — authoritative specialist routing predicates.

@@ -91,8 +91,8 @@ if have claude; then
     claude plugin install "repo-docs@ai-setup" --scope user
   fi
 
-  # Install or update dev-core, concise-output, and rules-index.
-  for plugin in dev-core concise-output rules-index; do
+  # Install or update dev-core, concise-output, rules-index, and better-design.
+  for plugin in dev-core concise-output rules-index better-design; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"
     else
@@ -133,6 +133,8 @@ echo "  - skills/, agents/"
 if have claude; then
   echo "  - dev-core@ai-setup plugin (marketplace + deps)"
   echo "  - concise-output@ai-setup plugin"
+  echo "  - rules-index@ai-setup plugin"
+  echo "  - better-design@ai-setup plugin"
   echo "  - orchestrate@ai-setup plugin"
   echo "  - orchestrate-nightly@ai-setup plugin (experimental)"
 else

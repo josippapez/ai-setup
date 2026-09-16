@@ -132,10 +132,14 @@ test('the registered Bash patterns fire on real command shapes', () => {
   const bash = JSON.parse(fs.readFileSync(path.join(__dirname, 'hooks.json'), 'utf8'))
     .hooks.PreToolUse.find((g) => g.matcher === 'Bash').hooks;
   // Pull each card's regex straight out of hooks.json so the test tracks the shipped config.
-  const patternFor = (card) => {
+  // The card's trailing args are single-quoted and the patterns never contain a literal
+  // ' (they spell one as \x27), so splitting on ' is unambiguous.
+  const argsFor = (card) => {
     const h = bash.find((e) => e.command.includes(`.cjs" ${card} '`));
-    return new RegExp(h.command.match(/'(.*)'$/)[1].replace(/\\\\/g, '\\'));
+    const quoted = h.command.split("'").filter((_, i) => i % 2 === 1);
+    return { fire: quoted[0], skip: quoted[1] };
   };
+  const patternFor = (card) => new RegExp(argsFor(card).fire);
   // Commands recorded from the 2026-09-14 benchmark, where the model did every file
   // read, write, search and move through Bash and no tool-name matcher ever fired.
   const cases = [
@@ -157,4 +161,39 @@ test('the registered Bash patterns fire on real command shapes', () => {
   for (const [card, cmd, want] of cases) {
     assert.equal(patternFor(card).test(cmd), want, `${card} on: ${cmd}`);
   }
+
+  // Naming a path is not working on it. These fired the wrong card during this plugin's
+  // own audit: a find that excludes node_modules, and a grep over a Markdown file.
+  const fires = (card, cmd) => {
+    const { fire, skip } = argsFor(card);
+    return new RegExp(fire).test(cmd) && !new RegExp(skip).test(cmd);
+  };
+  const skipCases = [
+    ['reading-libraries', 'find . -type f -not -path "./node_modules/*"', false],
+    ['reading-libraries', 'find . -path ./node_modules -prune -o -type f -print', false],
+    ['reading-libraries', "rg -n foo -g '!node_modules' .", false],
+    ['reading-libraries', 'grep -rn x --exclude-dir=node_modules .', false],
+    ['reading-libraries', 'cat -n node_modules/tiny-dep/package.json', true],
+    ['reading-libraries', 'rg -n useState node_modules/react/', true],
+    ['searching', 'rg -c "digest|UserPromptSubmit" README.md', false],
+    ['searching', "rg -n TODO --glob '*.md' .", false],
+    ['searching', "find . -name '*.md'", false],
+    ['searching', 'rg -n useAuth src/', true],
+    ['searching', 'grep -rn handleSubmit src/app.ts', true],
+    ['searching', "rg -n foo -g '!tmp' .", true],
+  ];
+  for (const [card, cmd, want] of skipCases) {
+    assert.equal(fires(card, cmd), want, `${card} should ${want ? 'fire' : 'skip'} on: ${cmd}`);
+  }
+});
+
+test('the argv skip filter suppresses a card the path filter matched', () => {
+  const root = tmpRoot({ 'demo.md': '# Demo' });
+  const args = ['demo', 'node_modules/', '-not\\s+-path'];
+  const base = { scratchpad_dir: scratch() };
+  assert.ok(run(root, args, { ...base, tool_input: { command: 'cat node_modules/x/i.js' } }));
+  assert.equal(
+    run(root, args, { ...base, tool_input: { command: 'find . -not -path "./node_modules/*"' } }),
+    null
+  );
 });

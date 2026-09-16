@@ -118,6 +118,31 @@ const fromUri = (value) => {
   }
 };
 
+// Files a shell command wrote. Benchmarked in this repo, the model does most of its file
+// writing through Bash (`sed -i`, `tee`, `cat > f <<EOF`), which carries no file_path for
+// the edit-tool path below to find, so those writes never reached the formatter.
+// Deliberately narrow: only the three shapes that unambiguously name a destination.
+const extractFilesFromCommand = (command) => {
+  const files = new Set();
+  if (typeof command !== "string") return files;
+
+  // `> path` / `>> path`, excluding device and temp paths.
+  for (const m of command.matchAll(/>>?\s*(?!\/dev\/|\/tmp\/)(['"]?)([^\s'"&|><]+)\1/g)) {
+    files.add(m[2]);
+  }
+  // `tee path`, `tee -a path`.
+  for (const m of command.matchAll(/\btee\s+(?:-\w+\s+)*(['"]?)([^\s'"&|><]+)\1/g)) {
+    files.add(m[2]);
+  }
+  // `sed -i path` (GNU) and `sed -i '' path` (BSD): the destination is the last argument.
+  for (const m of command.matchAll(/\bsed\s+(?:-\S+\s+)*-i\b[^&|;\n]*/g)) {
+    const last = m[0].trim().split(/\s+/).pop();
+    if (last && !last.startsWith("-") && !/^['"]?$/.test(last)) files.add(last.replace(/^['"]|['"]$/g, ""));
+  }
+
+  return files;
+};
+
 const collectEditedFiles = (event, toolName) => {
   const files = new Set();
   const editTools = new Set([
@@ -129,6 +154,13 @@ const collectEditedFiles = (event, toolName) => {
     "replace",
     "insert",
   ]);
+
+  if (toolName === "bash") {
+    for (const input of collectInputs(event)) {
+      for (const file of extractFilesFromCommand(input.command)) files.add(file);
+    }
+    return files;
+  }
 
   if (toolName && !editTools.has(toolName)) return files;
 
