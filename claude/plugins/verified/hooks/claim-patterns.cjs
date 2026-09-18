@@ -56,13 +56,13 @@ const norm = (p) => (typeof p === 'string' ? p.replace(/^\.\//, '').replace(/\\/
 
 // The model writes repo-relative; tools record absolute. Match on the longest
 // unambiguous tail rather than trying to resolve a root that may not be cwd.
-function pathSeen(claimed, seenPaths) {
+function pathSeen(claimed, seenPaths, basenameFallback = true) {
   const c = norm(claimed);
   if (!c) return false;
   for (const s of seenPaths) {
     if (s === c || s.endsWith('/' + c) || c.endsWith('/' + s)) return true;
     // A directory read backs a file inside it only if the tool named the file.
-    if (path.basename(s) === path.basename(c) && (s.includes(c) || c.includes(s))) return true;
+    if (basenameFallback && path.basename(s) === path.basename(c) && (s.includes(c) || c.includes(s))) return true;
   }
   return false;
 }
@@ -79,19 +79,41 @@ const LIB_CMD_RE = /\b(?:opensrc|npm\s+(?:ls|list|view|info)|pnpm\s+(?:ls|list|w
 // evidence for it.
 const MANIFEST_RE = /(?:package(?:-lock)?\.json|plugin\.json|manifest\.json|pnpm-lock\.yaml|yarn\.lock|requirements\.txt|pyproject\.toml|Cargo\.(?:toml|lock)|go\.(?:mod|sum)|Gemfile(?:\.lock)?|composer\.json)$/;
 
+// The exploration policy, in Dream-RSI's sense: the part that gets rewritten and
+// scored, while the evaluator and the manifest stay fixed. Expressed as config so
+// a candidate is a set of values rather than a forked file, which is what makes a
+// sweep over many candidates cheap.
+const CONFIG = {
+  path: true,
+  outcome: true,
+  absence: true,
+  // Off on the evidence: over 651 replayed turns this class produced 2 catches
+  // against 67 flags nothing ever resolved, the worst ratio of the five. Semantic
+  // version claims ("React 19 added X") are stage 3's job; matching the digits
+  // was never going to do it.
+  version: false,
+  url: true,
+  // A basename match backs a claim when neither path is a suffix of the other.
+  // Loose, and the replay is how we find out whether it pays for itself.
+  pathBasenameFallback: true,
+  // Require the search that backs an absence claim to postdate the last write.
+  absenceAfterWrite: false,
+};
+
 /**
  * Classify the answer's claims against what actually ran.
  * Returns { unbacked: [{class, span, needs}], residualText: string }
  */
-function classify(answer, ev) {
+function classify(answer, ev, cfg) {
+  const C = { ...CONFIG, ...(cfg || {}) };
   const text = stripFences(String(answer || ''));
   const unbacked = [];
   const covered = [];
 
-  for (const m of text.matchAll(PATH_RE)) {
+  if (C.path) for (const m of text.matchAll(PATH_RE)) {
     const span = m[2] ? `${m[1]}:${m[2]}` : m[1];
     covered.push(m[0]);
-    if (!pathSeen(m[1], ev.paths)) {
+    if (!pathSeen(m[1], ev.paths, C.pathBasenameFallback)) {
       unbacked.push({
         class: 'path',
         span,
@@ -100,7 +122,7 @@ function classify(answer, ev) {
     }
   }
 
-  for (const m of text.matchAll(OUTCOME_RE)) {
+  if (C.outcome) for (const m of text.matchAll(OUTCOME_RE)) {
     covered.push(m[0]);
     // The run has to be the LATEST state of the tree, not just somewhere in the
     // session. A pass followed by an edit is a claim about code that no longer
@@ -120,9 +142,10 @@ function classify(answer, ev) {
     }
   }
 
-  for (const m of text.matchAll(ABSENCE_RE)) {
+  if (C.absence) for (const m of text.matchAll(ABSENCE_RE)) {
     covered.push(m[0]);
-    if (ev.searches.length === 0) {
+    const minSeq = C.absenceAfterWrite ? (ev.lastWrite || 0) : 0;
+    if (!ev.searches.some((s) => (s.seq || 0) >= minSeq)) {
       unbacked.push({
         class: 'absence',
         span: m[0].trim(),
@@ -131,7 +154,7 @@ function classify(answer, ev) {
     }
   }
 
-  for (const m of text.matchAll(VERSION_RE)) {
+  if (C.version) for (const m of text.matchAll(VERSION_RE)) {
     covered.push(m[0]);
     if (!ev.libLookup) {
       unbacked.push({
@@ -142,7 +165,7 @@ function classify(answer, ev) {
     }
   }
 
-  for (const m of text.matchAll(URL_RE)) {
+  if (C.url) for (const m of text.matchAll(URL_RE)) {
     covered.push(m[0]);
     let host = '';
     try { host = new URL(m[0]).host; } catch { /* malformed, treat as unbacked */ }
@@ -180,4 +203,4 @@ const BACKED_BY = {
   state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
 };
 
-module.exports = { classify, BACKED_BY, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
+module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };

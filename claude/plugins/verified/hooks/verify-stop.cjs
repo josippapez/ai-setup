@@ -131,9 +131,9 @@ function collect(rec, ev, errored) {
     if (inp.notebook_path) see(ev, inp.notebook_path);
     if (inp.path && typeof inp.path === 'string') see(ev, inp.path);
 
-    if (/Grep|Glob/.test(name)) ev.searches.push({ pattern: String(inp.pattern || inp.glob || ''), ok });
+    if (/Grep|Glob/.test(name)) ev.searches.push({ pattern: String(inp.pattern || inp.glob || ''), ok, seq: ev.seq });
     if (/codegraph/i.test(name)) {
-      ev.searches.push({ pattern: String(inp.query || ''), ok });
+      ev.searches.push({ pattern: String(inp.query || ''), ok, seq: ev.seq });
       for (const w of String(inp.query || '').split(/\s+/)) if (/[/.]/.test(w)) ev.paths.add(norm(w));
     }
     if (/find_libs|read_doc|find_docs/.test(name)) ev.libLookup = true;
@@ -142,7 +142,7 @@ function collect(rec, ev, errored) {
       const cmd = inp.command;
       ev.commands.push({ cmd, ok, seq: ev.seq });
       if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
-      if (SEARCH_CMD_RE.test(cmd)) ev.searches.push({ pattern: cmd, ok });
+      if (SEARCH_CMD_RE.test(cmd)) ev.searches.push({ pattern: cmd, ok, seq: ev.seq });
       if (LIB_CMD_RE.test(cmd)) ev.libLookup = true;
       // Any path-looking token the command touched counts as read.
       for (const t of cmd.split(/[\s'"|;&()<>]+/)) {

@@ -191,27 +191,38 @@ test('the ledger records a node that replay can score', () => {
   assert.ok(nodes[0].answer, 'node carries the answer so a candidate config can be replayed');
   assert.ok(nodes[0].evidence, 'node carries the manifest for the same reason');
 
+  // One node is not a sample. Scoring it would invent a number, so it refuses.
   const out = execFileSync('node', [REPLAY], {
     encoding: 'utf8',
     env: { ...process.env, VERIFIED_HOME: fx.home },
   });
-  assert.match(out, /replayed 1 stored turns/);
-  assert.match(out, /current\s+V=/);
+  assert.match(out, /too few to score/);
+  assert.match(out, /--corpus/, 'points at the source that does have enough history');
 });
 
 test('replay rejects a candidate that scores worse', () => {
   const fx = fixture();
-  // One block that the next turn did fix: a true catch under the current config.
-  run(fx, 'The config lives at src/db.ts:42.', [], 'r1');
-  run(fx, 'Rechecked, it is elsewhere.', [], 'r1');
+  // Enough nodes to be worth scoring, each a claim the session never went on to
+  // check, so the current config catches nothing a blind one would miss.
+  const nodes = [];
+  for (let i = 0; i < 25; i += 1) {
+    nodes.push(JSON.stringify({
+      ts: new Date().toISOString(), session: `s${i}`, action: 'block',
+      answer: `The value is at src/mod${i}.ts:7.`,
+      evidence: { paths: [`src/mod${i}.ts`], commands: [], searches: [], urls: [], libLookup: false, seq: 1, lastWrite: 0 },
+      claims: [],
+    }));
+  }
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), nodes.join('\n') + '\n');
 
-  // A candidate that never flags anything cannot catch it, so it scores lower.
-  const blind = path.join(fx.home, 'blind.cjs');
-  fs.writeFileSync(blind, 'module.exports={classify:()=>({unbacked:[],residualText:""})};\n');
+  // A candidate that flags everything: every flag is unconfirmed, so it pays
+  // the full cost and earns nothing.
+  const noisy = path.join(fx.home, 'noisy.cjs');
+  fs.writeFileSync(noisy, 'module.exports={classify:(a)=>({unbacked:[{class:"path",span:"x.ts",needs:"n"}],residualText:""})};\n');
 
   let out = '', code = 0;
   try {
-    out = execFileSync('node', [REPLAY, '--candidate', blind], {
+    out = execFileSync('node', [REPLAY, '--candidate', noisy], {
       encoding: 'utf8',
       env: { ...process.env, VERIFIED_HOME: fx.home },
     });
@@ -275,10 +286,12 @@ test('first and second person sentences never reach the judge', () => {
 test('an MCP tool call counts as external evidence', () => {
   const { classify } = require('./claim-patterns.cjs');
   const bare = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
-  assert.strictEqual(classify('Upgrade to v2.1.0 first.', bare).unbacked.length, 1);
-  // Same claim, after a turn that read something through an MCP server.
+  // The version class ships off, so ask for it explicitly: the point under test
+  // is that libLookup is what backs it, not whether it is enabled by default.
+  const on = { version: true };
+  assert.strictEqual(classify('Upgrade to v2.1.0 first.', bare, on).unbacked.length, 1);
   const viaMcp = { ...bare, libLookup: true };
-  assert.strictEqual(classify('Upgrade to v2.1.0 first.', viaMcp).unbacked.length, 0);
+  assert.strictEqual(classify('Upgrade to v2.1.0 first.', viaMcp, on).unbacked.length, 0);
 });
 
 test('reading the file that declares a version backs a claim about it', () => {
