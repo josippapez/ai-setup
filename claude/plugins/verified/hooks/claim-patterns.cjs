@@ -134,9 +134,14 @@ function classify(answer, ev) {
     }
   }
 
-  // Whatever the patterns did not touch goes to the judge, minus anything they did.
-  let residual = text;
-  for (const c of covered) residual = residual.split(c).join(' ');
+  // Whatever the patterns did not touch goes to the judge. Drop whole sentences
+  // that a pattern already handled rather than splicing the matched token out of
+  // them: cutting a path mid-sentence handed the judge "the hook config lives at
+  // ` ` and registers both events", which it then had to classify blind.
+  const residual = text
+    .split(/(?<=[.!?])\s+/)
+    .filter((s) => !covered.some((c) => s.includes(c)))
+    .join(' ');
 
   return { unbacked, residualText: residual };
 }

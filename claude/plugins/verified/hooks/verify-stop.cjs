@@ -131,7 +131,20 @@ function collect(rec, ev, errored) {
 // Only classification: does this sentence assert something checkable? Never
 // whether it is true — that is stage 2's job against the manifest. Keeping the
 // model on the narrow question is what makes a small one adequate.
-function judge(residual) {
+// What the session must actually have done for a claim of each kind to be backed.
+// Without this the judge's verdict WAS the block: on the gate's first live run it
+// flagged "no ledger yet" as unbacked even though the session had just run the
+// find that established it. Classifying a claim and checking it are two different
+// jobs, and only the second one gets to block.
+const BACKED_BY = {
+  file: (ev) => ev.paths.size > 0,
+  command: (ev) => ev.commands.some((c) => c.ok),
+  search: (ev) => ev.searches.length > 0,
+  external: (ev) => ev.urls.size > 0 || ev.libLookup,
+  state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
+};
+
+function judge(residual, ev) {
   const trimmed = residual.replace(/\s+/g, ' ').trim();
   if (trimmed.length < 80) return [];
   let promptTemplate;
@@ -174,8 +187,11 @@ function judge(residual) {
   const claims = Array.isArray(parsed.claims) ? parsed.claims : [];
   return claims
     .filter((c) => c && c.checkable === true && sentences[c.i - 1])
+    // An unrecognised kind is treated as needing evidence of some sort, which is
+    // the conservative reading and still consults the manifest.
+    .filter((c) => !(BACKED_BY[c.kind] || BACKED_BY.state)(ev))
     .map((c) => ({
-      class: 'residual',
+      class: `residual:${c.kind || 'unknown'}`,
       span: sentences[c.i - 1].slice(0, 160),
       needs: String(c.needs || 'evidence from this session'),
     }));
@@ -196,7 +212,7 @@ const main = async () => {
   const evidence = buildEvidence(ev0.transcript_path, session);
   const { unbacked, residualText } = classify(answer, evidence);
 
-  const all = unbacked.concat(judge(residualText));
+  const all = unbacked.concat(judge(residualText, evidence));
   const spans = new Set(all.map((c) => c.span));
   ledger.resolvePrevious(session, spans);
 

@@ -218,3 +218,15 @@ test('replay rejects a candidate that scores worse', () => {
   assert.match(out, /REJECT/);
   assert.strictEqual(code, 1, 'a rejected candidate exits non-zero so a script cannot ship it by accident');
 });
+
+test('a sentence a pattern already handled is not also sent to the judge', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const ev = { paths: new Set(['src/db.ts']), commands: [], searches: [], urls: new Set(), libLookup: false };
+  const { residualText } = classify(
+    'The config lives at src/db.ts:42. Redis uses an approximated LRU.',
+    ev,
+  );
+  assert.ok(!residualText.includes('config lives at'), 'handled sentence is dropped whole');
+  assert.ok(residualText.includes('Redis'), 'untouched sentence still reaches the judge');
+  assert.ok(!/`\s+`|at\s+\.\s/.test(residualText), 'no spliced-out fragment left behind');
+});
