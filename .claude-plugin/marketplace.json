@@ -77,6 +77,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/fundamentals"
+    },
+    {
+      "name": "verified",
+      "description": "Stop-hook correctness gate: scores an answer's factual claims against what the session actually ran, blocks on anything unbacked, and records verdicts to a replay ledger so pattern changes are scored before they ship.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/verified"
     }
   ]
 }
