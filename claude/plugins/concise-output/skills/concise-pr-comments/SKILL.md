@@ -23,6 +23,32 @@ Write like a senior dev dropping a quick note for a teammate, not like an automa
 - Use a "nit:" prefix for minor or optional stuff so the author knows it's not a blocker.
 - No em dashes. Use a comma, a period, or just split the sentence.
 
+## Cut the opener and the closer
+
+The comment is the finding and the ask. Nothing in front of it, nothing after it.
+
+- No agreement opener. "Makes sense", "Fair point", "Good catch", or any restatement of what the author just said. On a reply, start at the part they don't already know.
+- No preamble. "Heads up", "One thing worth a look before it ships", "Quick note on this".
+- No trailing hedge. "Not a blocker if you've already ruled it out", "up to you", "either way works". `nit:` at the front already marks a comment optional, and anything stronger than a nit should not be walked back at the end.
+- No selling the suggestion after you have made it. Once you have said what to do, drop the sentence about how much better things would be. The author can see that.
+- No rhetorical comparison standing in for the fact. "so the portal ends up with two spinners side by side" is a picture; "`SpinnerIcon` is used in five other places here" is the fact. Give the fact.
+
+Before:
+
+```md
+Makes sense, columns resizing on every page change is worse than a grid that stays put.
+
+One thing worth a look before it ships: `columnSizingFeature` is already in the TanStack build we're on (9.2.4). It gives you `size`, `minSize` and `maxSize` on the column def, plus `column.getSize()` and a total width for the table. Same fixed-width result, except the numbers sit in fields the library types and every future table already understands, rather than a `meta.width` we own and have to document ourselves.
+
+Not a blocker if you've already ruled it out, just that every column def in the repo is about to pick up whichever one we choose.
+```
+
+After:
+
+```md
+`columnSizingFeature` is already in the TanStack build we're on (9.2.4): `size`, `minSize` and `maxSize` on the column def, plus `column.getSize()` and a table total. Same fixed-width result as `meta.width`, but in fields the library types for us. Was it ruled out for a reason?
+```
+
 ## AI tells to avoid
 
 These are the patterns that make a comment read bot-written. If a draft has any of them, cut or rewrite:
