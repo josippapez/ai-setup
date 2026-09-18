@@ -241,3 +241,38 @@ test('stage 3 is off by default and opts in by env var', () => {
   assert.strictEqual(run(fx, answer, [], 'off'), null, 'default: no judge, nothing blocks');
   assert.ok(Date.now() - t0 < 3000, 'default path never spawns a model (would take 5-56s)');
 });
+
+test('a zero-tool conversational turn is never judged', () => {
+  const fx = fixture();
+  // Judge on, but nothing was gathered: there is no manifest to check against.
+  const answer =
+    'Redis evicts keys using an approximated LRU rather than a true LRU, sampling ' +
+    'a handful of candidates on each eviction instead of scanning every key.';
+  const t0 = Date.now();
+  assert.strictEqual(run(fx, answer, [], 'notools', { VERIFIED_JUDGE_ENABLED: '1' }), null);
+  assert.ok(Date.now() - t0 < 3000, 'no model spawned on a turn that gathered nothing');
+});
+
+test('first and second person sentences never reach the judge', () => {
+  const fx = fixture();
+  // A turn that DID gather something, so the zero-tool gate is not what saves it.
+  const answer =
+    'I did not see the conversation behind that line, so tell me if it is wrong. ' +
+    "You were getting session recaps that nobody could read the next morning. " +
+    "We should probably revisit this once the ledger has some real data in it.";
+  const t0 = Date.now();
+  assert.strictEqual(
+    run(fx, answer, [{ name: 'Bash', input: { command: 'ls -la' } }], 'convo', { VERIFIED_JUDGE_ENABLED: '1' }),
+    null,
+  );
+  assert.ok(Date.now() - t0 < 3000, 'every sentence filtered out, so no model spawned');
+});
+
+test('an MCP tool call counts as external evidence', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const bare = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
+  assert.strictEqual(classify('Upgrade to v2.1.0 first.', bare).unbacked.length, 1);
+  // Same claim, after a turn that read something through an MCP server.
+  const viaMcp = { ...bare, libLookup: true };
+  assert.strictEqual(classify('Upgrade to v2.1.0 first.', viaMcp).unbacked.length, 0);
+});

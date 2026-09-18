@@ -123,9 +123,22 @@ function collect(rec, ev, errored) {
       // A search backs any host it could have returned; treat it as a wildcard.
       if (name === 'WebSearch' || /web_search/i.test(name)) ev.urls.add('*');
     }
+    // Every MCP tool reaches something outside this repo, so any of them counts
+    // as external evidence. Without this a turn that read a design through the
+    // Figma MCP looked like it had fetched nothing, and claims about Figma's
+    // component model were flagged unbacked in the precision sample.
+    if (name.startsWith('mcp__')) ev.libLookup = true;
     if (MANIFEST_RE.test(String(inp.file_path || ''))) ev.libLookup = true;
   }
 }
+
+// A sentence about the speaker, the reader, or the conversation is not a claim
+// about the world, and nothing in a tool manifest can settle it. Both zero-tool
+// turns in the precision sample blocked on exactly this shape ("I did not see
+// the conversation behind that line", "You were getting session recaps nobody
+// could read"), so these never reach the judge.
+const CONVERSATIONAL_RE =
+  /^(?:so\s+|and\s+|but\s+|then\s+|also\s+|okay,?\s+|right,?\s+)?(?:i|i'd|i'll|i've|i'm|you|you'd|you'll|you've|you're|we|we'd|we'll|we've|we're|let\s+me|let's|my|your|our)\b/i;
 
 // ---- stage 3: residual judge (off by default) ------------------------------
 // Only classification: does this sentence assert something checkable? Never
@@ -143,6 +156,11 @@ function collect(rec, ev, errored) {
 //   VERIFIED_JUDGE_ENABLED=1 claude
 function judge(residual, ev) {
   if (process.env.VERIFIED_JUDGE_ENABLED !== '1') return [];
+  // A turn that gathered nothing is a conversational turn: explaining, recapping,
+  // answering from what was already said. There is no manifest to check against,
+  // so every sentence would look unbacked. Both such turns in the precision
+  // sample blocked, and both were wrong.
+  if (ev.commands.length === 0 && ev.paths.size === 0 && ev.searches.length === 0 && ev.urls.size === 0) return [];
   const trimmed = residual.replace(/\s+/g, ' ').trim();
   if (trimmed.length < 80) return [];
   let promptTemplate;
@@ -151,7 +169,10 @@ function judge(residual, ev) {
   } catch {
     return [];
   }
-  const sentences = trimmed.split(/(?<=[.!?])\s+/).filter((s) => s.length > 25).slice(0, 40);
+  const sentences = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .filter((s) => s.length > 25 && !CONVERSATIONAL_RE.test(s.trim()))
+    .slice(0, 40);
   if (sentences.length === 0) return [];
   const payload = promptTemplate + '\n\n' + sentences.map((s, i) => `${i + 1}. ${s}`).join('\n');
 
