@@ -27,7 +27,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { classify, norm, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE } = require('./claim-patterns.cjs');
+const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
@@ -131,18 +131,6 @@ function collect(rec, ev, errored) {
 // Only classification: does this sentence assert something checkable? Never
 // whether it is true — that is stage 2's job against the manifest. Keeping the
 // model on the narrow question is what makes a small one adequate.
-// What the session must actually have done for a claim of each kind to be backed.
-// Without this the judge's verdict WAS the block: on the gate's first live run it
-// flagged "no ledger yet" as unbacked even though the session had just run the
-// find that established it. Classifying a claim and checking it are two different
-// jobs, and only the second one gets to block.
-const BACKED_BY = {
-  file: (ev) => ev.paths.size > 0,
-  command: (ev) => ev.commands.some((c) => c.ok),
-  search: (ev) => ev.searches.length > 0,
-  external: (ev) => ev.urls.size > 0 || ev.libLookup,
-  state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
-};
 
 function judge(residual, ev) {
   const trimmed = residual.replace(/\s+/g, ' ').trim();

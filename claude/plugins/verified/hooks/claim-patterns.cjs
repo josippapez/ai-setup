@@ -33,9 +33,12 @@ const OUTCOME_RE =
 const ABSENCE_RE =
   /\b(?:there\s+(?:is|are)\s+no\b|there\s+isn'?t\s+(?:a|an|any)\b|nothing\s+(?:in|here|else)?\s*(?:the\s+\w+\s+)?(?:does|handles|uses|calls|implements|references)\b|no\s+(?:such|other)\s+\w+\s+exists?\b|(?:does|do)\s+not\s+exist\s+(?:anywhere|in\s+the\s+(?:repo|codebase))|not\s+(?:present|defined|used)\s+anywhere\b|the\s+(?:repo|codebase)\s+(?:has|contains)\s+no\b)/gi;
 
-// A version assertion about someone else's software.
+// A version assertion about someone else's software. A bare decimal is not one:
+// matching `\d+\.\d+` produced 208 of 497 stage-2 flags over 476 real turns, on
+// prose like "Haiku 4.5" and "Claude 5.1". A version claim now has to announce
+// itself — a `v` prefix, three components, the word version, or a range word.
 const VERSION_RE =
-  /\b(?:v?\d+\.\d+(?:\.\d+)?(?:\s+(?:or\s+)?(?:later|newer|above|\+))?|version\s+\d+(?:\.\d+)*)\b/gi;
+  /\b(?:v\d+\.\d+(?:\.\d+)?|\d+\.\d+\.\d+|version\s+\d+(?:\.\d+)*|\d+\.\d+(?:\.\d+)?\s+(?:or\s+)?(?:later|newer|above|earlier|\+))\b/gi;
 
 const URL_RE = /\bhttps?:\/\/[^\s<>()[\]"'`]+/gi;
 
@@ -146,4 +149,17 @@ function classify(answer, ev) {
   return { unbacked, residualText: residual };
 }
 
-module.exports = { classify, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
+// What the session must actually have done for a claim of each kind to be backed.
+// Without this the judge's verdict WAS the block: on the gate's first live run it
+// flagged "no ledger yet" as unbacked even though the session had just run the
+// find that established it. Classifying a claim and checking it are two different
+// jobs, and only the second one gets to block.
+const BACKED_BY = {
+  file: (ev) => ev.paths.size > 0,
+  command: (ev) => ev.commands.some((c) => c.ok),
+  search: (ev) => ev.searches.length > 0,
+  external: (ev) => ev.urls.size > 0 || ev.libLookup,
+  state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
+};
+
+module.exports = { classify, BACKED_BY, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
