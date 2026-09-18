@@ -286,3 +286,19 @@ test('reading the file that declares a version backs a claim about it', () => {
   ], 'ver');
   assert.strictEqual(r, null);
 });
+
+test('evidence carries across turns within a session', () => {
+  const fx = fixture();
+  // Turn 1 runs the tests. The transcript helper rewrites the file each call, so
+  // turn 2 sees a transcript with no test command in it at all.
+  assert.strictEqual(run(fx, 'Running them now.', [{ name: 'Bash', input: { command: 'npm test' } }], 'multi'), null);
+  // Turn 2 reports the result. Per-turn scoping blocked this; session scoping does not.
+  assert.strictEqual(run(fx, 'All 14 tests pass.', [{ name: 'Bash', input: { command: 'echo done' } }], 'multi'), null);
+});
+
+test('a different session does not inherit the first one evidence', () => {
+  const fx = fixture();
+  run(fx, 'Running them now.', [{ name: 'Bash', input: { command: 'npm test' } }], 'sess-a');
+  const r = run(fx, 'All 14 tests pass.', [{ name: 'Bash', input: { command: 'echo done' } }], 'sess-b');
+  assert.ok(r && r.decision === 'block', 'evidence is scoped to its own session');
+});

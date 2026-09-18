@@ -40,10 +40,15 @@ const readStdin = async () => {
 };
 
 // ---- stage 1: evidence manifest -------------------------------------------
-// One entry per tool call made since the last Stop. Nothing else is retained:
-// the manifest is what the claim checks run against, not a copy of the session.
+// One entry per tool call the session has made, accumulated across turns. Only
+// the bytes appended since the last Stop are parsed; the rest comes from the
+// stored manifest. Nothing else is retained: this is what the claim checks run
+// against, not a copy of the session.
 function buildEvidence(transcriptPath, session) {
-  const ev = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
+  // Start from what this session has already gathered, then add only the bytes
+  // appended since the last Stop. The offset keeps the parse cheap; the stored
+  // manifest keeps the scope honest.
+  const ev = ledger.readManifest(session);
   if (!transcriptPath) return ev;
   let fd;
   try {
@@ -72,6 +77,7 @@ function buildEvidence(transcriptPath, session) {
       }
     }
     for (const rec of records) collect(rec, ev, errored);
+    ledger.writeManifest(session, ev);
   } catch {
     return ev;
   } finally {
