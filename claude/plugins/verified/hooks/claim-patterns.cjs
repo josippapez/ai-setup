@@ -1,0 +1,144 @@
+#!/usr/bin/env node
+'use strict';
+// The tunable half of the gate: which spans in an answer are claims, and what
+// counts as backing for each.
+//
+// This file is config, not logic. Stage 5 (`/verified-replay`) scores a change to
+// it against the stored ledger before it ships, so edits here are cheap to
+// evaluate and cheap to revert.
+//
+// Precision over recall, deliberately. A missed claim costs one unverified
+// sentence; a false positive costs the user a blocked turn and a rewrite, and a
+// gate that cries wolf is a gate that gets muted. Every pattern here is anchored
+// and narrow for the same reason git-mv-guard's mv parser is.
+
+const path = require('node:path');
+
+// A path that looks like source, optionally with :line. Requires a slash or a
+// known code extension so prose like "3.5" or "node.js" does not match.
+//
+// The trailing lookahead deliberately excludes `.`: with it, a sentence-ending
+// period after `src/db.ts:42` made the `:42` group fail and the match silently
+// backtracked to the bare path, so every line number was dropped from the span.
+const PATH_RE =
+  /(?<![\w@/.-])((?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
+
+// Claims that a command succeeded. Anchored on the verb so "the test file" or
+// "a passing grade" do not match.
+const OUTCOME_RE =
+  /\b(?:(?:all\s+)?(?:\d+\s+)?tests?\s+(?:now\s+)?(?:pass|passes|passed|are\s+passing|is\s+passing)|the\s+(?:test\s+)?suite\s+(?:passes|passed|is\s+green)|(?:the\s+)?build\s+(?:succeeds|succeeded|passes|passed|is\s+clean)|(?:the\s+)?lint(?:er)?\s+(?:passes|passed|is\s+clean)|type(?:check|s)\s+(?:pass|passes|passed|are\s+clean)|it\s+(?:now\s+)?works\b|verified\s+it\s+works)/gi;
+
+// Negative existence claims. The half of Gate 1 that gets skipped most, per
+// external-facts: "absence from your memory is not absence from the API".
+const ABSENCE_RE =
+  /\b(?:there\s+(?:is|are)\s+no\b|there\s+isn'?t\s+(?:a|an|any)\b|nothing\s+(?:in|here|else)?\s*(?:the\s+\w+\s+)?(?:does|handles|uses|calls|implements|references)\b|no\s+(?:such|other)\s+\w+\s+exists?\b|(?:does|do)\s+not\s+exist\s+(?:anywhere|in\s+the\s+(?:repo|codebase))|not\s+(?:present|defined|used)\s+anywhere\b|the\s+(?:repo|codebase)\s+(?:has|contains)\s+no\b)/gi;
+
+// A version assertion about someone else's software.
+const VERSION_RE =
+  /\b(?:v?\d+\.\d+(?:\.\d+)?(?:\s+(?:or\s+)?(?:later|newer|above|\+))?|version\s+\d+(?:\.\d+)*)\b/gi;
+
+const URL_RE = /\bhttps?:\/\/[^\s<>()[\]"'`]+/gi;
+
+// Fenced code is illustration, not assertion. Inline code is where real path
+// references live, so it stays.
+const stripFences = (text) => text.replace(/```[\s\S]*?(?:```|$)/g, ' ');
+
+const norm = (p) => (typeof p === 'string' ? p.replace(/^\.\//, '').replace(/\\/g, '/') : '');
+
+// The model writes repo-relative; tools record absolute. Match on the longest
+// unambiguous tail rather than trying to resolve a root that may not be cwd.
+function pathSeen(claimed, seenPaths) {
+  const c = norm(claimed);
+  if (!c) return false;
+  for (const s of seenPaths) {
+    if (s === c || s.endsWith('/' + c) || c.endsWith('/' + s)) return true;
+    // A directory read backs a file inside it only if the tool named the file.
+    if (path.basename(s) === path.basename(c) && (s.includes(c) || c.includes(s))) return true;
+  }
+  return false;
+}
+
+const TEST_CMD_RE =
+  /\b(?:npm|pnpm|yarn|bun|npx)\s+(?:run\s+)?(?:test|tests|lint|typecheck|type-check|build|tsc|check)\b|\b(?:jest|vitest|mocha|ava|pytest|tox|nox|go\s+test|cargo\s+(?:test|build|check|clippy)|gradle|mvn|rspec|phpunit|tsc|eslint|ruff|mypy|make\s+(?:test|check|build))\b|\bnode\s+[^\s|;&]*\.test\.[cm]?js\b|--test\b/;
+
+const SEARCH_TOOLS = new Set(['Grep', 'Glob']);
+const SEARCH_CMD_RE = /\b(?:rg|grep|ag|ack|find|codegraph)\b/;
+const LIB_CMD_RE = /\b(?:opensrc|npm\s+(?:ls|list|view|info)|pnpm\s+(?:ls|list|why)|yarn\s+(?:list|why)|pip\s+show|cargo\s+tree)\b/;
+const MANIFEST_RE = /(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|requirements\.txt|pyproject\.toml|Cargo\.(?:toml|lock)|go\.(?:mod|sum)|Gemfile(?:\.lock)?|composer\.json)$/;
+
+/**
+ * Classify the answer's claims against what actually ran.
+ * Returns { unbacked: [{class, span, needs}], residualText: string }
+ */
+function classify(answer, ev) {
+  const text = stripFences(String(answer || ''));
+  const unbacked = [];
+  const covered = [];
+
+  for (const m of text.matchAll(PATH_RE)) {
+    const span = m[2] ? `${m[1]}:${m[2]}` : m[1];
+    covered.push(m[0]);
+    if (!pathSeen(m[1], ev.paths)) {
+      unbacked.push({
+        class: 'path',
+        span,
+        needs: `a Read, Edit, or codegraph_explore of ${m[1]} in this session`,
+      });
+    }
+  }
+
+  for (const m of text.matchAll(OUTCOME_RE)) {
+    covered.push(m[0]);
+    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok);
+    if (!ran) {
+      unbacked.push({
+        class: 'command-outcome',
+        span: m[0].trim(),
+        needs: 'a Bash call this session that ran the test, build, or lint command and exited clean',
+      });
+    }
+  }
+
+  for (const m of text.matchAll(ABSENCE_RE)) {
+    covered.push(m[0]);
+    if (ev.searches.length === 0) {
+      unbacked.push({
+        class: 'absence',
+        span: m[0].trim(),
+        needs: 'a Grep, Glob, rg, or codegraph_explore this session that would have found it',
+      });
+    }
+  }
+
+  for (const m of text.matchAll(VERSION_RE)) {
+    covered.push(m[0]);
+    if (!ev.libLookup) {
+      unbacked.push({
+        class: 'version',
+        span: m[0].trim(),
+        needs: 'find_libs, a manifest read, opensrc, or a fetched release page',
+      });
+    }
+  }
+
+  for (const m of text.matchAll(URL_RE)) {
+    covered.push(m[0]);
+    let host = '';
+    try { host = new URL(m[0]).host; } catch { /* malformed, treat as unbacked */ }
+    if (!host || !ev.urls.has(host)) {
+      unbacked.push({
+        class: 'url',
+        span: m[0],
+        needs: `a WebFetch or WebSearch of ${host || 'that URL'} this session`,
+      });
+    }
+  }
+
+  // Whatever the patterns did not touch goes to the judge, minus anything they did.
+  let residual = text;
+  for (const c of covered) residual = residual.split(c).join(' ');
+
+  return { unbacked, residualText: residual };
+}
+
+module.exports = { classify, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };

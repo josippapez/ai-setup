@@ -69,7 +69,8 @@
     "claude-hud@claude-hud": true,
     "orchestrate-nightly@ai-setup": true,
     "better-design@ai-setup": true,
-    "fundamentals@ai-setup": true
+    "fundamentals@ai-setup": true,
+    "verified@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {
