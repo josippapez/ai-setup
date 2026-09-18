@@ -86,9 +86,34 @@ function buildEvidence(transcriptPath, session) {
   return ev;
 }
 
+// Evidence expires when the thing it describes changes. Costs one statSync per
+// remembered path; the largest real session in this user's history held 1069.
+function pruneStale(ev) {
+  for (const p of [...ev.paths]) {
+    const was = ev.stamps[p];
+    if (was === undefined || was === null) continue; // never resolved to a real file
+    let now = null;
+    try { now = fs.statSync(p).mtimeMs; } catch { /* deleted */ }
+    if (now !== was) { ev.paths.delete(p); delete ev.stamps[p]; }
+  }
+}
+
 function blocksOf(rec) {
   const content = rec && rec.message && rec.message.content;
   return Array.isArray(content) ? content.filter(Boolean) : [];
+}
+
+// Stamp a path with the file's mtime at the moment it was read. A later claim
+// about that path is only backed if the file still has that mtime: session-scoped
+// evidence otherwise lets a read at turn 3 vouch for a claim at turn 90 about a
+// file that changed in between.
+function see(ev, p) {
+  const n = norm(p);
+  if (!n) return;
+  ev.paths.add(n);
+  if (ev.stamps[n] === undefined) {
+    try { ev.stamps[n] = fs.statSync(n).mtimeMs; } catch { ev.stamps[n] = null; }
+  }
 }
 
 function collect(rec, ev, errored) {
@@ -97,10 +122,14 @@ function collect(rec, ev, errored) {
     const name = String(b.name || '');
     const inp = b.input || {};
     const ok = !errored.has(b.id);
+    ev.seq += 1;
+    // A write invalidates any earlier "the tests pass": the thing that passed is
+    // no longer the thing on disk.
+    if (/^(Edit|Write|NotebookEdit)$/.test(name)) ev.lastWrite = ev.seq;
 
-    if (inp.file_path) ev.paths.add(norm(inp.file_path));
-    if (inp.notebook_path) ev.paths.add(norm(inp.notebook_path));
-    if (inp.path && typeof inp.path === 'string') ev.paths.add(norm(inp.path));
+    if (inp.file_path) see(ev, inp.file_path);
+    if (inp.notebook_path) see(ev, inp.notebook_path);
+    if (inp.path && typeof inp.path === 'string') see(ev, inp.path);
 
     if (/Grep|Glob/.test(name)) ev.searches.push({ pattern: String(inp.pattern || inp.glob || ''), ok });
     if (/codegraph/i.test(name)) {
@@ -111,13 +140,14 @@ function collect(rec, ev, errored) {
 
     if (name === 'Bash' && typeof inp.command === 'string') {
       const cmd = inp.command;
-      ev.commands.push({ cmd, ok });
+      ev.commands.push({ cmd, ok, seq: ev.seq });
+      if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
       if (SEARCH_CMD_RE.test(cmd)) ev.searches.push({ pattern: cmd, ok });
       if (LIB_CMD_RE.test(cmd)) ev.libLookup = true;
       // Any path-looking token the command touched counts as read.
       for (const t of cmd.split(/[\s'"|;&()<>]+/)) {
         if (/[\w.-]+\.[A-Za-z]\w{0,9}$/.test(t) || t.includes('/')) {
-          ev.paths.add(norm(t));
+          see(ev, t);
           if (MANIFEST_RE.test(t)) ev.libLookup = true;
         }
       }
@@ -235,6 +265,7 @@ const main = async () => {
   const session = String(ev0.session_id || 'unknown');
 
   const evidence = buildEvidence(ev0.transcript_path, session);
+  pruneStale(evidence);
   const { unbacked, residualText } = classify(answer, evidence);
 
   const all = unbacked.concat(judge(residualText, evidence));

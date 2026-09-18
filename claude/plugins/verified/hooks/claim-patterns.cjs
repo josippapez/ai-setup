@@ -20,8 +20,14 @@ const path = require('node:path');
 // The trailing lookahead deliberately excludes `.`: with it, a sentence-ending
 // period after `src/db.ts:42` made the `:42` group fail and the match silently
 // backtracked to the bare path, so every line number was dropped from the span.
+//
+// The first alternative carries its own leading `/`. Without it the lookbehind
+// rejected every absolute path: `/Users/x/a.ts` was tried at `Users`, which is
+// preceded by `/`, so the match failed and claims about absolute paths were
+// invisible to the gate entirely. Keeping `/` in the lookbehind still keeps the
+// pattern out of URLs, which `URL_RE` owns.
 const PATH_RE =
-  /(?<![\w@/.-])((?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
+  /(?<![\w@/.-])(\/(?:[\w.-]+\/)*[\w.-]+\.[A-Za-z][\w]{0,9}|(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
 
 // Claims that a command succeeded. Anchored on the verb so "the test file" or
 // "a passing grade" do not match.
@@ -96,12 +102,20 @@ function classify(answer, ev) {
 
   for (const m of text.matchAll(OUTCOME_RE)) {
     covered.push(m[0]);
-    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok);
+    // The run has to be the LATEST state of the tree, not just somewhere in the
+    // session. A pass followed by an edit is a claim about code that no longer
+    // exists, which is the failure session-scoped evidence would otherwise let
+    // through and the one worth catching on its own merits.
+    const lastWrite = ev.lastWrite || 0;
+    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok && (c.seq || 0) >= lastWrite);
     if (!ran) {
+      const stale = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok);
       unbacked.push({
         class: 'command-outcome',
         span: m[0].trim(),
-        needs: 'a Bash call this session that ran the test, build, or lint command and exited clean',
+        needs: stale
+          ? 're-running it: the last clean run was before a file was written, so it does not describe the current tree'
+          : 'a Bash call this session that ran the test, build, or lint command and exited clean',
       });
     }
   }

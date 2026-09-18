@@ -16,16 +16,20 @@ function fixture() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'verified-'));
   return {
     home,
-    // Each entry is one tool call the session made.
-    transcript(calls) {
-      const file = path.join(home, 'transcript.jsonl');
-      const lines = calls.map((c, i) =>
+    // One transcript per session, appended to — the shape Claude Code actually
+    // writes. Rewriting it in place let a same-size replacement slip past the
+    // byte offset, which read as a product bug and was not one.
+    seq: 0,
+    transcript(calls, session) {
+      const file = path.join(home, `transcript-${session}.jsonl`);
+      const lines = calls.map((c) =>
         JSON.stringify({
           type: 'assistant',
-          message: { content: [{ type: 'tool_use', id: `t${i}`, name: c.name, input: c.input }] },
+          message: { content: [{ type: 'tool_use', id: `t${this.seq += 1}`, name: c.name, input: c.input }] },
         }),
       );
-      fs.writeFileSync(file, lines.join('\n') + (lines.length ? '\n' : ''));
+      fs.appendFileSync(file, lines.join('\n') + (lines.length ? '\n' : ''));
+      if (!fs.existsSync(file)) fs.writeFileSync(file, '');
       return file;
     },
   };
@@ -36,7 +40,7 @@ function run(fx, answer, calls = [], session = 's1', env = {}) {
     input: JSON.stringify({
       hook_event_name: 'Stop',
       session_id: session,
-      transcript_path: fx.transcript(calls),
+      transcript_path: fx.transcript(calls, session),
       last_assistant_message: answer,
     }),
     encoding: 'utf8',
@@ -301,4 +305,58 @@ test('a different session does not inherit the first one evidence', () => {
   run(fx, 'Running them now.', [{ name: 'Bash', input: { command: 'npm test' } }], 'sess-a');
   const r = run(fx, 'All 14 tests pass.', [{ name: 'Bash', input: { command: 'echo done' } }], 'sess-b');
   assert.ok(r && r.decision === 'block', 'evidence is scoped to its own session');
+});
+
+test('a read goes stale when the file changes underneath it', () => {
+  const fx = fixture();
+  const target = path.join(fx.home, 'config.ts');
+  fs.writeFileSync(target, 'export const a = 1;\n');
+
+  // Turn 1 reads it, so a claim about it is backed.
+  assert.strictEqual(run(fx, `The value is at ${target}:1.`, [
+    { name: 'Read', input: { file_path: target } },
+  ], 'stale'), null);
+
+  // The file changes. The old read no longer describes what is there.
+  const later = new Date(Date.now() + 5000);
+  fs.writeFileSync(target, 'export const a = 2;\n');
+  fs.utimesSync(target, later, later);
+
+  const r = run(fx, `The value is at ${target}:1.`, [
+    { name: 'Bash', input: { command: 'echo unrelated' } },
+  ], 'stale');
+  assert.ok(r && r.decision === 'block', 'the stale read no longer backs the claim');
+});
+
+test('a clean test run is invalidated by a later edit', () => {
+  const fx = fixture();
+  assert.strictEqual(run(fx, 'Running them.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+  ], 'order'), null);
+
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Edit', input: { file_path: '/repo/src/db.ts' } },
+  ], 'order');
+  assert.ok(r && r.decision === 'block');
+  assert.match(r.reason, /re-running it/, 'says the run predates the write, not that nothing ran');
+});
+
+test('re-running after the edit clears it', () => {
+  const fx = fixture();
+  run(fx, 'Editing.', [{ name: 'Edit', input: { file_path: '/repo/src/db.ts' } }], 'order2');
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+  ], 'order2');
+  assert.strictEqual(r, null);
+});
+
+test('an absolute path is a claim like any other', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const bare = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
+  const found = classify('It lives at /Users/me/repo/src/db.ts:42.', bare).unbacked;
+  assert.strictEqual(found.length, 1);
+  assert.strictEqual(found[0].span, '/Users/me/repo/src/db.ts:42');
+  // A URL is URL_RE's job; PATH_RE must not also claim it.
+  const url = classify('See https://example.com/docs/x.js for the shape.', bare).unbacked;
+  assert.deepStrictEqual(url.map((u) => u.class), ['url']);
 });
