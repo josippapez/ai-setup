@@ -57,7 +57,12 @@ function setOffset(session, offset) {
 // and the per-turn version contradicted it: the gate blocked on "21 tests pass"
 // two turns after the test run, and on a design file read in an earlier turn.
 // One file per session, so a long session never rewrites a shared blob.
-const CAP = { paths: 4000, commands: 1000, searches: 1000, urls: 500 };
+// Sized against the two largest real sessions on this machine: 1666 paths and
+// 1113 commands (Sciensus NX 6c0aa781, dts_restore 4beb4f06). The old commands
+// cap of 1000 clipped both. Command text is truncated because the only thing
+// that reads it is a regex matching the program name at the front, and storing
+// it whole made commands 610-739 KB of an ~800 KB manifest.
+const CAP = { paths: 8000, commands: 5000, searches: 5000, urls: 500, cmdChars: 300 };
 
 const manifestPath = (session) =>
   path.join(dir(), 'manifests', String(session).replace(/[^\w.-]/g, '_') + '.json');
@@ -86,13 +91,17 @@ function writeManifest(session, ev) {
     // Keep the most recent entries when a session runs long; the oldest evidence
     // is the least likely to be what a current claim rests on.
     const p = manifestPath(session);
+    const paths = [...ev.paths].slice(-CAP.paths);
+    // Stamps follow their paths out, or they accumulate for files no longer tracked.
+    const stamps = {};
+    for (const k of paths) if (ev.stamps[k] !== undefined) stamps[k] = ev.stamps[k];
     fs.writeFileSync(p + '.tmp', JSON.stringify({
-      paths: [...ev.paths].slice(-CAP.paths),
-      commands: ev.commands.slice(-CAP.commands),
+      paths,
+      commands: ev.commands.slice(-CAP.commands).map((c) => ({ ...c, cmd: c.cmd.slice(0, CAP.cmdChars) })),
       searches: ev.searches.slice(-CAP.searches),
       urls: [...ev.urls].slice(-CAP.urls),
       libLookup: ev.libLookup,
-      stamps: ev.stamps,
+      stamps,
       seq: ev.seq,
       lastWrite: ev.lastWrite,
     }));

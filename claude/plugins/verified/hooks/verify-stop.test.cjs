@@ -360,3 +360,21 @@ test('an absolute path is a claim like any other', () => {
   const url = classify('See https://example.com/docs/x.js for the shape.', bare).unbacked;
   assert.deepStrictEqual(url.map((u) => u.class), ['url']);
 });
+
+test('a long session keeps its manifest bounded and its stamps aligned', () => {
+  const fx = fixture();
+  const ledger = require('./ledger.cjs');
+  process.env.VERIFIED_HOME = fx.home;
+  const ev = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, stamps: {}, seq: 0, lastWrite: 0 };
+  for (let i = 0; i < 20; i += 1) {
+    ev.paths.add(`/repo/f${i}.ts`);
+    ev.stamps[`/repo/f${i}.ts`] = i;
+    // Full command text is never needed: the regexes match the program name.
+    ev.commands.push({ cmd: 'npm test ' + 'x'.repeat(5000), ok: true, seq: i });
+  }
+  ledger.writeManifest('long', ev);
+  const back = ledger.readManifest('long');
+  assert.ok(back.commands[0].cmd.length <= 300, 'command text is truncated on the way to disk');
+  assert.ok(back.commands[0].cmd.startsWith('npm test'), 'the part the regexes read survives');
+  assert.strictEqual(Object.keys(back.stamps).length, back.paths.size, 'no stamp outlives its path');
+});
