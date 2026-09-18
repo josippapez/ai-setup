@@ -98,7 +98,14 @@ const CONFIG = {
   pathBasenameFallback: true,
   // Require the search that backs an absence claim to postdate the last write.
   absenceAfterWrite: false,
+  // Require a path to contain a slash. "check package.json" or "the .test.ts
+  // files" name a kind of file, not a specific one, and carry no claim to check.
+  pathRequiresSlash: true,
 };
+
+// Extension patterns written in prose (".test.ts", ".stories.tsx") are never a
+// claim about a file that exists.
+const BARE_EXT_RE = /^\.[A-Za-z]/;
 
 /**
  * Classify the answer's claims against what actually ran.
@@ -113,6 +120,8 @@ function classify(answer, ev, cfg) {
   if (C.path) for (const m of text.matchAll(PATH_RE)) {
     const span = m[2] ? `${m[1]}:${m[2]}` : m[1];
     covered.push(m[0]);
+    if (BARE_EXT_RE.test(m[1])) continue;
+    if (C.pathRequiresSlash && !m[1].includes('/')) continue;
     if (!pathSeen(m[1], ev.paths, C.pathBasenameFallback)) {
       unbacked.push({
         class: 'path',

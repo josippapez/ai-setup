@@ -17,14 +17,23 @@
 //   node replay.cjs --corpus --sweep      score every candidate, enforce no-regress
 //   node replay.cjs --candidate <file>    score a forked claim-patterns against current
 
+const fs = require('node:fs');
 const path = require('node:path');
 const ledger = require('./ledger.cjs');
 const corpus = require('./corpus.cjs');
 const { CONFIG, pathSeen } = require('./claim-patterns.cjs');
 
-// The replay objective, eq. 1 retargeted. Quality is claims caught before they
-// were checked; cost is every flag that never resolved, plus a flat charge per
-// blocked turn standing in for the paper's execution-cost term.
+// The replay objective, eq. 1 retargeted. Quality is a flag confirmed by any of
+// three signals: the evidence shows up later in the session, the user's next
+// message is a correction, or a claimed absolute path does not exist on disk.
+// Cost is every flag none of those confirm, plus a flat charge per blocked turn
+// standing in for the paper's execution-cost term.
+//
+// The first version scored only the evidence-appears-later signal, and it wanted
+// to delete the path class: a claim nobody ever went back and checked looks
+// identical to noise under that proxy, which is precisely the failure the gate
+// exists to catch. The other two signals are what make the path verdict mean
+// something.
 const B1 = 1;
 const B2 = 0.25;
 
@@ -34,6 +43,22 @@ const arg = (name, dflt) => {
   const v = process.argv[i + 1];
   return v && !v.startsWith('--') ? v : true;
 };
+
+// The user pushing back is ground truth the transcript carries directly. When a
+// flagged turn is followed by a correction, the flag was pointing at something
+// real whether or not the evidence ever showed up.
+const CORRECTION_RE =
+  /\b(?:that'?s (?:not right|wrong|incorrect)|you'?re wrong|not (?:true|correct|right)|actually,? (?:no|it)|no,? (?:it|that|the)|wrong\b|incorrect\b|you (?:missed|forgot|did ?n'?t)|doesn'?t exist|there is no such|re-?check|check again|are you sure|did you (?:actually|even))/i;
+
+// A path claim naming a file that is not on disk is wrong, full stop. No proxy
+// needed. This is the label the evidence-appears-later signal cannot see, and
+// its absence is what made the sweep want to delete the path class.
+function pathIsFiction(span) {
+  const p = span.replace(/:\d+$/, '');
+  if (!p.includes('/')) return false;                 // bare filename, unresolvable
+  if (!p.startsWith('/')) return false;               // relative to a cwd we do not know
+  try { fs.statSync(p); return false; } catch { return true; }
+}
 
 // Did the session go on to produce the evidence this flag asked for? If so the
 // claim really was asserted ahead of its check, and the flag was a catch.
@@ -66,8 +91,11 @@ function score(worlds, classify, cfg) {
     const { unbacked } = classify(w.answer, w.ev, cfg);
     if (unbacked.length === 0) { clean += 1; continue; }
     blocked += 1;
+    const corrected = CORRECTION_RE.test(String(w.nextUser || '').slice(0, 400));
     for (const f of unbacked) {
-      const hit = resolvedLater(f, w.ev, w.final);
+      const hit = resolvedLater(f, w.ev, w.final)
+        || corrected
+        || (f.class === 'path' && pathIsFiction(f.span));
       byClass[f.class] = byClass[f.class] || { caught: 0, unconfirmed: 0 };
       if (hit) { caught += 1; byClass[f.class].caught += 1; }
       else { unconfirmed += 1; byClass[f.class].unconfirmed += 1; }
@@ -89,6 +117,7 @@ function candidates() {
   // A couple of pairs worth trying together.
   out.push({ name: 'version=false + url=false', cfg: { version: false, url: false } });
   out.push({ name: 'absence strict + basename off', cfg: { absenceAfterWrite: true, pathBasenameFallback: false } });
+  out.push({ name: 'slash-only paths + absence off', cfg: { pathRequiresSlash: true, absence: false } });
   return out;
 }
 

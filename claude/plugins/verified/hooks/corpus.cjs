@@ -97,7 +97,10 @@ function worldsFor(file) {
     const isUserTurn = r.type === 'user' && !blocks.some((b) => b && b.type === 'tool_result');
 
     if (isUserTurn) {
-      if (started && answer) turns.push({ answer, ev: snapshot(ev) });
+      const said = typeof r.message.content === 'string'
+        ? r.message.content
+        : blocks.filter((b) => b && b.type === 'text').map((b) => b.text).join(' ');
+      if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: said });
       answer = '';
       started = true;
       continue;
@@ -112,7 +115,7 @@ function worldsFor(file) {
       if (b.type === 'tool_use') fold(ev, String(b.name || ''), b.input || {}, !errored.has(b.id));
     }
   }
-  if (started && answer) turns.push({ answer, ev: snapshot(ev) });
+  if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: '' });
 
   // The manifest at end of session is what "did the evidence ever show up" is
   // asked against. Zero re-execution: it is the same record, read once more.
