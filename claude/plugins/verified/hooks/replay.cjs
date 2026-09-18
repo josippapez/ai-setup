@@ -81,7 +81,7 @@ function score(worlds, classify, cfg) {
       const t = w.truth && w.truth[f.span];
       const v = typeof t === 'boolean'
         ? (t ? { c: 1, e: 0, u: 0 } : { c: 0, e: 1, u: 0 })
-        : labels.label(f, w, found.get(f.span.replace(/:\d+$/, '')));
+        : labels.label(f, w, found.get(f.span.replace(/:\d+$/, '')), found.testPassSeqs);
       caught += v.c; fp += v.e; unknown += v.u;
       byClass[f.class] = byClass[f.class] || { caught: 0, fp: 0, unknown: 0 };
       byClass[f.class].caught += v.c; byClass[f.class].fp += v.e; byClass[f.class].unknown += v.u;

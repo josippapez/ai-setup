@@ -55,18 +55,41 @@ function resolvedLater(flag, ev, final) {
   }
 }
 
+// What counts as the session having had the check in front of it, per class.
+// The literal turning up somewhere in output is not enough on its own: "tests
+// pass" appears in output when a judge payload or a GitHub comment quotes the
+// claim, and a filename appears in every `git diff --stat`. Inspected on the
+// flags this scored as proven wrong, and neither was a test run or a read.
+function hadTheCheck(flag, seen, passSeqs, world) {
+  const idx = world.idx;
+  switch (flag.class) {
+    case 'command-outcome': {
+      // The policy's own question: a clean run at or after the last write and
+      // before the claim. A pass line from before an edit does not back a claim
+      // about the edited tree, and the policy is right to flag it.
+      const ev = world.ev;
+      return (passSeqs || []).some((s) => s <= (ev.seq || 0) && s >= (ev.lastWrite || 0));
+    }
+    case 'path':
+      return !!seen && seen.turn < idx && seen.kind === 'content';
+    default:
+      return !!seen && seen.turn < idx;
+  }
+}
+
 /**
  * One flag's verdict as fractional credit: { c, e, u } summing to 1.
- * `seenAt` is the first turn index at which the flag's literal showed up in
- * tool output, or undefined.
+ * `seen` is { turn, kind } for the first appearance of the flag's literal in
+ * tool output, or undefined; `testPassAt` the first turn a runner summary line
+ * appeared.
  */
-function label(flag, world, seenAt) {
+function label(flag, world, seen, passSeqs) {
   const stale = world.ageDays <= 7 ? STALE.fresh : STALE.old;
   if (flag.class === 'path-missing' || (flag.class === 'path' && resolve.exists(flag.span, world.cwd) === 'missing')) {
     return { c: 1 - stale, e: stale, u: 0 };
   }
   if (CORRECTION_RE.test(String(world.nextUser || '').slice(0, 400))) return { c: 1, e: 0, u: 0 };
-  if (seenAt !== undefined && seenAt < world.idx) return { c: 0, e: 1, u: 0 };
+  if (hadTheCheck(flag, seen, passSeqs, world)) return { c: 0, e: 1, u: 0 };
   if (resolvedLater(flag, world.ev, world.final)) return { c: 1, e: 0, u: 0 };
   return { c: 0, e: 0, u: 1 };
 }

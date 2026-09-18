@@ -29,6 +29,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
+const { TEST_PASS_RE, outputKind, pathsInOutput } = require('./corpus.cjs');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
 const MAX_REPEAT_BLOCKS = 3; // then downgrade to a visible flag rather than burn the turn
@@ -76,7 +77,8 @@ function buildEvidence(transcriptPath, session) {
         if (b.type === 'tool_result' && b.is_error) errored.add(b.tool_use_id);
       }
     }
-    for (const rec of records) collect(rec, ev, errored);
+    const toolOf = new Map();
+    for (const rec of records) collect(rec, ev, errored, toolOf);
     ledger.writeManifest(session, ev);
   } catch {
     return ev;
@@ -116,20 +118,20 @@ function see(ev, p) {
   }
 }
 
-const TEST_OUT_RE =
-  /\b(?:\d+ (?:tests? )?(?:passed|passing)|all tests passed|Tests:\s+\d+ passed|0 failures?|Test Suites:.*passed|build (?:succeeded|complete))/i;
-
-function collect(rec, ev, errored) {
+function collect(rec, ev, errored, toolOf) {
   for (const b of blocksOf(rec)) {
     if (b.type === 'tool_result' && !b.is_error) {
       const c = b.content;
-      const out = typeof c === 'string' ? c : '';
-      if (out && TEST_OUT_RE.test(out)) ev.testOut = ev.seq;
+      const out = typeof c === 'string' ? c : JSON.stringify(c || '');
+      if (out && TEST_PASS_RE.test(out)) ev.testOut = ev.seq;
+      const src = toolOf.get(b.tool_use_id);
+      if (out && src && outputKind(src.tool, src.cmd) === 'content') for (const p of pathsInOutput(out)) see(ev, p);
       continue;
     }
     if (b.type !== 'tool_use') continue;
     const name = String(b.name || '');
     const inp = b.input || {};
+    toolOf.set(b.id, { tool: name, cmd: inp.command });
     const ok = !errored.has(b.id);
     ev.seq += 1;
     // A write invalidates any earlier "the tests pass": the thing that passed is

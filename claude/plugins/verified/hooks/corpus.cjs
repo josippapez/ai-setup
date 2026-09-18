@@ -109,6 +109,7 @@ function worldsFor(file, maxBytes) {
   // Which turn of this session a world is, so a label can ask whether the
   // evidence showed up before the claim or after it.
   let idx = -1;
+  const toolOf = new Map();
   let ageDays = 999;
   try { ageDays = (Date.now() - fs.statSync(file).mtimeMs) / 86400000; } catch { /* unreadable */ }
 
@@ -137,9 +138,16 @@ function worldsFor(file, maxBytes) {
     for (const b of blocks) {
       if (!b) continue;
       if (b.type === 'text' && b.text.trim()) answer = b.text;
-      if (b.type === 'tool_use') fold(ev, String(b.name || ''), b.input || {}, !errored.has(b.id));
-      if (b.type === 'tool_result' && !b.is_error && typeof b.content === 'string'
-        && /\b(?:\d+ (?:tests? )?(?:passed|passing)|all tests passed|Tests:\s+\d+ passed|0 failures?|Test Suites:.*passed|build (?:succeeded|complete))/i.test(b.content)) ev.testOut = ev.seq;
+      if (b.type === 'tool_use') {
+        toolOf.set(b.id, { tool: String(b.name || ''), cmd: b.input && b.input.command });
+        fold(ev, String(b.name || ''), b.input || {}, !errored.has(b.id));
+      }
+      if (b.type === 'tool_result' && !b.is_error) {
+        const out = typeof b.content === 'string' ? b.content : JSON.stringify(b.content || '');
+        if (TEST_PASS_RE.test(out)) ev.testOut = ev.seq;
+        const src = toolOf.get(b.tool_use_id);
+        if (src && outputKind(src.tool, src.cmd) === 'content') for (const p of pathsInOutput(out)) ev.paths.add(p);
+      }
     }
   }
   if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: '', idx, cwd: ev.cwd, ageDays, file, bytes: maxBytes });
@@ -202,13 +210,46 @@ function build(limit) {
   return out;
 }
 
+
+// Paths whose contents a content-bearing tool printed: an `rg -n` hit prefix, a
+// diff header, a `cat`-style dump does not name itself so it is covered by the
+// command tokenizer already.
+const OUTPUT_PATH_RE = /(?:^|\n)(?:\+\+\+ b\/|diff --git a\/|(?:\.\/)?)([\w][\w./-]*\.[A-Za-z]\w{0,9})(?=[:-]\d+[:-]| |\n|$)/g;
+function pathsInOutput(out, cap = 500) {
+  const found = [];
+  let m;
+  OUTPUT_PATH_RE.lastIndex = 0;
+  while ((m = OUTPUT_PATH_RE.exec(out)) && found.length < cap) found.push(m[1]);
+  return found;
+}
+
+// What kind of output a tool produced, because "the literal was in the output"
+// means different things. A filename in `git diff --stat` does not back a claim
+// about that file's line 30; the file's contents from a Read or a `cat` do.
+// Measured: 454 of the path flags scored as proven wrong had the path in a
+// listing, not in content.
+const CONTENT_CMD_RE = /\b(?:cat|head|tail|sed|awk|rg|grep|ag|ack|bat|less|more|rtk\s+read|git\s+(?:show|diff)(?!\s+--stat))\b/;
+function outputKind(tool, cmd) {
+  if (tool === 'Bash') return CONTENT_CMD_RE.test(cmd || '') ? 'content' : 'listing';
+  if (/WebSearch/i.test(tool)) return 'web';
+  return 'content'; // Read, WebFetch, codegraph, MCP tools all return the thing itself
+}
+
+// A test runner's own summary line. node:test prints "pass 38", vitest "✓ 38",
+// jest "Tests: 38 passed"; the claim text "tests pass" appearing in output is
+// not one of these, it is usually the claim being quoted back.
+const TEST_PASS_RE =
+  /(?:^|\n)\s*(?:\S\s+)?pass\s+\d+\b|\b\d+ (?:tests? )?(?:passed|passing)\b|\ball tests passed\b|\bTests:\s+\d+ passed|\b0 failures?\b|Test Suites:.*passed|\u2713\s+\d+|\bbuild (?:succeeded|complete)\b/i;
+
 /**
- * First turn index at which each wanted literal shows up in this session's tool
- * OUTPUT. The manifest records what tools were asked for; this is what they
- * printed, which is where the proof that a flag was wrong actually lives.
+ * For each wanted literal, the first turn index at which it shows up in this
+ * session's tool OUTPUT and what kind of output that was: { turn, kind }.
+ * Also `testPassAt`, the first turn a runner summary line appeared. The
+ * manifest records what tools were asked for; this is what they printed.
  */
 function outputIndex(file, maxBytes, wanted) {
   const found = new Map();
+  found.testPassAt = undefined;
   if (!wanted.size) return found;
   let text;
   try {
@@ -221,6 +262,9 @@ function outputIndex(file, maxBytes, wanted) {
   } catch { return found; }
 
   let idx = -1;
+  let seq = 0;
+  found.testPassSeqs = [];
+  const toolOf = new Map();
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     let r;
@@ -228,14 +272,19 @@ function outputIndex(file, maxBytes, wanted) {
     const blocks = Array.isArray(r.message && r.message.content) ? r.message.content : [];
     if (r.type === 'user' && !blocks.some((b) => b && b.type === 'tool_result')) { idx += 1; continue; }
     for (const b of blocks) {
-      if (!b || b.type !== 'tool_result') continue;
+      if (!b) continue;
+      if (b.type === 'tool_use') { seq += 1; toolOf.set(b.id, { tool: String(b.name || ''), cmd: b.input && b.input.command }); }
+      if (b.type !== 'tool_result') continue;
       const c = b.content;
       const out = typeof c === 'string' ? c : JSON.stringify(c);
       if (!out) continue;
-      for (const w of wanted) if (!found.has(w) && out.includes(w)) found.set(w, idx);
+      const src = toolOf.get(b.tool_use_id) || { tool: '?', cmd: '' };
+      const kind = outputKind(src.tool, src.cmd);
+      if (!b.is_error && TEST_PASS_RE.test(out)) { found.testPassSeqs.push(seq); if (found.testPassAt === undefined) found.testPassAt = idx; }
+      for (const w of wanted) if (!found.has(w) && out.includes(w)) found.set(w, { turn: idx, kind });
     }
   }
   return found;
 }
 
-module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex };
+module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex, TEST_PASS_RE, outputKind, pathsInOutput };
