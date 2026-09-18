@@ -572,3 +572,18 @@ test('an outcome claim outside quotes still blocks', () => {
   assert.ok(blocked(r));
   assert.match(reason(r), /\[command-outcome\]/);
 });
+
+test('a quoted span with words in front of the match is still a mention', () => {
+  const fx = fixture();
+  // The first version compared the two characters touching the match, so
+  // "21 tests pass" read as unquoted: what touches the match is "1 ".
+  const r = run(fx, 'Both "tests pass" and "21 tests pass" are quoted from an earlier block.');
+  assert.strictEqual(r, null);
+});
+
+test('one unquoted use makes it a claim even when also quoted', () => {
+  const fx = fixture();
+  const r = run(fx, 'I quote "tests pass" here, but also: the tests pass now.');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[command-outcome\]/);
+});

@@ -66,14 +66,25 @@ const PLACEHOLDER_RE = /^(?:x|y|z|foo|bar|baz|qux|quux|example|sample)\.[A-Za-z]
 
 // True when every occurrence of the span sits inside quotes. One unquoted use
 // and it is being used, not mentioned.
+//
+// Parity, not adjacency. The first version compared the two characters touching
+// the span, which reads "21 tests pass" as unquoted: the match starts after the
+// number, so what touches it is `1 `. Counting the quote marks earlier on the
+// line gets the whole quoted region instead of its edges.
+const QUOTE_RE = /["\u201c\u201d]/g;
+function insideQuotes(text, at) {
+  const lineStart = text.lastIndexOf('\n', at) + 1;
+  const before = text.slice(lineStart, at);
+  const marks = before.match(QUOTE_RE);
+  return !!marks && marks.length % 2 === 1;
+}
+
 function onlyQuoted(text, span) {
   let i = -1;
   let any = false;
   while ((i = text.indexOf(span, i + 1)) !== -1) {
     any = true;
-    const before = text.slice(Math.max(0, i - 2), i);
-    const after = text.slice(i + span.length, i + span.length + 2);
-    if (!(/["'\u201c\u2018]\s*$/.test(before) && /^\s*["'\u201d\u2019]/.test(after))) return false;
+    if (!insideQuotes(text, i)) return false;
   }
   return any;
 }

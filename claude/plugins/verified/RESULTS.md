@@ -30,15 +30,18 @@ positive, unknown (charged nothing). V = catch − fp − 0.25·blocked turns.
 |---|---|---|---|---|---|
 | `5ecfd68` | manifest-membership path check, slash required, absence on | 170.8 | 14.8% | 49.7 | 14.4% |
 | `9f92298` | on-disk existence check, bare filenames allowed, absence off | 409.2 | 20.9% | 117.2 | 18.3% |
-| this commit | mentioned spans are not claims | **402.6** | 20.6% | | |
-| oracle | every confirmable catch, nothing else | 557.6 | 20.5% | | |
+| `0b88ee1` | mentioned spans are not claims | 402.6 | 20.6% | | |
+| this commit | quote test by parity, not adjacency | **398.8** | 20.6% | | |
+| oracle | every confirmable catch, nothing else | 552.8 | 20.4% | | |
 | no gate | | 0.0 | 0% | | |
 
 The mention rule is the one change shipped against the replay rather than
-because of it: V drops 6.6 and the oracle drops 6.9, because the scorer had the
-same blind spot as the policy and was crediting mentioned spans as catches. Two
-live blocks were of this shape and neither was a claim. The corpus holds 13 such
-flags in 3260 turns and cannot settle the question either way.
+because of it: V and the oracle fall together, 409.2 to 398.8 against 564.5 to
+552.8, because the scorer had the same blind spot as the policy and was
+crediting mentioned spans as catches. Share of the ceiling is flat at 72%. All
+18 corpus flags the rule drops were read by hand and every one is a mention: a
+phrase quoted from an earlier block, a JSON key quoted out of a config file, a
+filename inside a quoted error message. None was a claim, so none was a catch.
 
 Per class at `9f92298`:
 
