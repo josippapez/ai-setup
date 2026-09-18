@@ -286,6 +286,11 @@ const main = async () => {
       searches: evidence.searches,
       urls: [...evidence.urls],
       libLookup: evidence.libLookup,
+      // Replay re-classifies under a different config, and the outcome class
+      // compares a command's seq against lastWrite. Without these two the node
+      // replays as though nothing had ever been written.
+      seq: evidence.seq,
+      lastWrite: evidence.lastWrite,
     },
   };
 

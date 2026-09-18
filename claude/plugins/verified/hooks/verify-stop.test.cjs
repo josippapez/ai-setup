@@ -391,3 +391,87 @@ test('a long session keeps its manifest bounded and its stamps aligned', () => {
   assert.ok(back.commands[0].cmd.startsWith('npm test'), 'the part the regexes read survives');
   assert.strictEqual(Object.keys(back.stamps).length, back.paths.size, 'no stamp outlives its path');
 });
+
+// ---- the fixed history -----------------------------------------------------
+// Dream-RSI's no-regress bound is stated over a fixed history (p.6). Scoring the
+// N most recent transcripts is not one: measured over this user's sessions the
+// sweep winner moved from absenceAfterWrite=true to absence=false to path=false
+// as N grew, so a config that shipped on one draw would lose on the next.
+
+function pinnable() {
+  const fx = fixture();
+  const proj = path.join(fx.home, '.claude', 'projects', 'p');
+  fs.mkdirSync(proj, { recursive: true });
+  fx.vh = path.join(fx.home, 'vh');
+  fx.session = path.join(proj, 'a.jsonl');
+  fx.turn = (name, input, text) => {
+    fs.appendFileSync(fx.session, [
+      JSON.stringify({ type: 'user', message: { content: 'go' } }),
+      JSON.stringify({ type: 'assistant', message: { content: [
+        { type: 'tool_use', id: `t${fx.seq += 1}`, name, input },
+        { type: 'text', text },
+      ] } }),
+    ].join('\n') + '\n');
+  };
+  fx.replay = (...args) => execFileSync('node', [REPLAY, ...args], {
+    encoding: 'utf8',
+    env: { ...process.env, HOME: fx.home, VERIFIED_HOME: fx.vh },
+  });
+  return fx;
+}
+
+test('a pinned history scores the same worlds whatever limit is asked for', () => {
+  const fx = pinnable();
+  fx.turn('Read', { file_path: '/x/a.ts' }, 'It is at src/one.ts:3.');
+  fx.turn('Read', { file_path: '/x/b.ts' }, 'It is at src/two.ts:4.');
+  fx.replay('--pin');
+
+  const counts = ['1', '5', '500'].map((n) => fx.replay('--corpus', n).match(/replayed (\d+) turns/)[1]);
+  assert.deepStrictEqual(counts, [counts[0], counts[0], counts[0]],
+    'the limit must not change the world set once it is pinned');
+  assert.match(fx.replay('--corpus'), /pinned worlds/);
+});
+
+test('a pinned world does not grow when its session keeps running', () => {
+  const fx = pinnable();
+  fx.turn('Read', { file_path: '/x/a.ts' }, 'It is at src/one.ts:3.');
+  fx.replay('--pin');
+  const before = fx.replay('--corpus').match(/replayed (\d+) turns/)[1];
+
+  fx.turn('Read', { file_path: '/x/b.ts' }, 'It is at src/two.ts:4.');
+  fx.turn('Read', { file_path: '/x/c.ts' }, 'It is at src/three.ts:5.');
+  assert.strictEqual(fx.replay('--corpus').match(/replayed (\d+) turns/)[1], before,
+    'the lock records a byte length, so a live transcript cannot change a world');
+});
+
+test('a bare --corpus replays the default, not one transcript', () => {
+  const fx = pinnable();
+  fx.turn('Read', { file_path: '/x/a.ts' }, 'It is at src/one.ts:3.');
+  // No lock, so this takes the recent-transcripts path, where `arg` used to hand
+  // Number() a boolean and quietly score a single session.
+  assert.match(fx.replay('--corpus'), /from the 120 most recent/);
+});
+
+test('a block the gate resolved outscores the same block it did not', () => {
+  const nodes = (resolved) => {
+    const out = [];
+    for (let i = 0; i < 25; i += 1) {
+      out.push(JSON.stringify({
+        ts: new Date().toISOString(), session: `s${i}`, action: 'block', resolved,
+        answer: `The value is at src/mod${i}.ts:7.`,
+        evidence: { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 1, lastWrite: 0 },
+        claims: [{ class: 'path', span: `src/mod${i}.ts:7` }],
+      }));
+    }
+    return out.join('\n') + '\n';
+  };
+  const V = (resolved) => {
+    const fx = fixture();
+    fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), nodes(resolved));
+    const out = execFileSync('node', [REPLAY], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+    return Number(out.match(/V=\s*(-?[\d.]+)/)[1]);
+  };
+  // The recorded outcome is the only label here that is not a proxy, so it has
+  // to move the score. Before, replay never read it and both scored identically.
+  assert.ok(V(true) > V(false), `resolved block should score higher: ${V(true)} vs ${V(false)}`);
+});

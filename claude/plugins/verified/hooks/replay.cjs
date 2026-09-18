@@ -13,6 +13,7 @@
 //   (default)     the gate's own ledger, once it has enough nodes to mean anything
 //
 // Usage:
+//   node replay.cjs --pin [N]             freeze the world set (append-only)
 //   node replay.cjs --corpus              score the current config
 //   node replay.cjs --corpus --sweep      score every candidate, enforce no-regress
 //   node replay.cjs --candidate <file>    score a forked claim-patterns against current
@@ -42,6 +43,12 @@ const arg = (name, dflt) => {
   if (i === -1) return dflt;
   const v = process.argv[i + 1];
   return v && !v.startsWith('--') ? v : true;
+};
+
+const num = (name, dflt) => {
+  const v = arg(name, null);
+  const n = typeof v === 'string' ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : dflt;
 };
 
 // The user pushing back is ground truth the transcript carries directly. When a
@@ -93,9 +100,16 @@ function score(worlds, classify, cfg) {
     blocked += 1;
     const corrected = CORRECTION_RE.test(String(w.nextUser || '').slice(0, 400));
     for (const f of unbacked) {
-      const hit = resolvedLater(f, w.ev, w.final)
-        || corrected
-        || (f.class === 'path' && pathIsFiction(f.span));
+      // A block the gate actually issued has a recorded outcome: the next Stop
+      // wrote whether the claim came back unchanged. That is the one label here
+      // that is not a proxy, so it wins outright when it exists. Everything
+      // below it is inference about a turn that was never blocked.
+      const truth = w.truth && w.truth[f.span];
+      const hit = typeof truth === 'boolean'
+        ? truth
+        : resolvedLater(f, w.ev, w.final)
+          || corrected
+          || (f.class === 'path' && pathIsFiction(f.span));
       byClass[f.class] = byClass[f.class] || { caught: 0, unconfirmed: 0 };
       if (hit) { caught += 1; byClass[f.class].caught += 1; }
       else { unconfirmed += 1; byClass[f.class].unconfirmed += 1; }
@@ -122,30 +136,50 @@ function candidates() {
 }
 
 function main() {
+  if (process.argv.includes('--pin')) {
+    const n = num('--pin', 596);
+    const { added, total } = corpus.pin(n);
+    console.log(`pinned +${added} world${added === 1 ? '' : 's'}, ${total} total -> ${corpus.lockPath()}`);
+    console.log('The history is now fixed. Re-pin to admit new sessions; nothing is ever dropped.');
+    return;
+  }
+
   const useCorpus = process.argv.includes('--corpus');
   const { classify } = require('./claim-patterns.cjs');
 
   let worlds;
   if (useCorpus) {
-    const n = Number(arg('--corpus', 120)) || 120;
+    const n = num('--corpus', 120);
+    const lock = corpus.readLock();
     worlds = corpus.build(n);
-    console.log(`replayed ${worlds.length} turns from the ${n} most recent transcripts, zero re-execution\n`);
+    console.log(lock
+      ? `replayed ${worlds.length} turns from ${lock.worlds.length} pinned worlds, zero re-execution\n`
+      : `replayed ${worlds.length} turns from the ${n} most recent transcripts, zero re-execution\n` +
+        'WARNING: the history is not pinned, so a winner here can lose on the next draw. Run --pin first.\n');
   } else {
+    // `final` used to be a copy of `ev`, which made resolvedLater structurally
+    // false in this mode: every "did the evidence show up later" test compared
+    // the manifest against itself. The session's end-state manifest is the
+    // record that answers it, and it is already on disk.
     worlds = ledger.read()
       .filter((n) => n.answer && n.evidence)
-      .map((n) => ({
-        answer: n.answer,
-        ev: {
+      .map((n) => {
+        const ev = {
           paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
           searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
           libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0, lastWrite: n.evidence.lastWrite || 0,
-        },
-        final: {
-          paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
-          searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
-          libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0,
-        },
-      }));
+        };
+        const m = ledger.readManifest(n.session);
+        const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;
+        // resolved=true means none of the blocked spans came back, so the model
+        // went and fixed the claim. resolved=false means it came back unchanged,
+        // which is the gate having been wrong.
+        const truth = {};
+        if (n.action === 'block' && typeof n.resolved === 'boolean') {
+          for (const c of n.claims || []) truth[c.span] = n.resolved;
+        }
+        return { answer: n.answer, ev, final, truth };
+      });
     if (worlds.length < 20) {
       console.log(`The ledger holds ${worlds.length} replayable nodes, too few to score a change.`);
       console.log('Use --corpus to replay over real transcripts instead.');

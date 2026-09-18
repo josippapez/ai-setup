@@ -24,6 +24,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const ledger = require('./ledger.cjs');
 
 const EMPTY = () => ({
   paths: new Set(), commands: [], searches: [], urls: new Set(),
@@ -80,10 +81,26 @@ function fold(ev, name, inp, ok) {
   }
 }
 
-/** Every turn in one transcript, each with the manifest as it stood and the one after. */
-function worldsFor(file) {
+/** Every turn in one transcript, each with the manifest as it stood and the one after.
+ *
+ * `maxBytes` truncates the read at the byte length the lock recorded. A pinned
+ * world has to stay the same world: transcripts of live sessions keep growing,
+ * and a world that gains turns between two replays is not a fixed history. */
+function worldsFor(file, maxBytes) {
   let lines;
-  try { lines = fs.readFileSync(file, 'utf8').split('\n'); } catch { return []; }
+  try {
+    if (maxBytes === undefined || !Number.isFinite(maxBytes)) {
+      lines = fs.readFileSync(file, 'utf8').split('\n');
+    } else {
+      const fd = fs.openSync(file, 'r');
+      const buf = Buffer.allocUnsafe(maxBytes);
+      const n = fs.readSync(fd, buf, 0, maxBytes, 0);
+      fs.closeSync(fd);
+      // A truncation mid-line leaves an unparseable tail; the JSON.parse below
+      // already skips it, so no separate trim is needed.
+      lines = buf.subarray(0, n).toString('utf8').split('\n');
+    }
+  } catch { return []; }
   const ev = EMPTY();
   const turns = [];
   let answer = '';
@@ -123,10 +140,56 @@ function worldsFor(file) {
   return turns.map((t) => ({ ...t, final }));
 }
 
+// ---- the pinned history ----------------------------------------------------
+// Dream-RSI's guarantee is stated over a *fixed* history H_t (p.6): the selected
+// policy is no worse than the current one "in average replay score on the fixed
+// history". Taking the N most recent transcripts every run does not give a fixed
+// history, it gives a new one each session, and the argmax moved with it —
+// measured on this machine, the sweep winner was absenceAfterWrite=true at 93
+// worlds, absence=false at 569, and path=false at 1553 and 3257. A config that
+// wins on one draw can lose on the next, which is exactly what the guarantee is
+// supposed to rule out.
+//
+// So the world set lives in a lockfile and grows only when asked, mirroring
+// H_t = H_{t-1} u {T_t}. Entries are never rewritten or dropped.
+const lockPath = () => path.join(ledger.dir(), 'worlds.lock.json');
+
+function readLock() {
+  try {
+    const l = JSON.parse(fs.readFileSync(lockPath(), 'utf8'));
+    return Array.isArray(l.worlds) && l.worlds.length ? l : null;
+  } catch { return null; }
+}
+
+/** Add every transcript not already pinned, at its current byte length. */
+function pin(limit) {
+  const lock = readLock() || { created: new Date().toISOString(), worlds: [] };
+  const have = new Set(lock.worlds.map((w) => w.file));
+  let added = 0;
+  for (const f of transcripts(limit)) {
+    if (have.has(f)) continue;
+    let bytes;
+    try { bytes = fs.statSync(f).size; } catch { continue; }
+    lock.worlds.push({ file: f, bytes });
+    added += 1;
+  }
+  lock.updated = new Date().toISOString();
+  fs.mkdirSync(path.dirname(lockPath()), { recursive: true });
+  const tmp = lockPath() + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(lock, null, 2));
+  fs.renameSync(tmp, lockPath());
+  return { added, total: lock.worlds.length };
+}
+
+/** The pinned worlds when a lock exists, otherwise the N most recent. */
 function build(limit) {
+  const lock = readLock();
+  const src = lock
+    ? lock.worlds
+    : transcripts(limit).map((f) => ({ file: f, bytes: Infinity }));
   const out = [];
-  for (const f of transcripts(limit)) out.push(...worldsFor(f));
+  for (const w of src) out.push(...worldsFor(w.file, w.bytes));
   return out;
 }
 
-module.exports = { build, worldsFor, transcripts, EMPTY };
+module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath };
