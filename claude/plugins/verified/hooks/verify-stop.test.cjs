@@ -276,3 +276,13 @@ test('an MCP tool call counts as external evidence', () => {
   const viaMcp = { ...bare, libLookup: true };
   assert.strictEqual(classify('Upgrade to v2.1.0 first.', viaMcp).unbacked.length, 0);
 });
+
+test('reading the file that declares a version backs a claim about it', () => {
+  const fx = fixture();
+  // The gate blocked twice on version strings the same turn had just read out
+  // of a plugin.json, because MANIFEST_RE only listed package manifests.
+  const r = run(fx, 'The plugin is at 0.1.3 now.', [
+    { name: 'Read', input: { file_path: '/repo/.claude-plugin/plugin.json' } },
+  ], 'ver');
+  assert.strictEqual(r, null);
+});

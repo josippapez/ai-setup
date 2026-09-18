@@ -67,7 +67,11 @@ const TEST_CMD_RE =
 const SEARCH_TOOLS = new Set(['Grep', 'Glob']);
 const SEARCH_CMD_RE = /\b(?:rg|grep|ag|ack|find|codegraph)\b/;
 const LIB_CMD_RE = /\b(?:opensrc|npm\s+(?:ls|list|view|info)|pnpm\s+(?:ls|list|why)|yarn\s+(?:list|why)|pip\s+show|cargo\s+tree)\b/;
-const MANIFEST_RE = /(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|requirements\.txt|pyproject\.toml|Cargo\.(?:toml|lock)|go\.(?:mod|sum)|Gemfile(?:\.lock)?|composer\.json)$/;
+// Files that declare a version. `plugin.json` and `manifest.json` are here
+// because the gate blocked twice on version strings that the same turn had just
+// read out of a plugin.json: the file that declares the version did not count as
+// evidence for it.
+const MANIFEST_RE = /(?:package(?:-lock)?\.json|plugin\.json|manifest\.json|pnpm-lock\.yaml|yarn\.lock|requirements\.txt|pyproject\.toml|Cargo\.(?:toml|lock)|go\.(?:mod|sum)|Gemfile(?:\.lock)?|composer\.json)$/;
 
 /**
  * Classify the answer's claims against what actually ran.
