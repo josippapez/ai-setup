@@ -90,6 +90,26 @@ function score(worlds, classify, cfg) {
   return { V: caught - B1 * fp - B2 * blocked, caught, fp, unknown, blocked, clean, byClass };
 }
 
+// One line per scored run, aggregates only, so the trajectory of V survives the
+// session that measured it. No answer text, so it is safe to copy anywhere.
+function record(mode, turns, s) {
+  let version = null;
+  try { version = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8')).version; } catch { /* unversioned checkout */ }
+  const lock = corpus.readLock();
+  const row = {
+    ts: new Date().toISOString(), version, mode, turns,
+    worlds: mode === 'corpus' && lock ? lock.worlds.length : null,
+    config: CONFIG,
+    V: Number(s.V.toFixed(1)), caught: Number(s.caught.toFixed(1)), fp: Number(s.fp.toFixed(1)),
+    unknown: s.unknown, blocked: s.blocked, total: s.blocked + s.clean,
+    byClass: Object.fromEntries(Object.entries(s.byClass).map(([k, v]) => [k, { caught: Number(v.caught.toFixed(1)), fp: Number(v.fp.toFixed(1)), unknown: v.unknown }])),
+  };
+  try {
+    fs.mkdirSync(ledger.dir(), { recursive: true });
+    fs.appendFileSync(path.join(ledger.dir(), 'replay-log.jsonl'), JSON.stringify(row) + '\n');
+  } catch { /* a lost log line costs one data point, never the run */ }
+}
+
 // Block rate is printed next to V because V alone does not see it: a policy that
 // flags half the session can still score well, and would be muted within a day.
 const fmt = (s) =>
@@ -177,6 +197,7 @@ function main() {
   }
 
   const current = score(worlds, classify, {});
+  record(useCorpus ? 'corpus' : 'ledger', worlds.length, current);
   console.log(`current    ${fmt(current)}`);
   for (const [k, v] of Object.entries(current.byClass).sort((a, b) => b[1].caught - a[1].caught)) {
     console.log(`             ${k.padEnd(16)} caught ${v.caught.toFixed(0).padStart(4)}  fp ${v.fp.toFixed(0).padStart(4)}  unknown ${String(v.unknown).padStart(5)}`);

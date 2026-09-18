@@ -18,11 +18,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const dir = () =>
-  process.env.VERIFIED_HOME ||
-  (process.env.CLAUDE_PLUGIN_DATA
-    ? path.join(process.env.CLAUDE_PLUGIN_DATA, 'verified')
-    : path.join(os.homedir(), '.claude', 'verified'));
+// Not the plugin data dir: that survives a plugin update but not an uninstall,
+// and it reaches the hook only as an env var the CLI never sees, which is how
+// /verified-replay read an empty ledger while the hook wrote a full one. The
+// ledger is the gate's only ground truth, so it lives where nothing that
+// manages plugins will touch it.
+const dir = () => process.env.VERIFIED_HOME || path.join(os.homedir(), '.claude', 'verified');
 
 const ledgerPath = () => path.join(dir(), 'ledger.jsonl');
 const offsetsPath = () => path.join(dir(), 'offsets.json');
