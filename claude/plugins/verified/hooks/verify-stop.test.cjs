@@ -230,3 +230,14 @@ test('a sentence a pattern already handled is not also sent to the judge', () =>
   assert.ok(residualText.includes('Redis'), 'untouched sentence still reaches the judge');
   assert.ok(!/`\s+`|at\s+\.\s/.test(residualText), 'no spliced-out fragment left behind');
 });
+
+test('stage 3 is off by default and opts in by env var', () => {
+  const fx = fixture();
+  // Residual well past the 80-char threshold with no stage-2 pattern in it.
+  const answer =
+    'Redis evicts keys using an approximated LRU rather than a true LRU, sampling ' +
+    'a handful of candidates on each eviction instead of scanning every key.';
+  const t0 = Date.now();
+  assert.strictEqual(run(fx, answer, [], 'off'), null, 'default: no judge, nothing blocks');
+  assert.ok(Date.now() - t0 < 3000, 'default path never spawns a model (would take 5-56s)');
+});

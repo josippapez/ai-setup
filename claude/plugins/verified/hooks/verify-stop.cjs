@@ -127,12 +127,22 @@ function collect(rec, ev, errored) {
   }
 }
 
-// ---- stage 3: residual judge ----------------------------------------------
+// ---- stage 3: residual judge (off by default) ------------------------------
 // Only classification: does this sentence assert something checkable? Never
 // whether it is true — that is stage 2's job against the manifest. Keeping the
 // model on the narrow question is what makes a small one adequate.
-
+//
+// Off unless VERIFIED_JUDGE_ENABLED=1. Replaying the gate over 476 real turns,
+// this fired on 92.5% of them, not the handful the design assumed, and a call
+// costs 5-56s (median ~38s). That cost is `claude -p` process boot, not model
+// work: 5 sentences took 26.1s and 30 took 19.4s, so no payload cap makes it
+// cheap. Half a minute on nine turns in ten is not worth what it adds over the
+// deterministic pass, which runs in 1.26ms and already blocks 36.8% of turns.
+//
+// Turn it on for a session where correctness is worth the wall-clock:
+//   VERIFIED_JUDGE_ENABLED=1 claude
 function judge(residual, ev) {
+  if (process.env.VERIFIED_JUDGE_ENABLED !== '1') return [];
   const trimmed = residual.replace(/\s+/g, ' ').trim();
   if (trimmed.length < 80) return [];
   let promptTemplate;
