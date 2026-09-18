@@ -92,7 +92,7 @@ if have claude; then
   fi
 
   # Install or update dev-core, concise-output, rules-index, and better-design.
-  for plugin in dev-core concise-output rules-index better-design; do
+  for plugin in dev-core concise-output rules-index better-design fundamentals; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"
     else
@@ -135,6 +135,7 @@ if have claude; then
   echo "  - concise-output@ai-setup plugin"
   echo "  - rules-index@ai-setup plugin"
   echo "  - better-design@ai-setup plugin"
+  echo "  - fundamentals@ai-setup plugin"
   echo "  - orchestrate@ai-setup plugin"
   echo "  - orchestrate-nightly@ai-setup plugin (experimental)"
 else

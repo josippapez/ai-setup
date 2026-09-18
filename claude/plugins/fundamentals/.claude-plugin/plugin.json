@@ -1,0 +1,15 @@
+{
+  "name": "fundamentals",
+  "version": "0.2.1",
+  "description": "One skill, building-blocks: explains what is going on, what was built, and what was already there, in plain words, for someone who was not in the session. Replaces the unreadable wall-of-text handoff.",
+  "author": {
+    "name": "Personal AI Setup"
+  },
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "handoff",
+    "explanation",
+    "onboarding"
+  ]
+}

@@ -68,6 +68,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/orchestrate-nightly"
+    },
+    {
+      "name": "fundamentals",
+      "description": "One skill, building-blocks: explains what is going on, what was built, or the answer to a question in plain words, for someone who was not in the session. For end-of-session handoffs that are actually readable.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/fundamentals"
     }
   ]
 }
