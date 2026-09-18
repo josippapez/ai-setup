@@ -22,21 +22,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ledger = require('./ledger.cjs');
 const corpus = require('./corpus.cjs');
-const { CONFIG, pathSeen } = require('./claim-patterns.cjs');
-
-// The replay objective, eq. 1 retargeted. Quality is a flag confirmed by any of
-// three signals: the evidence shows up later in the session, the user's next
-// message is a correction, or a claimed absolute path does not exist on disk.
-// Cost is every flag none of those confirm, plus a flat charge per blocked turn
-// standing in for the paper's execution-cost term.
-//
-// The first version scored only the evidence-appears-later signal, and it wanted
-// to delete the path class: a claim nobody ever went back and checked looks
-// identical to noise under that proxy, which is precisely the failure the gate
-// exists to catch. The other two signals are what make the path verdict mean
-// something.
-const B1 = 1;
-const B2 = 0.25;
+const labels = require('./labels.cjs');
+const { CONFIG } = require('./claim-patterns.cjs');
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(name);
@@ -45,81 +32,68 @@ const arg = (name, dflt) => {
   return v && !v.startsWith('--') ? v : true;
 };
 
+// `arg` returns true for a flag given without a value, and Number(true) is 1, so
+// a bare --corpus or --pin silently replayed one transcript instead of the default.
 const num = (name, dflt) => {
   const v = arg(name, null);
   const n = typeof v === 'string' ? Number(v) : NaN;
   return Number.isFinite(n) && n > 0 ? n : dflt;
 };
 
-// The user pushing back is ground truth the transcript carries directly. When a
-// flagged turn is followed by a correction, the flag was pointing at something
-// real whether or not the evidence ever showed up.
-const CORRECTION_RE =
-  /\b(?:that'?s (?:not right|wrong|incorrect)|you'?re wrong|not (?:true|correct|right)|actually,? (?:no|it)|no,? (?:it|that|the)|wrong\b|incorrect\b|you (?:missed|forgot|did ?n'?t)|doesn'?t exist|there is no such|re-?check|check again|are you sure|did you (?:actually|even))/i;
-
-// A path claim naming a file that is not on disk is wrong, full stop. No proxy
-// needed. This is the label the evidence-appears-later signal cannot see, and
-// its absence is what made the sweep want to delete the path class.
-function pathIsFiction(span) {
-  const p = span.replace(/:\d+$/, '');
-  if (!p.includes('/')) return false;                 // bare filename, unresolvable
-  if (!p.startsWith('/')) return false;               // relative to a cwd we do not know
-  try { fs.statSync(p); return false; } catch { return true; }
-}
-
-// Did the session go on to produce the evidence this flag asked for? If so the
-// claim really was asserted ahead of its check, and the flag was a catch.
-function resolvedLater(flag, ev, final) {
-  switch (flag.class) {
-    case 'path': {
-      const p = flag.span.replace(/:\d+$/, '');
-      return pathSeen(p, final.paths) && !pathSeen(p, ev.paths);
-    }
-    case 'command-outcome':
-      return final.commands.some((c) => c.ok && (c.seq || 0) > ev.seq && /\b(test|lint|build|tsc|check)\b/.test(c.cmd));
-    case 'absence':
-      return final.searches.some((s) => (s.seq || 0) > ev.seq);
-    case 'version':
-      return final.libLookup && !ev.libLookup;
-    case 'url': {
-      let host = '';
-      try { host = new URL(flag.span).host; } catch { return false; }
-      return (final.urls.has(host) || final.urls.has('*')) && !ev.urls.has(host);
-    }
-    default:
-      return false;
-  }
-}
+// The replay objective, eq. 1 retargeted. Quality is a confirmed catch, cost is
+// a proven false positive plus a flat charge per blocked turn standing in for
+// the paper's execution-cost term. What a flag costs when nothing can settle it
+// either way is nothing: charging it was what made declining to look the winning
+// move, since a class that is switched off cannot be wrong.
+//
+// Labelling lives in labels.cjs and does not change when the policy does.
+const B1 = 1;
+const B2 = 0.25;
 
 function score(worlds, classify, cfg) {
-  let caught = 0, unconfirmed = 0, blocked = 0, clean = 0;
-  const byClass = {};
-  for (const w of worlds) {
-    const { unbacked } = classify(w.answer, w.ev, cfg);
-    if (unbacked.length === 0) { clean += 1; continue; }
-    blocked += 1;
-    const corrected = CORRECTION_RE.test(String(w.nextUser || '').slice(0, 400));
-    for (const f of unbacked) {
-      // A block the gate actually issued has a recorded outcome: the next Stop
-      // wrote whether the claim came back unchanged. That is the one label here
-      // that is not a proxy, so it wins outright when it exists. Everything
-      // below it is inference about a turn that was never blocked.
-      const truth = w.truth && w.truth[f.span];
-      const hit = typeof truth === 'boolean'
-        ? truth
-        : resolvedLater(f, w.ev, w.final)
-          || corrected
-          || (f.class === 'path' && pathIsFiction(f.span));
-      byClass[f.class] = byClass[f.class] || { caught: 0, unconfirmed: 0 };
-      if (hit) { caught += 1; byClass[f.class].caught += 1; }
-      else { unconfirmed += 1; byClass[f.class].unconfirmed += 1; }
-    }
+  const flags = worlds.map((w) => classify(w.answer, w.ev, cfg).unbacked);
+
+  // One pass per transcript to find which flagged literals the session had
+  // already printed. Zero re-execution: it is the same record, read once more.
+  const byFile = new Map();
+  worlds.forEach((w, i) => {
+    if (!flags[i].length || !w.file) return;
+    if (!byFile.has(w.file)) byFile.set(w.file, []);
+    byFile.get(w.file).push(i);
+  });
+  const seen = new Map();
+  for (const [file, idxs] of byFile) {
+    const wanted = new Set();
+    for (const i of idxs) for (const f of flags[i]) wanted.add(f.span.replace(/:\d+$/, ''));
+    const found = corpus.outputIndex(file, worlds[idxs[0]].bytes, wanted);
+    for (const i of idxs) seen.set(i, found);
   }
-  return { V: caught - B1 * unconfirmed - B2 * blocked, caught, unconfirmed, blocked, clean, byClass };
+
+  let caught = 0, fp = 0, unknown = 0, blocked = 0, clean = 0;
+  const byClass = {};
+  worlds.forEach((w, i) => {
+    if (!flags[i].length) { clean += 1; return; }
+    blocked += 1;
+    const found = seen.get(i) || new Map();
+    for (const f of flags[i]) {
+      // A block the gate actually issued has a recorded outcome, which is the
+      // one label here that is not inferred, so it wins outright.
+      const t = w.truth && w.truth[f.span];
+      const v = typeof t === 'boolean'
+        ? (t ? { c: 1, e: 0, u: 0 } : { c: 0, e: 1, u: 0 })
+        : labels.label(f, w, found.get(f.span.replace(/:\d+$/, '')));
+      caught += v.c; fp += v.e; unknown += v.u;
+      byClass[f.class] = byClass[f.class] || { caught: 0, fp: 0, unknown: 0 };
+      byClass[f.class].caught += v.c; byClass[f.class].fp += v.e; byClass[f.class].unknown += v.u;
+    }
+  });
+  return { V: caught - B1 * fp - B2 * blocked, caught, fp, unknown, blocked, clean, byClass };
 }
 
+// Block rate is printed next to V because V alone does not see it: a policy that
+// flags half the session can still score well, and would be muted within a day.
 const fmt = (s) =>
-  `V=${s.V.toFixed(1).padStart(8)}  caught=${String(s.caught).padStart(4)}  unconfirmed=${String(s.unconfirmed).padStart(5)}  blocked=${String(s.blocked).padStart(4)}/${s.blocked + s.clean}`;
+  `V=${s.V.toFixed(1).padStart(8)}  caught=${s.caught.toFixed(0).padStart(4)}  fp=${s.fp.toFixed(0).padStart(4)}  unknown=${String(s.unknown).padStart(5)}  blocks=${String(s.blocked).padStart(4)}/${s.blocked + s.clean} (${(100 * s.blocked / Math.max(1, s.blocked + s.clean)).toFixed(1)}%)`;
 
 // Candidates: one knob moved at a time off the current config, plus the current
 // config itself. Keeping pi^0 in the set is what makes the guarantee hold.
@@ -132,6 +106,12 @@ function candidates() {
   out.push({ name: 'version=false + url=false', cfg: { version: false, url: false } });
   out.push({ name: 'absence strict + basename off', cfg: { absenceAfterWrite: true, pathBasenameFallback: false } });
   out.push({ name: 'slash-only paths + absence off', cfg: { pathRequiresSlash: true, absence: false } });
+  // Two reference points. Nothing-at-all is the floor any gate has to clear to
+  // be worth running; everything-at-once is the check that the objective is not
+  // simply paying for volume.
+  out.push({ name: 'existence only (path=false, pathMissing on)', cfg: { path: false, pathMissing: true } });
+  out.push({ name: 'NOTHING (no gate at all)', cfg: { path: false, outcome: false, absence: false, version: false, url: false, pathMissing: false } });
+  out.push({ name: 'NOISE (every class, no filters)', cfg: { version: true, absence: true, pathRequiresSlash: false } });
   return out;
 }
 
@@ -168,6 +148,10 @@ function main() {
           paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
           searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
           libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0, lastWrite: n.evidence.lastWrite || 0,
+          testOut: n.evidence.testOut || 0,
+          // classify reads cwd off the manifest, not off the world, because the
+          // live hook only ever hands it a manifest.
+          cwd: n.evidence.cwd || '',
         };
         const m = ledger.readManifest(n.session);
         const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;
@@ -178,7 +162,11 @@ function main() {
         if (n.action === 'block' && typeof n.resolved === 'boolean') {
           for (const c of n.claims || []) truth[c.span] = n.resolved;
         }
-        return { answer: n.answer, ev, final, truth };
+        return {
+          answer: n.answer, ev, final, truth,
+          nextUser: '', idx: 0, cwd: n.evidence.cwd || '', ageDays: 0,
+          file: null, bytes: 0,
+        };
       });
     if (worlds.length < 20) {
       console.log(`The ledger holds ${worlds.length} replayable nodes, too few to score a change.`);
@@ -191,7 +179,7 @@ function main() {
   const current = score(worlds, classify, {});
   console.log(`current    ${fmt(current)}`);
   for (const [k, v] of Object.entries(current.byClass).sort((a, b) => b[1].caught - a[1].caught)) {
-    console.log(`             ${k.padEnd(16)} caught ${String(v.caught).padStart(4)}  unconfirmed ${String(v.unconfirmed).padStart(5)}`);
+    console.log(`             ${k.padEnd(16)} caught ${v.caught.toFixed(0).padStart(4)}  fp ${v.fp.toFixed(0).padStart(4)}  unknown ${String(v.unknown).padStart(5)}`);
   }
 
   const candidatePath = arg('--candidate');

@@ -79,9 +79,10 @@ function readManifest(session) {
       stamps: m.stamps || {},
       seq: m.seq || 0,
       lastWrite: m.lastWrite || 0,
+      testOut: m.testOut || 0,
     };
   } catch {
-    return { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, stamps: {}, seq: 0, lastWrite: 0 };
+    return { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, stamps: {}, seq: 0, lastWrite: 0, testOut: 0 };
   }
 }
 
@@ -104,6 +105,7 @@ function writeManifest(session, ev) {
       stamps,
       seq: ev.seq,
       lastWrite: ev.lastWrite,
+      testOut: ev.testOut || 0,
     }));
     fs.renameSync(p + '.tmp', p);
   } catch { /* a lost manifest costs precision on one turn, never the turn */ }

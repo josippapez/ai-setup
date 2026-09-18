@@ -116,8 +116,17 @@ function see(ev, p) {
   }
 }
 
+const TEST_OUT_RE =
+  /\b(?:\d+ (?:tests? )?(?:passed|passing)|all tests passed|Tests:\s+\d+ passed|0 failures?|Test Suites:.*passed|build (?:succeeded|complete))/i;
+
 function collect(rec, ev, errored) {
   for (const b of blocksOf(rec)) {
+    if (b.type === 'tool_result' && !b.is_error) {
+      const c = b.content;
+      const out = typeof c === 'string' ? c : '';
+      if (out && TEST_OUT_RE.test(out)) ev.testOut = ev.seq;
+      continue;
+    }
     if (b.type !== 'tool_use') continue;
     const name = String(b.name || '');
     const inp = b.input || {};
@@ -265,6 +274,7 @@ const main = async () => {
   const session = String(ev0.session_id || 'unknown');
 
   const evidence = buildEvidence(ev0.transcript_path, session);
+  evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
   pruneStale(evidence);
   const { unbacked, residualText } = classify(answer, evidence);
 
@@ -291,6 +301,8 @@ const main = async () => {
       // replays as though nothing had ever been written.
       seq: evidence.seq,
       lastWrite: evidence.lastWrite,
+      testOut: evidence.testOut,
+      cwd: evidence.cwd,
     },
   };
 

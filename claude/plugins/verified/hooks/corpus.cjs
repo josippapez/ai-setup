@@ -28,12 +28,13 @@ const ledger = require('./ledger.cjs');
 
 const EMPTY = () => ({
   paths: new Set(), commands: [], searches: [], urls: new Set(),
-  libLookup: false, stamps: {}, seq: 0, lastWrite: 0,
+  libLookup: false, stamps: {}, seq: 0, lastWrite: 0, testOut: 0, cwd: '',
 });
 
 const snapshot = (ev) => ({
   paths: new Set(ev.paths), commands: [...ev.commands], searches: [...ev.searches],
-  urls: new Set(ev.urls), libLookup: ev.libLookup, stamps: {}, seq: ev.seq, lastWrite: ev.lastWrite,
+  urls: new Set(ev.urls), libLookup: ev.libLookup, stamps: {}, seq: ev.seq,
+  lastWrite: ev.lastWrite, testOut: ev.testOut, cwd: ev.cwd,
 });
 
 function transcripts(limit) {
@@ -105,11 +106,17 @@ function worldsFor(file, maxBytes) {
   const turns = [];
   let answer = '';
   let started = false;
+  // Which turn of this session a world is, so a label can ask whether the
+  // evidence showed up before the claim or after it.
+  let idx = -1;
+  let ageDays = 999;
+  try { ageDays = (Date.now() - fs.statSync(file).mtimeMs) / 86400000; } catch { /* unreadable */ }
 
   for (const line of lines) {
     if (!line.trim()) continue;
     let r;
     try { r = JSON.parse(line); } catch { continue; }
+    if (typeof r.cwd === 'string' && r.cwd) ev.cwd = r.cwd;
     const blocks = Array.isArray(r.message && r.message.content) ? r.message.content : [];
     const isUserTurn = r.type === 'user' && !blocks.some((b) => b && b.type === 'tool_result');
 
@@ -117,9 +124,10 @@ function worldsFor(file, maxBytes) {
       const said = typeof r.message.content === 'string'
         ? r.message.content
         : blocks.filter((b) => b && b.type === 'text').map((b) => b.text).join(' ');
-      if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: said });
+      if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: said, idx, cwd: ev.cwd, ageDays, file, bytes: maxBytes });
       answer = '';
       started = true;
+      idx += 1;
       continue;
     }
     if (!started) continue;
@@ -130,9 +138,11 @@ function worldsFor(file, maxBytes) {
       if (!b) continue;
       if (b.type === 'text' && b.text.trim()) answer = b.text;
       if (b.type === 'tool_use') fold(ev, String(b.name || ''), b.input || {}, !errored.has(b.id));
+      if (b.type === 'tool_result' && !b.is_error && typeof b.content === 'string'
+        && /\b(?:\d+ (?:tests? )?(?:passed|passing)|all tests passed|Tests:\s+\d+ passed|0 failures?|Test Suites:.*passed|build (?:succeeded|complete))/i.test(b.content)) ev.testOut = ev.seq;
     }
   }
-  if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: '' });
+  if (started && answer) turns.push({ answer, ev: snapshot(ev), nextUser: '', idx, cwd: ev.cwd, ageDays, file, bytes: maxBytes });
 
   // The manifest at end of session is what "did the evidence ever show up" is
   // asked against. Zero re-execution: it is the same record, read once more.
@@ -192,4 +202,40 @@ function build(limit) {
   return out;
 }
 
-module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath };
+/**
+ * First turn index at which each wanted literal shows up in this session's tool
+ * OUTPUT. The manifest records what tools were asked for; this is what they
+ * printed, which is where the proof that a flag was wrong actually lives.
+ */
+function outputIndex(file, maxBytes, wanted) {
+  const found = new Map();
+  if (!wanted.size) return found;
+  let text;
+  try {
+    const fd = fs.openSync(file, 'r');
+    const cap = Number.isFinite(maxBytes) ? maxBytes : fs.statSync(file).size;
+    const buf = Buffer.allocUnsafe(cap);
+    const n = fs.readSync(fd, buf, 0, cap, 0);
+    fs.closeSync(fd);
+    text = buf.subarray(0, n).toString('utf8');
+  } catch { return found; }
+
+  let idx = -1;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    const blocks = Array.isArray(r.message && r.message.content) ? r.message.content : [];
+    if (r.type === 'user' && !blocks.some((b) => b && b.type === 'tool_result')) { idx += 1; continue; }
+    for (const b of blocks) {
+      if (!b || b.type !== 'tool_result') continue;
+      const c = b.content;
+      const out = typeof c === 'string' ? c : JSON.stringify(c);
+      if (!out) continue;
+      for (const w of wanted) if (!found.has(w) && out.includes(w)) found.set(w, idx);
+    }
+  }
+  return found;
+}
+
+module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex };

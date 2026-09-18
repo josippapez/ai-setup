@@ -13,6 +13,7 @@
 // and narrow for the same reason git-mv-guard's mv parser is.
 
 const path = require('node:path');
+const resolve = require('./resolve.cjs');
 
 // A path that looks like source, optionally with :line. Requires a slash or a
 // known code extension so prose like "3.5" or "node.js" does not match.
@@ -27,7 +28,7 @@ const path = require('node:path');
 // invisible to the gate entirely. Keeping `/` in the lookbehind still keeps the
 // pattern out of URLs, which `URL_RE` owns.
 const PATH_RE =
-  /(?<![\w@/.-])(\/(?:[\w.-]+\/)*[\w.-]+\.[A-Za-z][\w]{0,9}|(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
+  /(?<![\w@/.~\u2026-])(\/(?:[\w.-]+\/)*[\w.-]+\.[A-Za-z][\w]{0,9}|(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
 
 // Claims that a command succeeded. Anchored on the verb so "the test file" or
 // "a passing grade" do not match.
@@ -84,23 +85,37 @@ const MANIFEST_RE = /(?:package(?:-lock)?\.json|plugin\.json|manifest\.json|pnpm
 // a candidate is a set of values rather than a forked file, which is what makes a
 // sweep over many candidates cheap.
 const CONFIG = {
-  path: true,
+  // Off on the evidence: asking whether the manifest holds a path caught 48
+  // claims across 3260 replayed turns against 202 the session had demonstrably
+  // already printed. The existence check below does the same job without the
+  // false positives, because a path the manifest cannot vouch for is usually one
+  // the manifest recorded under another spelling.
+  path: false,
   outcome: true,
-  absence: true,
   // Off on the evidence: over 651 replayed turns this class produced 2 catches
   // against 67 flags nothing ever resolved, the worst ratio of the five. Semantic
   // version claims ("React 19 added X") are stage 3's job; matching the digits
   // was never going to do it.
   version: false,
+  // Off on the evidence: across 3260 replayed turns this class produced 66 flags,
+  // zero of which any signal could confirm in either direction. It costs blocked
+  // turns and returns no information.
+  absence: false,
+  // A claimed file that is not on disk is wrong whatever the manifest says. This
+  // is the only class that can catch a fabricated path, because a fabricated path
+  // is exactly the one the manifest has nothing to say about.
+  pathMissing: true,
   url: true,
   // A basename match backs a claim when neither path is a suffix of the other.
   // Loose, and the replay is how we find out whether it pays for itself.
   pathBasenameFallback: true,
   // Require the search that backs an absence claim to postdate the last write.
   absenceAfterWrite: false,
-  // Require a path to contain a slash. "check package.json" or "the .test.ts
-  // files" name a kind of file, not a specific one, and carry no claim to check.
-  pathRequiresSlash: true,
+  // A bare filename was noise while the question was "is it in the manifest":
+  // "check package.json" names a kind of file, not a specific one. It is not
+  // noise for "is it there", because the repo either has a file by that name or
+  // it does not. Worth 843 catches against 494 on the pinned history.
+  pathRequiresSlash: false,
 };
 
 // Extension patterns written in prose (".test.ts", ".stories.tsx") are never a
@@ -111,18 +126,36 @@ const BARE_EXT_RE = /^\.[A-Za-z]/;
  * Classify the answer's claims against what actually ran.
  * Returns { unbacked: [{class, span, needs}], residualText: string }
  */
+// The hook runs as its own process, so a test that wants to exercise a class the
+// replay turned off has no other way to reach the config.
+let ENV_CFG;
+function envConfig() {
+  if (ENV_CFG === undefined) {
+    try { ENV_CFG = JSON.parse(process.env.VERIFIED_CONFIG || '{}'); } catch { ENV_CFG = {}; }
+  }
+  return ENV_CFG;
+}
+
 function classify(answer, ev, cfg) {
-  const C = { ...CONFIG, ...(cfg || {}) };
+  const C = { ...CONFIG, ...envConfig(), ...(cfg || {}) };
   const text = stripFences(String(answer || ''));
   const unbacked = [];
   const covered = [];
 
-  if (C.path) for (const m of text.matchAll(PATH_RE)) {
+  if (C.path || C.pathMissing) for (const m of text.matchAll(PATH_RE)) {
     const span = m[2] ? `${m[1]}:${m[2]}` : m[1];
     covered.push(m[0]);
     if (BARE_EXT_RE.test(m[1])) continue;
     if (C.pathRequiresSlash && !m[1].includes('/')) continue;
-    if (!pathSeen(m[1], ev.paths, C.pathBasenameFallback)) {
+    if (C.pathMissing && resolve.exists(span, ev.cwd) === 'missing') {
+      unbacked.push({
+        class: 'path-missing',
+        span,
+        needs: `that path to exist: nothing is at ${m[1]}, from ${ev.cwd || 'this directory'} or the repo root`,
+      });
+      continue;
+    }
+    if (C.path && !pathSeen(m[1], ev.paths, C.pathBasenameFallback)) {
       unbacked.push({
         class: 'path',
         span,
@@ -138,7 +171,8 @@ function classify(answer, ev, cfg) {
     // exists, which is the failure session-scoped evidence would otherwise let
     // through and the one worth catching on its own merits.
     const lastWrite = ev.lastWrite || 0;
-    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok && (c.seq || 0) >= lastWrite);
+    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok && (c.seq || 0) >= lastWrite)
+      || ((ev.testOut || 0) > 0 && (ev.testOut || 0) >= lastWrite);
     if (!ran) {
       const stale = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok);
       unbacked.push({

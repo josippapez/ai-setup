@@ -20,14 +20,29 @@ function fixture() {
     // writes. Rewriting it in place let a same-size replacement slip past the
     // byte offset, which read as a product bug and was not one.
     seq: 0,
+    // The path classes ask the filesystem now, so a fixture that wants a claim
+    // to be about a real file has to make one.
+    file(rel) {
+      const p = path.join(home, rel);
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, 'x\n');
+      return p;
+    },
     transcript(calls, session) {
       const file = path.join(home, `transcript-${session}.jsonl`);
-      const lines = calls.map((c) =>
-        JSON.stringify({
+      const lines = [];
+      for (const c of calls) {
+        const id = `t${this.seq += 1}`;
+        lines.push(JSON.stringify({
           type: 'assistant',
-          message: { content: [{ type: 'tool_use', id: `t${this.seq += 1}`, name: c.name, input: c.input }] },
-        }),
-      );
+          message: { content: [{ type: 'tool_use', id, name: c.name, input: c.input }] },
+        }));
+        // Some checks read what the tool printed, not just what it was asked.
+        if (c.result !== undefined) lines.push(JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'tool_result', tool_use_id: id, content: c.result }] },
+        }));
+      }
       fs.appendFileSync(file, lines.join('\n') + (lines.length ? '\n' : ''));
       if (!fs.existsSync(file)) fs.writeFileSync(file, '');
       return file;
@@ -42,6 +57,7 @@ function run(fx, answer, calls = [], session = 's1', env = {}) {
       session_id: session,
       transcript_path: fx.transcript(calls, session),
       last_assistant_message: answer,
+      cwd: fx.home,
     }),
     encoding: 'utf8',
     env: { ...process.env, VERIFIED_HOME: fx.home, ...env },
@@ -52,23 +68,68 @@ function run(fx, answer, calls = [], session = 's1', env = {}) {
 const blocked = (r) => !!r && r.decision === 'block';
 const reason = (r) => (r && r.reason) || '';
 
+const WITH_PATH = { VERIFIED_CONFIG: '{"path":true}' };
+
+test('a file that is there but was never read does not block by default', () => {
+  const fx = fixture();
+  fx.file('src/db.ts');
+  // Asking the manifest caught 48 claims across 3260 replayed turns against 202
+  // the session had demonstrably already printed. The existence check stays.
+  assert.strictEqual(run(fx, 'The config lives at src/db.ts:42.'), null);
+});
+
 test('path claim with no read of that file blocks', () => {
   const fx = fixture();
-  const r = run(fx, 'The config lives at src/db.ts:42.');
+  fx.file('src/db.ts');
+  const r = run(fx, 'The config lives at src/db.ts:42.', [], 's1', WITH_PATH);
   assert.ok(blocked(r));
-  assert.match(reason(r), /src\/db\.ts:42/);
+  assert.match(reason(r), /\[path\] "src\/db\.ts:42"/);
+});
+
+test('a claim about a file that is not there blocks as fiction', () => {
+  const fx = fixture();
+  // Nothing written: the manifest has nothing to say about a path that does not
+  // exist, which is exactly the claim it could never catch before.
+  const r = run(fx, 'The config lives at src/nope.ts:42.');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[path-missing\]/);
+});
+
+test('reading a file does not excuse it having been deleted', () => {
+  const fx = fixture();
+  const r = run(fx, 'The config lives at src/gone.ts:42.', [
+    { name: 'Read', input: { file_path: path.join(fx.home, 'src/gone.ts') } },
+  ]);
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[path-missing\]/);
+});
+
+test('a ~ path is not read as an absolute path that cannot exist', () => {
+  const fx = fixture();
+  // "~/.claude/RTK.md" used to match from the slash, giving "/.claude/RTK.md",
+  // an absolute path that is missing by construction. It flagged every time.
+  const r = run(fx, 'It is in ~/.claude/RTK.md as documented.');
+  assert.strictEqual(r, null);
+});
+
+test('an elided path inside a markdown link is not a claim', () => {
+  const fx = fixture();
+  const r = run(fx, 'See [libs/\u2026/drift.spec.mjs:49](tools/x) for it.');
+  assert.strictEqual(r, null);
 });
 
 test('path claim backed by a Read passes', () => {
   const fx = fixture();
+  const abs = fx.file('src/db.ts');
   const r = run(fx, 'The config lives at src/db.ts:42.', [
-    { name: 'Read', input: { file_path: '/repo/src/db.ts' } },
+    { name: 'Read', input: { file_path: abs } },
   ]);
   assert.strictEqual(r, null);
 });
 
 test('path claim backed by a Bash cat passes', () => {
   const fx = fixture();
+  fx.file('src/db.ts');
   const r = run(fx, 'The config lives at src/db.ts:42.', [
     { name: 'Bash', input: { command: 'rtk read src/db.ts' } },
   ]);
@@ -116,17 +177,21 @@ test('"tests pass" is not backed by a test command that errored', () => {
   assert.ok(blocked(JSON.parse(out)));
 });
 
-test('absence claim with no search blocks', () => {
+test('the absence class is off, on the evidence', () => {
   const fx = fixture();
+  // 66 flags across 3260 replayed turns and not one that any signal could
+  // confirm in either direction. It spent blocked turns and returned nothing.
   const r = run(fx, 'There is no retry logic.');
-  assert.ok(blocked(r));
-  assert.match(reason(r), /absence/);
+  assert.strictEqual(r, null);
 });
 
-test('absence claim backed by a Grep passes', () => {
+test('a test runner pass line in output backs "tests pass"', () => {
   const fx = fixture();
-  const r = run(fx, 'There is no retry logic.', [
-    { name: 'Grep', input: { pattern: 'retry' } },
+  // The command pattern only knows the runners it names. 33 of the measured
+  // command-outcome false positives had the runner's own pass line in output
+  // while TEST_CMD_RE matched nothing.
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'make verify' }, result: 'Tests: 14 passed, 14 total' },
   ]);
   assert.strictEqual(r, null);
 });
@@ -328,7 +393,7 @@ test('a read goes stale when the file changes underneath it', () => {
   // Turn 1 reads it, so a claim about it is backed.
   assert.strictEqual(run(fx, `The value is at ${target}:1.`, [
     { name: 'Read', input: { file_path: target } },
-  ], 'stale'), null);
+  ], 'stale', WITH_PATH), null);
 
   // The file changes. The old read no longer describes what is there.
   const later = new Date(Date.now() + 5000);
@@ -337,7 +402,7 @@ test('a read goes stale when the file changes underneath it', () => {
 
   const r = run(fx, `The value is at ${target}:1.`, [
     { name: 'Bash', input: { command: 'echo unrelated' } },
-  ], 'stale');
+  ], 'stale', WITH_PATH);
   assert.ok(r && r.decision === 'block', 'the stale read no longer backs the claim');
 });
 
@@ -366,11 +431,11 @@ test('re-running after the edit clears it', () => {
 test('an absolute path is a claim like any other', () => {
   const { classify } = require('./claim-patterns.cjs');
   const bare = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
-  const found = classify('It lives at /Users/me/repo/src/db.ts:42.', bare).unbacked;
+  const found = classify('It lives at /Users/me/repo/src/db.ts:42.', bare, { path: true, pathMissing: false }).unbacked;
   assert.strictEqual(found.length, 1);
   assert.strictEqual(found[0].span, '/Users/me/repo/src/db.ts:42');
   // A URL is URL_RE's job; PATH_RE must not also claim it.
-  const url = classify('See https://example.com/docs/x.js for the shape.', bare).unbacked;
+  const url = classify('See https://example.com/docs/x.js for the shape.', bare, { path: true, pathMissing: false }).unbacked;
   assert.deepStrictEqual(url.map((u) => u.class), ['url']);
 });
 
@@ -459,7 +524,7 @@ test('a block the gate resolved outscores the same block it did not', () => {
       out.push(JSON.stringify({
         ts: new Date().toISOString(), session: `s${i}`, action: 'block', resolved,
         answer: `The value is at src/mod${i}.ts:7.`,
-        evidence: { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 1, lastWrite: 0 },
+        evidence: { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 1, lastWrite: 0, cwd: '/' },
         claims: [{ class: 'path', span: `src/mod${i}.ts:7` }],
       }));
     }
