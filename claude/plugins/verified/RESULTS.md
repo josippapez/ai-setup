@@ -29,9 +29,16 @@ positive, unknown (charged nothing). V = catch − fp − 0.25·blocked turns.
 | commit | policy | V | blocks | V, last 7d | blocks, last 7d |
 |---|---|---|---|---|---|
 | `5ecfd68` | manifest-membership path check, slash required, absence on | 170.8 | 14.8% | 49.7 | 14.4% |
-| `9f92298` | on-disk existence check, bare filenames allowed, absence off | **409.2** | 20.9% | **117.2** | 18.3% |
-| oracle | every confirmable catch, nothing else | 564.5 | 20.7% | | |
+| `9f92298` | on-disk existence check, bare filenames allowed, absence off | 409.2 | 20.9% | 117.2 | 18.3% |
+| this commit | mentioned spans are not claims | **402.6** | 20.6% | | |
+| oracle | every confirmable catch, nothing else | 557.6 | 20.5% | | |
 | no gate | | 0.0 | 0% | | |
+
+The mention rule is the one change shipped against the replay rather than
+because of it: V drops 6.6 and the oracle drops 6.9, because the scorer had the
+same blind spot as the policy and was crediting mentioned spans as catches. Two
+live blocks were of this shape and neither was a claim. The corpus holds 13 such
+flags in 3260 turns and cannot settle the question either way.
 
 Per class at `9f92298`:
 
@@ -53,11 +60,19 @@ Per class at `9f92298`:
 
 ## What the labels cannot see
 
-- An example path in prose (`src/x.ts:12` as a format illustration). 1.1% of
-  path-missing flags. Every label, including the live `resolved`, scores it as
-  a catch. The first live block was one.
-- `resolved=true` means the span did not come back. Rewording an example counts.
-- 86 url flags have no signal either way.
+- `resolved=true` means the span did not come back. Rewording anything counts.
+- 85 url flags have no signal either way.
+- Fixed since: a span that only ever appears in quotes, and a path whose
+  basename is metasyntactic, are now non-claims for both the policy and the
+  scorer. A bare single letter was in the first draft of that rule and it
+  excluded `lib/a.cjs`, so the list is x/y/z plus foo/bar/baz/qux/quux/example/sample.
+
+## Live blocks so far
+
+Four, of which two were wrong and both were the mention shape now fixed. One
+asked for a full path on a file that really does sit outside the repo, which
+was correct. Too few to mean anything yet; the point of the ledger is to make
+this table worth reading.
 
 ## Targets once live
 

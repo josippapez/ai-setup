@@ -540,3 +540,35 @@ test('a block the gate resolved outscores the same block it did not', () => {
   // to move the score. Before, replay never read it and both scored identically.
   assert.ok(V(true) > V(false), `resolved block should score higher: ${V(true)} vs ${V(false)}`);
 });
+
+// ---- mentioning a claim is not making one ----------------------------------
+// Both of these blocked a real turn. Writing about what the gate looks for is
+// not asserting it, and the scorer shares the definition so it cannot credit
+// one of these as a catch either.
+
+test('a format example is not a path claim', () => {
+  const fx = fixture();
+  const r = run(fx, 'Spans come out looking like `src/x.ts:12` in the reason string.');
+  assert.strictEqual(r, null);
+});
+
+test('a quoted phrase is not an outcome claim', () => {
+  const fx = fixture();
+  const r = run(fx, 'It fires on a claim like "tests pass" when no test ran.');
+  assert.strictEqual(r, null);
+});
+
+test('using a placeholder-shaped name unquoted is still a claim', () => {
+  const fx = fixture();
+  // lib/a.cjs is an ordinary filename, and an unquoted src/nope.ts is asserted.
+  const r = run(fx, 'The bug is in src/nope.ts:12.');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[path-missing\]/);
+});
+
+test('an outcome claim outside quotes still blocks', () => {
+  const fx = fixture();
+  const r = run(fx, 'All 14 tests pass.');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[command-outcome\]/);
+});

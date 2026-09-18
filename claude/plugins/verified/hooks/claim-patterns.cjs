@@ -53,6 +53,37 @@ const URL_RE = /\bhttps?:\/\/[^\s<>()[\]"'`]+/gi;
 // references live, so it stays.
 const stripFences = (text) => text.replace(/```[\s\S]*?(?:```|$)/g, ' ');
 
+// Mentioning a span is not asserting it. Two live false positives came from
+// writing ABOUT claims rather than making them: `src/x.ts:12` shown as a format
+// example, and "tests pass" quoted while describing what the gate looks for.
+// Both are non-claims, so neither the policy flags them nor the scorer credits
+// them; one definition, used by both, or the two disagree about what a claim is.
+//
+// A metasyntactic stand-in is never a real file. Kept tiny on purpose: a bare
+// single letter was in the first draft and it excluded lib/a.cjs, which is an
+// ordinary filename.
+const PLACEHOLDER_RE = /^(?:x|y|z|foo|bar|baz|qux|quux|example|sample)\.[A-Za-z]\w{0,9}$/i;
+
+// True when every occurrence of the span sits inside quotes. One unquoted use
+// and it is being used, not mentioned.
+function onlyQuoted(text, span) {
+  let i = -1;
+  let any = false;
+  while ((i = text.indexOf(span, i + 1)) !== -1) {
+    any = true;
+    const before = text.slice(Math.max(0, i - 2), i);
+    const after = text.slice(i + span.length, i + span.length + 2);
+    if (!(/["'\u201c\u2018]\s*$/.test(before) && /^\s*["'\u201d\u2019]/.test(after))) return false;
+  }
+  return any;
+}
+
+function isMention(text, span) {
+  return onlyQuoted(text, span);
+}
+
+const isPlaceholderPath = (span) => PLACEHOLDER_RE.test(path.basename(span.replace(/:\d+$/, '')));
+
 const norm = (p) => (typeof p === 'string' ? p.replace(/^\.\//, '').replace(/\\/g, '/') : '');
 
 // The model writes repo-relative; tools record absolute. Match on the longest
@@ -147,6 +178,7 @@ function classify(answer, ev, cfg) {
     covered.push(m[0]);
     if (BARE_EXT_RE.test(m[1])) continue;
     if (C.pathRequiresSlash && !m[1].includes('/')) continue;
+    if (isPlaceholderPath(span) || isMention(text, span)) continue;
     if (C.pathMissing && resolve.exists(span, ev.cwd) === 'missing') {
       unbacked.push({
         class: 'path-missing',
@@ -166,6 +198,7 @@ function classify(answer, ev, cfg) {
 
   if (C.outcome) for (const m of text.matchAll(OUTCOME_RE)) {
     covered.push(m[0]);
+    if (isMention(text, m[0].trim())) continue;
     // The run has to be the LATEST state of the tree, not just somewhere in the
     // session. A pass followed by an edit is a claim about code that no longer
     // exists, which is the failure session-scoped evidence would otherwise let
@@ -210,6 +243,7 @@ function classify(answer, ev, cfg) {
 
   if (C.url) for (const m of text.matchAll(URL_RE)) {
     covered.push(m[0]);
+    if (isMention(text, m[0])) continue;
     let host = '';
     try { host = new URL(m[0]).host; } catch { /* malformed, treat as unbacked */ }
     if (!host || !ev.urls.has(host)) {
@@ -246,4 +280,4 @@ const BACKED_BY = {
   state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
 };
 
-module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
+module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
