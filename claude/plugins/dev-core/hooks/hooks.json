@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 0"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 0"
           }
         ]
       },
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 1"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 1"
           }
         ]
       },
@@ -29,15 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 2"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 3"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 2"
           }
         ]
       }
@@ -47,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 0 SubagentStart"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 0 SubagentStart"
           }
         ]
       },
@@ -55,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 1 SubagentStart"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 1 SubagentStart"
           }
         ]
       },
@@ -63,15 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 2 SubagentStart"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules.cjs\" 3 SubagentStart"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 2 SubagentStart"
           }
         ]
       }

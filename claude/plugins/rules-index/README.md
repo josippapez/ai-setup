@@ -8,6 +8,7 @@ Why: rules without `paths:` are already in context, but path-scoped rules only e
 - Stays under Claude Code's 10,000-character hook output cap; past 9,000 characters it drops trailing lines and says how many were left out.
 - Rules with no frontmatter show as their path only.
 - Not applied: `claudeMdExcludes`. An excluded rule still appears in the index.
+- Also carries `hooks/link-rules.cjs`, byte-identical to dev-core's: it sweeps `~/.claude/rules/` for links that dev-core's rule publishing left behind after a `claude plugin disable` or uninstall, because nothing of a disabled plugin runs. See the dev-core README.
 
 ## Tests
 

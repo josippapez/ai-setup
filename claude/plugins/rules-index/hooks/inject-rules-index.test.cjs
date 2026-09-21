@@ -78,4 +78,13 @@ test('rules-index has a valid plugin manifest and a SessionStart-only hooks.json
   const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')).hooks;
   assert.deepStrictEqual(Object.keys(hooks), ['SessionStart']);
   assert.ok(hooks.SessionStart[0].hooks[0].command.includes('inject-rules-index.cjs'));
+  // The sweep that removes rules published by a disabled or uninstalled plugin
+  // has to run from a plugin that is still enabled, so this one carries a copy.
+  assert.ok(hooks.SessionStart[1].hooks[0].command.endsWith('link-rules.cjs" 0'));
+});
+
+test('link-rules.cjs is byte-identical to the copy dev-core ships', () => {
+  const mine = fs.readFileSync(path.join(__dirname, 'link-rules.cjs'), 'utf8');
+  const theirs = fs.readFileSync(path.join(__dirname, '..', '..', 'dev-core', 'hooks', 'link-rules.cjs'), 'utf8');
+  assert.strictEqual(mine, theirs);
 });

@@ -8,6 +8,14 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rules-index.cjs\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/link-rules.cjs\" 0"
+          }
+        ]
       }
     ]
   }

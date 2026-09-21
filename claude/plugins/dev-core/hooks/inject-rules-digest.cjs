@@ -2,8 +2,8 @@
 // UserPromptSubmit hook: restate the always-on rules in condensed form next to the
 // prompt.
 //
-// The full rules are injected once at SessionStart, which puts them at the top of
-// the conversation. By turn 40 they are far from what is actually being worked on
+// The full rules load once, at launch, which puts them at the top of the
+// conversation. By turn 40 they are far from what is actually being worked on
 // and their pull fades. This hook re-states the parts that decay fastest, sized so
 // repeating it every message stays affordable: the full bundle is ~7,400 tokens,
 // the digest is ~250.
@@ -38,12 +38,13 @@ if (!digest) process.exit(0);
 
 // Where the full rules live decides how the reminder describes them. A plugin
 // that ships an output style has them in the system prompt; one that ships
-// rules/ has them injected as session context. Checked rather than hardcoded so
-// this file stays copy-identical across plugins that use either mechanism.
+// rules/ has them published as native user-scope rules by link-rules.cjs.
+// Checked rather than hardcoded so this file stays copy-identical across plugins
+// that use either mechanism.
 const viaOutputStyle = fs.existsSync(path.join(root, "output-styles"));
 const whereTheyLive = viaOutputStyle
   ? "are in your system prompt as the active output style"
-  : "were injected in full at the start of this session";
+  : `load from ~/.claude/rules/${pluginName}/ at the start of every session`;
 
 // States the rules' standing in plain words. Deliberately not wrapped in a
 // system-looking tag or phrased as an out-of-band system command: that can trip
