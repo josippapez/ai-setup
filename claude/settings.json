@@ -57,6 +57,7 @@
     "refreshInterval": 5
   },
   "enabledPlugins": {
+    "repo-docs@ai-setup": true,
     "dev-core@ai-setup": true,
     "concise-output@ai-setup": true,
     "rules-index@ai-setup": true,
