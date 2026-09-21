@@ -107,7 +107,7 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching '(^|[\\s;&|])(grep|rg|ag|find|codegraph)\\b' '((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$))'"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching '(^|[;&\\n]|&&)\\s*(sudo\\s+)?((grep|rg|ag|find)\\b|codegraph\\s+explore\\b)' '((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$)|/(private/)?tmp/claude-\\d+/)'"
           },
           {
             "type": "command",
