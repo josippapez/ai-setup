@@ -587,3 +587,17 @@ test('one unquoted use makes it a claim even when also quoted', () => {
   assert.ok(blocked(r));
   assert.match(reason(r), /\[command-outcome\]/);
 });
+
+test('a path introduced as an example is a mention, not a claim', () => {
+  const fx = fixture();
+  // Six blocks in one session on a well-known filename used as a concept.
+  const r = run(fx, 'Plugins cannot ship an instruction file, e.g. AGENTS.md at the root, or a file called SKILL.md.');
+  assert.strictEqual(r, null);
+});
+
+test('an example marker on one use does not excuse an unmarked use', () => {
+  const fx = fixture();
+  const r = run(fx, 'Names like e.g. src/nope.ts are fine, but the bug is in src/nope.ts:12.');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[path-missing\]/);
+});

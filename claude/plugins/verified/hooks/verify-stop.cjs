@@ -349,6 +349,7 @@ const main = async () => {
       `verified: your answer asserts ${all.length} thing${all.length > 1 ? 's' : ''} nothing in ` +
       `this session backs.\n${list}\n\n` +
       `Go run the check, or reword the claim as the guess it is, then finish the turn. ` +
+      `A name used only as an example is not a claim once it is written as e.g. NAME or "NAME". ` +
       `Do not restate the claim unchanged.`,
   }));
 };
