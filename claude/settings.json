@@ -76,7 +76,7 @@
     "ai-setup": {
       "source": {
         "source": "directory",
-        "path": "/Users/josippapez/Desktop/ai-setup/claude"
+        "path": "/Users/josippapez/Desktop/ai-setup"
       }
     },
     "claude-hud": {
