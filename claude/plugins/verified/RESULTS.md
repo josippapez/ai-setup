@@ -31,7 +31,8 @@ positive, unknown (charged nothing). V = catch − fp − 0.25·blocked turns.
 | `5ecfd68` | manifest-membership path check, slash required, absence on | 170.8 | 14.8% | 49.7 | 14.4% |
 | `9f92298` | on-disk existence check, bare filenames allowed, absence off | 409.2 | 20.9% | 117.2 | 18.3% |
 | `0b88ee1` | mentioned spans are not claims | 402.6 | 20.6% | | |
-| this commit | quote test by parity, not adjacency | **398.8** | 20.6% | | |
+| `69ca1d7` | quote test by parity, not adjacency | 398.8 | 20.6% | | |
+| this commit | a span after an example marker (e.g., named, called) is a mention | **396.9** | 20.6% | | |
 | oracle | every confirmable catch, nothing else | 552.8 | 20.4% | | |
 | no gate | | 0.0 | 0% | | |
 
@@ -42,6 +43,12 @@ crediting mentioned spans as catches. Share of the ceiling is flat at 72%. All
 18 corpus flags the rule drops were read by hand and every one is a mention: a
 phrase quoted from an earlier block, a JSON key quoted out of a config file, a
 filename inside a quoted error message. None was a claim, so none was a catch.
+
+The example-marker rule scores identical to its parent (396.9 on both sides;
+the same config measures 396.9 today on 3253 of the 3260 pinned turns) because
+no replayed answer ever wrote `e.g.` before a path. It ships as a convention for
+the model, taught in the block message, not as a measured gain: six live blocks
+in one session were on a well-known filename used as a concept.
 
 Per class at `9f92298`:
 

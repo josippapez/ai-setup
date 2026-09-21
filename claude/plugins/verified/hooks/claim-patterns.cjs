@@ -79,12 +79,22 @@ function insideQuotes(text, at) {
   return !!marks && marks.length % 2 === 1;
 }
 
+// A span introduced as an example is named, not asserted: "e.g. AGENTS.md" or
+// "a file called SKILL.md" talks about a kind of file. Observed: six blocks in
+// one session on a well-known filename used as a concept, with nothing at that
+// path because the sentence was never about a path.
+const EXAMPLE_RE = /(?:\b(?:e\.?g\.?|ex\.|for (?:example|instance)|example|named|called)[:,]?\s*[`"'(]*|\(e\.?g\.?\s*)$/i;
+function afterExampleMarker(text, at) {
+  const lineStart = text.lastIndexOf('\n', at) + 1;
+  return EXAMPLE_RE.test(text.slice(lineStart, at));
+}
+
 function onlyQuoted(text, span) {
   let i = -1;
   let any = false;
   while ((i = text.indexOf(span, i + 1)) !== -1) {
     any = true;
-    if (!insideQuotes(text, i)) return false;
+    if (!insideQuotes(text, i) && !afterExampleMarker(text, i)) return false;
   }
   return any;
 }

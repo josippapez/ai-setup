@@ -11,7 +11,7 @@ Heredocs, `sed`, and multi-line blocks (loops, `python3 - <<'PY'`) are left alon
 
 Only the Bash tool is hooked. The dedicated Read/Edit/Write/**Grep**/Glob tools never go through rtk.
 
-## ⚠️ Never `grep -r` from Bash — use the Grep tool or `rg`
+## ⚠️ Never `grep -r` from Bash — write `rg`
 
 `rtk grep` does **not** respect `.gitignore` and does **not** enforce its own `--max-len`, so a single
 long line in a generated file becomes a single enormous line of output. Measured in this repo:
@@ -19,8 +19,10 @@ long line in a generated file becomes a single enormous line of output. Measured
 `.claude/repo-docs/repo-docs-index.json`), while `rtk rg -n <pat> .` emitted **3.4 KB** for the same
 query. That output volume is what stalls a Bash call.
 
-- Prefer the **Grep tool** (ripgrep, gitignore-aware) for searching.
-- From Bash, write `rg`, never `grep -r`. `rg` is rewritten to `rtk rg` and stays gitignore-aware.
+- From Bash, write `rg`, never `grep -r`. `rg` is rewritten to `rtk rg` and stays gitignore-aware,
+  so a Bash-first session needs nothing else.
+- The dedicated **Grep tool** is the same ripgrep and equally safe; it just never goes through rtk.
+  Either one is fine — this section is about `grep -r`, not about which tool to reach for.
 - If you must use `grep -r`, scope it to a path or pass `--exclude-dir=repo-docs`.
 
 ## Meta Commands (always use rtk directly)
