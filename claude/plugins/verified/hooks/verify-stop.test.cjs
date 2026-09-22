@@ -93,6 +93,15 @@ test('a claim about a file that is not there blocks as fiction', () => {
   const r = run(fx, 'The config lives at src/nope.ts:42.');
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
+  assert.match(reason(r), /another one \(an SSH host/);
+});
+
+test('the remote-machine note only rides on a path-missing flag', () => {
+  const fx = fixture();
+  fx.file('src/db.ts');
+  const r = run(fx, 'The config lives at src/db.ts:42.', [], 's1', WITH_PATH);
+  assert.ok(blocked(r));
+  assert.doesNotMatch(reason(r), /SSH host/);
 });
 
 test('reading a file does not excuse it having been deleted', () => {

@@ -324,6 +324,13 @@ const main = async () => {
     repeats.every((n) => (n.claims || []).some((c) => spans.has(c.span)));
 
   const list = all.map((c) => `  - [${c.class}] "${c.span}" — needs ${c.needs}`).join('\n');
+  // path-missing asks the local disk, so a path the session checked over SSH or
+  // on a device reads as fiction. The gate cannot see that machine; the model can.
+  const remote = all.some((c) => c.class === 'path-missing')
+    ? `A [path-missing] flag only checks this machine. If that path lives on another one ` +
+      `(an SSH host, a container, a device), treat the flag as a suggestion: say which machine ` +
+      `in one line and finish, without repeating the path. `
+    : '';
   ledger.append({
     ...node,
     claims: all.map(({ class: cls, span }) => ({ class: cls, span })),
@@ -350,6 +357,7 @@ const main = async () => {
       `this session backs.\n${list}\n\n` +
       `Go run the check, or reword the claim as the guess it is, then finish the turn. ` +
       `A name used only as an example is not a claim once it is written as e.g. NAME or "NAME". ` +
+      remote +
       `Do not restate the claim unchanged.`,
   }));
 };
