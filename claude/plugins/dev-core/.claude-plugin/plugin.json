@@ -1,6 +1,6 @@
 {
   "name": "dev-core",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Everyday defaults for Claude Code: repo grounding (repo-docs, context7, chrome-devtools, computer-use, a question tool subagents can actually reach), the always-on engineering rules (evidence-first, external-facts, proactive-execution) plus the tool-triggered rule cards (writing-code, searching, reading-libraries, git-commit) and the git mv guard, core skills, and the tier and domain specialist agents.",
   "author": {
     "name": "Personal AI Setup"

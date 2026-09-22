@@ -6,7 +6,7 @@ when_to_use: 'Any accessibility or a11y work, even when WCAG is never named: con
 
 # accessibility — scan the page, look up the criterion
 
-`@rawwee/wcag-cli` is a standalone CLI over the full WCAG 2.2 dataset — principles → guidelines → success criteria → techniques → glossary, including the Understanding text. Invoke via `npx @rawwee/wcag-cli <command>` (or the global `wcag <command>` if installed globally). Output is markdown, and it costs 0 context tokens until you actually call it.
+`@rawwee/wcag-cli` is a standalone CLI over the full WCAG 2.2 dataset — principles → guidelines → success criteria → techniques → glossary, including the Understanding text, each technique's full page, the ACT test rules, the conformance requirements and the errata. `--wcag 2.1` switches to another version. Invoke via `npx @rawwee/wcag-cli <command>` (or the global `wcag <command>` if installed globally). Output is markdown, and it costs 0 context tokens until you actually call it.
 
 This is the WCAG lookup path in this setup — use it instead of recalling criterion text from memory. Finding real violations in a running page is the other half: see [Scanning a live page](#scanning-a-live-page).
 
@@ -18,6 +18,7 @@ This is the WCAG lookup path in this setup — use it instead of recalling crite
 - You are about to write or review UI/markup and need to check what a success criterion actually requires
 - You need to cite the correct conformance level (A/AA/AAA) for a criterion
 - You need known techniques or common failures for a criterion
+- You need a technique's test procedure, or the ACT test rules for a criterion
 - You need a WCAG glossary term defined precisely
 - You need to know what's new/changed in WCAG 2.2 vs 2.1
 
@@ -34,15 +35,16 @@ Every command is prefixed (`get-*`, `list-*`, `search-*`). There is no bare
 - `get-criterion <id> --normative` — **normative text only**: the requirement plus its exceptions, no Understanding prose. Use this when citing what a criterion actually demands. `get-success-criteria-detail <id>` is an equivalent alias, kept so older scripts keep working.
 - `get-guideline <id>` — get one guideline by number
 - `search-wcag <query>` — search criterion numbers, names and descriptions
-- `search-wcag <query> --understanding` — also search the Understanding prose (In Brief, Intent, Benefits, Examples) and report which section matched. Reach for this when a term is practical rather than normative: "placeholder" appears in no criterion name but is discussed in three Intents.
+- `search-wcag <query> --understanding` — also search the Understanding prose (In Brief, Intent, Benefits, Examples) and report which section matched. Reach for this when a term is practical rather than normative, like `placeholder`.
 - `get-criteria-by-level <level>` — list criteria at a conformance level (A/AA/AAA); `--include_lower` rolls in the levels below it (AA then also returns A)
 - `count-criteria <group_by>` — counts, grouped by `level`, `principle` or `guideline`. The grouping is required, not optional: bare `count-criteria` exits 1.
 
 **Techniques**
-- `list-techniques` — list all 422 techniques; `--technology html|aria|css|pdf|general|client-side-script|server-side-script|smil|text|failures` and `--type sufficient|advisory|failure` narrow it
-- `get-technique <id>` — get one technique by id
+- `list-techniques` — list every published technique; `--technology html|aria|css|pdf|general|client-side-script|server-side-script|smil|text|failures` and `--type sufficient|advisory|failure` narrow it
+- `get-technique <id>` — the technique page: what it applies to, description, examples with code, the test procedure and expected results, related techniques and resources
+- `get-technique <id> --brief` — the same without examples and resources. Examples are the part that gets large, so use this when you need the procedure, not the samples.
 - `get-techniques-for-criterion <id>` — techniques mapped to a success criterion
-- `search-techniques <query>` — matches technique **titles only**. The dataset holds each technique's id, technology, title, types and mapped criteria — not its prose — so a word that only appears in the body of a technique page will not be found here. For the full text of a technique, follow the w3.org link; to see everything attached to a criterion, use `get-techniques-for-criterion`.
+- `search-techniques <query>` — matches technique titles; `--description` also searches each technique's description, examples and tests, and reports which section matched
 - `get-failures-for-criterion <id>` — known failure techniques for a criterion
 
 **Glossary**
@@ -50,29 +52,42 @@ Every command is prefixed (`get-*`, `list-*`, `search-*`). There is no bare
 - `list-glossary-terms` — list all glossary terms
 - `search-glossary <query>` — search glossary definitions
 
+**Test rules, conformance, errata**
+- `get-test-rules-for-criterion <id>` — the W3C-approved ACT test rules for a criterion, with a link to each; rules awaiting approval are marked (proposed)
+- `get-conformance-requirements` — the conformance requirements from the Recommendation
+- `list-input-purposes [keyword]` — the autocomplete tokens that 1.3.5 Identify Input Purpose relies on, optionally filtered
+- `list-errata` — published errata, newest first, each with the pull request behind it
+
 **Enhanced**
-- `whats-new-in-wcag22` — summary of changes introduced in WCAG 2.2
-- `get-full-criterion-context <id>` — criterion overview, In Brief, exceptions, sufficient/advisory/failure technique **names**, and related glossary terms in one call. The best single call when starting work on a criterion.
-- `get-server-info` — CLI version plus dataset provenance: source URL, ETag, when it was fetched, cache path, TTL, and counts
+- `whats-new` — the criteria the selected version added and removed (`whats-new-in-wcag22` is an alias)
+- `get-full-criterion-context <id>` — criterion overview, In Brief, exceptions, sufficient/advisory/failure technique **names**, related glossary terms and test rules in one call. The best single call when starting work on a criterion.
+- `get-server-info` — CLI version, the WCAG version in use, and dataset provenance: source URL, ETag, when it was fetched, cache path, TTL, and counts
+
+**Global flags**
+- `--json` — the structured data behind the answer instead of Markdown, for when you need to filter or count results
+- `--wcag <version>` — answer for another WCAG version, e.g. `--wcag 2.1`. The first run for a version fetches it from w3.org and caches it. `WCAG_CLI_VERSION=2.1` sets the default.
 
 ## Pick the smallest command that answers the question
 
-Output goes straight into context, and the commands differ by ~40x. Measured on
-1.4.3 (bigger criteria run larger):
+Output goes straight into context, and the commands differ in size by orders of
+magnitude. Smallest first:
 
-| Need | Command | ~tokens |
-|---|---|---|
-| What does it demand? (cite this) | `get-criterion <id> --normative` | 250 |
-| Known failures to check for | `get-failures-for-criterion <id>` | 110 |
-| Which criteria at this level | `list-success-criteria --level AA` | 440 |
-| How to satisfy it | `get-techniques-for-criterion <id>` | 390 |
-| Starting work on a criterion | `get-full-criterion-context <id>` | 800–2000 |
-| Why it exists / edge cases | `get-criterion <id>` | **~3900** |
-| Everything, unfiltered | `list-techniques` | **~9800** |
+| Need | Command |
+|---|---|
+| How to test it automatically | `get-test-rules-for-criterion <id>` |
+| Known failures to check for | `get-failures-for-criterion <id>` |
+| What does it demand? (cite this) | `get-criterion <id> --normative` |
+| How to satisfy it | `get-techniques-for-criterion <id>` |
+| Which criteria at this level | `list-success-criteria --level AA` |
+| Starting work on a criterion | `get-full-criterion-context <id>` |
+| How to apply and test a technique | `get-technique <id> --brief` |
+| The technique with its code samples | `get-technique <id>` |
+| Why it exists / edge cases | `get-criterion <id>` (**large**) |
+| Everything, unfiltered | `list-techniques` (**largest**) |
 
 Default to `--normative`. Reach for the full `get-criterion` only when you
 actually need rationale or worked examples, and filter `list-techniques` with
-`--technology` / `--type` rather than dumping all 422.
+`--technology` / `--type` rather than dumping the whole list.
 
 ## Arg convention
 
@@ -97,9 +112,14 @@ wcag get-full-criterion-context 2.5.8         # criterion + techniques + terms
 wcag search-wcag "keyboard"
 wcag search-wcag "placeholder" --understanding # prose, not just names
 wcag get-techniques-for-criterion 2.4.7
+wcag get-technique H37 --brief                # description + test procedure
+wcag search-techniques "newsletter" --description # technique bodies, not just titles
+wcag get-test-rules-for-criterion 1.1.1
 wcag get-criteria-by-level AA --include_lower
 wcag get-glossary-term contrast ratio         # multi-word, no quotes needed
-wcag whats-new-in-wcag22
+wcag whats-new
+wcag --wcag 2.1 get-criterion 4.1.1 --normative # another version
+wcag search-wcag keyboard --json              # structured output
 ```
 
 ## How search matches
@@ -111,24 +131,26 @@ synonyms. What it does handle:
 - Light stemming: `placeholders` finds `placeholder`
 - Prefix: `keyb` finds `keyboard`
 - Spelling/compound folding: `colour`==`color`, `screenreader`==`screen reader`
-- Criterion numbers: `search-wcag 1.4.3` finds it, `search-wcag 2.4` finds all
-  thirteen criteria under that guideline
+- Criterion numbers: `search-wcag 1.4.3` finds it, `search-wcag 2.4` finds every
+  criterion under that guideline
 - Hyphenated terms stay whole: `aria-labelledby` is one token, not two
 - Results are relevance-ranked, so the top hits are the ones to read
 
 If a query returns nothing, try a different word rather than concluding WCAG is
-silent on the topic — and try `--understanding` before giving up.
+silent on the topic — and try `--understanding` (criteria) or `--description`
+(techniques) before giving up.
 
 ## WCAG 2.1 questions
 
-The dataset is 2.2, which is a superset: every criterion prints a
-`**WCAG Versions:**` line, so you can answer 2.1 questions from it directly.
-Of the 87 criteria, 61 are in 2.0, 78 in 2.1, 86 in 2.2.
+When the target is 2.1, pass `--wcag 2.1`: the answer comes from the 2.1 dataset
+itself, with its own levels, Understanding pages and techniques. For a quick check
+the default 2.2 dataset also works, since every criterion prints a
+`**WCAG Versions:**` line. `whats-new` lists what a version added and removed.
 
-- The 9 added in 2.2: 2.4.11, 2.4.12, 2.4.13, 2.5.7, 2.5.8, 3.2.6, 3.3.7, 3.3.8, 3.3.9
-- **4.1.1 Parsing** is still in the dataset but prints `Level: Removed in WCAG 2.2`
-  and `WCAG Versions: 2.0, 2.1`. It applies to a 2.1 target and not a 2.2 one — do
-  not cite it as a live requirement without saying which version is in scope.
+**4.1.1 Parsing** shows why the version matters: the 2.2 dataset prints
+`Level: Removed in WCAG 2.2`, while `--wcag 2.1` prints it as Level A. It applies
+to a 2.1 target and not a 2.2 one, so do not cite it as a live requirement without
+saying which version is in scope.
 
 ## Citing a criterion
 
@@ -160,8 +182,13 @@ prints a note to stderr and answers from cache, then bundle.
   matters. It **wins over `--refresh`**, so a run with both is offline and
   reproducible.
 
-`--normative` and `--understanding` need **>= 0.2.0**; `npx` may hold an older
-cached copy, so check `get-server-info` if a flag is rejected.
+Only WCAG 2.2 is bundled. The first `--wcag` run for another version needs the
+network, and says so if it has none.
+
+`--normative` and `--understanding` need **>= 0.2.0**. Technique pages,
+`--description`, test rules, conformance, input purposes, errata, `--json` and
+`--wcag` need **>= 0.4.0**, and `--brief` needs **>= 0.5.0**. `npx` may hold an
+older cached copy, so check `get-server-info` if a command or flag is rejected.
 
 ## Scanning a live page
 
@@ -253,7 +280,7 @@ Two knobs, both set on `window` before the script loads:
 If the CLI is genuinely unavailable (no npx, install refused), say so and fall
 back to your own WCAG knowledge — but flag that the criterion text is unverified
 rather than quoting it as exact. Being offline is *not* such a case: the bundled
-dataset answers every command without a network.
+2.2 dataset answers every command without a network.
 
 ## Reading the exit code
 
