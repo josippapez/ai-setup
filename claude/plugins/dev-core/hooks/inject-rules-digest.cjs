@@ -6,7 +6,8 @@
 // conversation. By turn 40 they are far from what is actually being worked on
 // and their pull fades. This hook re-states the parts that decay fastest, sized so
 // repeating it every message stays affordable: the full bundle is ~7,400 tokens,
-// the digest is ~250.
+// the injected reminder is 1,200-1,600 chars (~300-400 tokens) depending on the
+// plugin's rules-digest.md.
 //
 // It deliberately does NOT carry the rules themselves. It points at the copy
 // already in context so the digest reads as a reminder rather than a replacement
