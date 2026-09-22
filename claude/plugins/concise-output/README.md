@@ -48,15 +48,40 @@ re-injection already happens: dev-core's `SessionStart` hook re-fires on the com
 and both per-prompt digests keep firing. `PostCompact` is the wrong event here, since it
 carries no `additionalContext`.
 
+That is one run for it and one neutral. The 2026-09-22 2x2 (arms R/S/T/U, concise-output
+alone) did not reproduce the effect: re-ask growth was +91 and +136 chars with the hook,
++114 and +98 without. Those arms answered at a 450-char median against 876-1,042 in the
+N/Q pair, because dev-core was left out, so there was far less regrowth for 908 chars of
+specimens to cut. The hook stays because it costs 908 chars once per compaction, not
+because the second run confirmed it.
+
 There is no OpenCode mirror: this hangs off a Claude Code `SessionStart` source.
 
 ## The per-prompt reminder
 
 `hooks/inject-rules-digest.cjs` restates `rules-digest.md` on every prompt, because the
-system prompt sits far from the current turn in a long session. It checks whether the
-plugin ships `output-styles/` and words the reminder accordingly, so the file stays
-copy-identical with the `dev-core` version, which still injects `rules/` at SessionStart.
-`dev-core` owns the canonical copy; changes belong there first.
+system prompt sits far from the current turn in a long session. It is self-contained: it
+reads the digest and prints a fixed reminder naming the output style. `dev-core` ships its
+own digest hook for its own rules; the two were one copy-identical file until 2026-09-22,
+when the shared branch that sniffed for `output-styles/` was dropped here. That branch
+could never run in this plugin, and it was where the wording had silently drifted stale.
+
+This is the hook the 2026-09-22 2x2 vindicated. The style bans em dashes; without the
+digest the ban decays with session depth, and the decay is the whole effect:
+
+| arm | digest | em dashes, turns 1-19 | turns 20-37 | total over 42 turns |
+|---|---|---|---|---|
+| R | on | 6 | 0 | 6 |
+| T | on | 0 | 0 | 0 |
+| S | off | 11 | 23 | 34 |
+| U | off | 10 | 19 | 29 |
+
+Length did not move with it (450-488 char medians across all four arms), so the digest buys
+rule compliance, not brevity. It is not free: measured in arm R, 1,593 chars per prompt and
+66,906 chars (~16.7k tokens) over 42 turns, and a real session pays dev-core's copy on top.
+The digest was cut to 936 bytes on 2026-09-22 for that reason, and arm V re-ran the same
+43 prompts on the trimmed copy: 1,280 chars per prompt instead of 1,593, zero em dashes,
+474-char median. The cut clauses were restatements, not the ban itself.
 
 ## Tests
 

@@ -61,8 +61,18 @@ test('style carries the substance of both former rules', () => {
   ]) assert.ok(body.includes(marker), marker);
 });
 
-test('the digest reminder describes where the full rules actually live', () => {
-  const digestHook = fs.readFileSync(path.join(PLUGIN, 'hooks', 'inject-rules-digest.cjs'), 'utf8');
-  assert.match(digestHook, /output-styles/, 'hook detects the output-style mechanism');
-  assert.match(digestHook, /active output style/);
+test('the digest stays small enough to repeat every message', () => {
+  // It had drifted to 1,249 chars against dev-core's 851, which measured 1,593 chars per
+  // prompt and ~16.7k tokens over a 42-turn session (benchmark arm R, 2026-09-22).
+  const digest = fs.readFileSync(path.join(PLUGIN, 'rules-digest.md'), 'utf8');
+  assert.ok(digest.length < 1100, `digest is ${digest.length} chars; keep it under 1100`);
+});
+
+test('the digest reminder points at the style instead of replacing it', () => {
+  const hook = path.join(PLUGIN, 'hooks', 'inject-rules-digest.cjs');
+  const out = execFileSync('node', [hook], { encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN } });
+  const ctx = JSON.parse(out).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /^\[rules-reminder\]/);
+  assert.match(ctx, /active output style/, 'names where the full rules actually live');
+  assert.ok(ctx.includes(fs.readFileSync(path.join(PLUGIN, 'rules-digest.md'), 'utf8').trim()));
 });
