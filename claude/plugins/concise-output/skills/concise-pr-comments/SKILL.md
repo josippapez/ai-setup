@@ -27,7 +27,7 @@ Write like a senior dev dropping a quick note for a teammate, not like an automa
 
 The comment is the finding and the ask. Nothing in front of it, nothing after it.
 
-- No agreement opener. "Makes sense", "Fair point", "Good catch", or any restatement of what the author just said. On a reply, start at the part they don't already know.
+- No agreement opener beyond two words. When the reviewer found a real problem, "Good catch." is all the acknowledgement it needs; "Makes sense", "Fair point", or restating what they said is not. Then go straight to the part they don't already know.
 - No preamble. "Heads up", "One thing worth a look before it ships", "Quick note on this".
 - No trailing hedge. "Not a blocker if you've already ruled it out", "up to you", "either way works". `nit:` at the front already marks a comment optional, and anything stronger than a nit should not be walked back at the end.
 - No selling the suggestion after you have made it. Once you have said what to do, drop the sentence about how much better things would be. The author can see that.
@@ -47,6 +47,22 @@ After:
 
 ```md
 `columnSizingFeature` is already in the TanStack build we're on (9.2.4): `size`, `minSize` and `maxSize` on the column def, plus `column.getSize()` and a table total. Same fixed-width result as `meta.width`, but in fields the library types for us. Was it ruled out for a reason?
+```
+
+## Replying to a fix request
+
+When a reviewer flags something and you fixed it, the reply is the cause and the fix, in one sentence where it fits. Name the one thing that was wrong and say it's fixed. Don't list what already matched, don't explain the investigation, and don't ask them to re-check.
+
+Before:
+
+```md
+Good catch, you were right. The menu was asking for a 4px gap between items, but the shared dropdown wasn't a flex container, so the gap was ignored and the items sat flush. Fixed it in the shared component, so the row menus now have the 4px between items from Figma. Everything else on it (width, padding, item height, icon spacing) already matched. Should be good to eyeball again.
+```
+
+After:
+
+```md
+Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored; fixed now, so the menu matches Figma.
 ```
 
 ## AI tells to avoid
@@ -79,6 +95,10 @@ Needs a `try/finally` around this. If `activeStep.validation()` rejects, `setNex
 
 ```md
 This one needs a rationale comment like every other pin in the block. It's also not mentioned in the PR description, and 8.5.18 is well past the last postcss advisory I know of, so it reads like a dedupe pin rather than a security fix. Which is it?
+```
+
+```md
+Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored; fixed now, so the menu matches Figma.
 ```
 
 ```md
