@@ -45,7 +45,7 @@
       "mcp__plugin_dev-core_chrome-devtools__list_network_requests"
     ]
   },
-  "model": "opus[1m]",
+  "model": "claude-opus-5-5[1m]",
   "modelSettings": {
     "claude-opus-5": {
       "effortLevel": "xhigh"
@@ -54,7 +54,8 @@
   "env": {
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
     "CODEGRAPH_TELEMETRY": "0",
-    "CODEGRAPH_NO_PROMPT_HOOK": "1"
+    "CODEGRAPH_NO_PROMPT_HOOK": "1",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
   },
   "statusLine": {
     "type": "command",
