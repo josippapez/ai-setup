@@ -21,6 +21,18 @@ test('packs long sections into overlapping windows', () => {
   assert.ok(chunks[1].text.includes(tail.trim().split(' ')[0]));
 });
 
+test('each window of a long section reports the line it starts on', () => {
+  const lines = Array.from({ length: 40 }, (_, i) => `line${i} ${'word '.repeat(10)}`);
+  const md = `# H\n${lines.join('\n')}`;
+  const chunks = chunkMarkdown(md, { maxChars: 300, overlap: 50 });
+  assert.ok(chunks.length > 2);
+  const rawLines = md.split('\n');
+  for (const chunk of chunks) {
+    const firstLine = chunk.text.split('\n')[0];
+    assert.ok(rawLines[chunk.startLine - 1].includes(firstLine), `"${firstLine}" should start on L${chunk.startLine}`);
+  }
+});
+
 test('keeps every part of a very long section instead of stopping at a chunk cap', () => {
   const body = 'x '.repeat(100000) + 'END_MARKER';
   const chunks = chunkMarkdown('# H\n' + body, { maxChars: 200, overlap: 0 });

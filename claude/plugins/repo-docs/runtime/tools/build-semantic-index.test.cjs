@@ -106,6 +106,28 @@ test('a lock owned by a dead pid is stale and gets taken over', { skip }, async 
   assert.strictEqual(res.updated, 2);
 });
 
+test('a stale lock another server claims mid-takeover is not overwritten', { skip }, async (t) => {
+  const root = makeRepo(1);
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+
+  const dir = path.join(root, '.claude', 'repo-docs');
+  const lock = path.join(dir, 'index-build.lock');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(lock, '999999');
+  // The rival claims the dead owner's lock while this build is still checking that owner.
+  const rivalPid = String(process.ppid);
+  const realKill = process.kill.bind(process);
+  t.mock.method(process, 'kill', (pid, signal) => {
+    if (pid === 999999) fs.writeFileSync(lock, rivalPid);
+    return realKill(pid, signal);
+  });
+
+  const res = await buildDocIndex(context, { force: true });
+  assert.strictEqual(res.locked, true, 'the build must back off once another server holds the lock');
+  assert.strictEqual(fs.readFileSync(lock, 'utf8'), rivalPid);
+});
+
 // Deterministic without loading any model: an empty NODE_PATH means
 // @huggingface/transformers can never resolve, so the embedder never becomes
 // ready — the same condition a fresh checkout hits before the SessionStart

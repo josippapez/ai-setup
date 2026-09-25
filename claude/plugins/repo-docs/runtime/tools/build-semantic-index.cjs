@@ -15,7 +15,8 @@ const MAX_FILE_BYTES = 1_000_000;
 // Bumped 3 -> 4 when chunks started being sized by model tokens: a pre-v4 index
 // may hold chunks whose tail past 512 tokens never made it into their vector.
 // Bumped 4 -> 5 for the second, context-prefixed vector per chunk (ctxEmbedding).
-const SCHEMA_VERSION = 5;
+// Bumped 5 -> 6 so each chunk records the line its own text starts on.
+const SCHEMA_VERSION = 6;
 
 function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
@@ -55,13 +56,17 @@ function acquireBuildLock(context) {
   try { fs.writeFileSync(lock, String(process.pid), { flag: 'wx' }); return true; }
   catch {
     let stale = false;
+    let owner = null;
     try {
-      const dead = !isLockOwnerAlive(parseInt(fs.readFileSync(lock, 'utf8'), 10));
+      owner = fs.readFileSync(lock, 'utf8');
+      const dead = !isLockOwnerAlive(parseInt(owner, 10));
       stale = dead || Date.now() - fs.statSync(lock).mtimeMs > BUILD_LOCK_STALE_MS;
     }
     catch { stale = true; } // lock vanished between the failed create and here
     if (!stale) return false;
-    try { fs.writeFileSync(lock, String(process.pid)); return true; } catch { return false; }
+    // Another server can find the same stale lock: only remove it while it is still that one.
+    try { if (owner !== null && fs.readFileSync(lock, 'utf8') === owner) fs.rmSync(lock); } catch {}
+    try { fs.writeFileSync(lock, String(process.pid), { flag: 'wx' }); return true; } catch { return false; }
   }
 }
 function releaseBuildLock(context) { try { fs.rmSync(lockPath(context), { force: true }); } catch {} }
