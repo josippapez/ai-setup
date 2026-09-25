@@ -1,12 +1,22 @@
 'use strict';
 
 const RERANKER_ID = 'Xenova/bge-reranker-base';
-let _mod = null, _failed = false;
+let _mod = null, _lastFailedAt = 0;
+
+// A failed load (e.g. offline on the first rerank:true call) retries after this
+// cooldown instead of latching every later call into hybrid-only order for the
+// rest of the process — same shape as semantic-index.cjs's embedder retry.
+const RETRY_COOLDOWN_MS = Number(process.env.REPO_DOCS_EMBED_RETRY_MS) > 0
+  ? Number(process.env.REPO_DOCS_EMBED_RETRY_MS)
+  : 30000;
 
 function isRerankEnabled() { return process.env.RERANK_ENABLED === '1'; }
 
+function inFailureCooldown() { return _lastFailedAt !== 0 && Date.now() - _lastFailedAt < RETRY_COOLDOWN_MS; }
+
 async function load() {
-  if (_mod || _failed) return _mod;
+  if (_mod) return _mod;
+  if (inFailureCooldown()) return null;
   try {
     const { createRequire } = require('node:module');
     const { pathToFileURL } = require('node:url');
@@ -24,7 +34,7 @@ async function load() {
     // (both 100% hit@1 / 1.000 MRR) while ~4x smaller (~300MB vs 1.1GB).
     const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'q8' });
     _mod = { tokenizer, model };
-  } catch { _failed = true; }
+  } catch { _lastFailedAt = Date.now(); }
   return _mod;
 }
 

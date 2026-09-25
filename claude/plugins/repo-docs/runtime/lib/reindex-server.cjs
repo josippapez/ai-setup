@@ -9,6 +9,24 @@ function reindexSocketPath(root) {
   return path.join(root, '.claude', 'repo-docs', 'inject.sock');
 }
 
+// Probe whether a socket path is a live listener (vs. a file orphaned by a
+// crashed server): a successful connect means someone is on the other end.
+function socketIsActive(sockPath, timeoutMs = 200) {
+  return new Promise((resolve) => {
+    const conn = net.connect(sockPath);
+    const timer = setTimeout(() => { conn.destroy(); resolve(false); }, timeoutMs);
+    conn.once('connect', () => { clearTimeout(timer); conn.end(); resolve(true); });
+    conn.once('error', () => { clearTimeout(timer); resolve(false); });
+  });
+}
+
+function attemptListen(server, sockPath) {
+  return new Promise((resolve) => {
+    server.once('error', () => resolve(false));
+    server.listen(sockPath, () => resolve(true));
+  });
+}
+
 // Host the mid-session reindex socket: the PostToolUse hook asks the running
 // server (which holds the warm embedder) to re-embed changed docs after a
 // Markdown edit. First server to bind wins; a second (another runtime on the
@@ -33,12 +51,12 @@ async function startReindexServer(context, { build = buildDocIndex } = {}) {
     conn.on('error', () => {});
   });
 
-  return await new Promise((resolve) => {
-    server.once('error', () => { resolve(null); });
-    // Proactively clear a stale socket file before binding.
-    try { fs.rmSync(sockPath, { force: true }); } catch {}
-    server.listen(sockPath, () => resolve(server));
-  });
+  if (await attemptListen(server, sockPath)) return server;
+  // listen() fails whenever the path already exists, live or not — probe before
+  // taking it over so a live sibling's socket is never unlinked out from under it.
+  if (await socketIsActive(sockPath)) return null;
+  try { fs.rmSync(sockPath, { force: true }); } catch {}
+  return (await attemptListen(server, sockPath)) ? server : null;
 }
 
 module.exports = { startReindexServer, reindexSocketPath };

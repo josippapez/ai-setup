@@ -1,5 +1,5 @@
 ---
-description: Rebuild the repo-docs semantic search index for the current repo (re-embeds all Markdown). Run after adding or heavily editing docs so find_docs reflects them.
+description: Rebuild the repo-docs semantic search index for the current repo (skips the debounce, but still reuses unchanged files' chunks by mtime — delete .claude/repo-docs/ first for a true full rebuild). Run after adding or heavily editing docs so find_docs reflects them.
 argument-hint: "[repo-root path — defaults to the current repo]"
 allowed-tools: Bash
 ---

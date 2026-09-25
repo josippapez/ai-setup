@@ -4,14 +4,18 @@ const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
 const { relativePath } = require('../lib/fs-utils.cjs');
-const { chunkMarkdown } = require('../lib/chunker.cjs');
-const { waitUntilReady, embedDocument, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
+const { waitUntilReady, embedDocChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
 const { createIndex, addChunks, saveIndex } = require('../lib/doc-index.cjs');
 
 const MAX_FILE_BYTES = 1_000_000;
 // Bumped 1 -> 2 for the mtime-cache field added to index records: a pre-v2
 // (mtime-less) index fails the meta check below and triggers a clean full rebuild.
-const SCHEMA_VERSION = 2;
+// Bumped 2 -> 3 for the chunker's fenced-code-block heading fix: a pre-v3 index
+// may hold chunks split on a `#` comment inside a fence, so it's rebuilt too.
+// Bumped 3 -> 4 when chunks started being sized by model tokens: a pre-v4 index
+// may hold chunks whose tail past 512 tokens never made it into their vector.
+// Bumped 4 -> 5 for the second, context-prefixed vector per chunk (ctxEmbedding).
+const SCHEMA_VERSION = 5;
 
 function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
@@ -31,6 +35,16 @@ function ensureGitignore(dir) {
   if (!fs.existsSync(gi)) fs.writeFileSync(gi, '*\n');
 }
 
+// A dead lock owner makes the lock stale immediately, so a server that exits
+// mid-build (its finally never ran) doesn't block every other session for up to
+// BUILD_LOCK_STALE_MS. process.kill(pid, 0) sends no signal: ESRCH means the pid
+// is gone, EPERM means it exists but we can't signal it (still alive).
+function isLockOwnerAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; }
+  catch (err) { return err.code === 'EPERM'; }
+}
+
 // Single-writer guard: only one process builds the shared index at a time. Each
 // concurrent Claude Code session in this repo spawns its own repo-docs MCP server,
 // so N sessions would otherwise write the same repo-docs-index.json concurrently.
@@ -41,7 +55,10 @@ function acquireBuildLock(context) {
   try { fs.writeFileSync(lock, String(process.pid), { flag: 'wx' }); return true; }
   catch {
     let stale = false;
-    try { stale = Date.now() - fs.statSync(lock).mtimeMs > BUILD_LOCK_STALE_MS; }
+    try {
+      const dead = !isLockOwnerAlive(parseInt(fs.readFileSync(lock, 'utf8'), 10));
+      stale = dead || Date.now() - fs.statSync(lock).mtimeMs > BUILD_LOCK_STALE_MS;
+    }
     catch { stale = true; } // lock vanished between the failed create and here
     if (!stale) return false;
     try { fs.writeFileSync(lock, String(process.pid)); return true; } catch { return false; }
@@ -91,7 +108,7 @@ function loadPriorCache(context) {
 // still respects the single-writer lock so it never races an in-progress build.
 async function buildDocIndex(context, { force = false } = {}) {
   const ready = await waitUntilReady();
-  if (!ready) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context) };
+  if (!ready) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), unavailable: true };
   ensureGitignore(path.dirname(indexPath(context))); // dir must exist for the lock
   if (!force && recentlyBuilt(context)) {
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), debounced: true };
@@ -129,10 +146,15 @@ async function runBuild(context) {
       content = fs.readFileSync(filePath, 'utf8');
     } catch { skipped++; continue; }
     const records = [];
-    for (const ch of chunkMarkdown(content)) {
-      const embedding = await embedDocument(ch.text);
-      if (!embedding) continue;
-      records.push({ path: rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding, mtime: stat.mtimeMs });
+    const chunks = await embedDocChunks(content, rel);
+    // A dead embedder means every remaining file would also come back null, so
+    // abort instead of saving an index with those files missing but the build
+    // looking complete — that partial state would never self-heal.
+    if (!chunks && !isReady()) throw new Error('embedder is no longer ready mid-build');
+    for (const ch of chunks || []) {
+      // A live worker skipping one bad chunk keeps today's behavior.
+      if (!ch.vector) continue;
+      records.push({ path: rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, ctxEmbedding: ch.ctxVector, mtime: stat.mtimeMs });
     }
     if (records.length) { await addChunks(db, records); updated++; }
   }
@@ -155,6 +177,11 @@ if (require.main === module) {
   (async () => {
     const context = createContext(process.argv[2] || process.cwd());
     const r = await buildDocIndex(context, { force: true }); // manual run always rebuilds
+    if (r.unavailable) {
+      process.stderr.write('repo_docs_index error: embedder unavailable (dependencies missing or still installing) — no index built\n');
+      await shutdown();
+      process.exit(1);
+    }
     const note = r.locked ? ' (skipped: another build in progress)' : '';
     process.stdout.write(`repo_docs_index updated=${r.updated} unchanged=${r.unchanged} skipped=${r.skipped} cache=${r.cache}${note}\n`);
     await shutdown();

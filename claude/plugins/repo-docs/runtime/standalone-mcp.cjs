@@ -11,7 +11,7 @@ const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
 const { findLibsTool } = require('./tools/find-libs.cjs');
 
-const SERVER_INFO = { name: 'repo-docs', version: '0.3.0' };
+const SERVER_INFO = { name: 'repo-docs', version: '0.4.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
 const context = createContext(process.argv[2]);
 const registeredTools = [

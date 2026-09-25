@@ -35,14 +35,43 @@ if (!isMainThread) {
     // instead of crashing.
     embed.tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
 
+    const { chunkMarkdown } = require('./chunker.cjs');
+    // Chunks are sized with the model's own tokenizer, leaving room for [CLS] and
+    // [SEP], so none is cut at the context limit and loses its tail.
+    const maxTokens = MODEL_MAX_TOKENS - 2;
+    const countTokens = (text) => embed.tokenizer.encode(text, { add_special_tokens: false }).length;
+
     parentPort.on('message', async (msg) => {
+      if (msg.type === 'chunks') {
+        let chunks;
+        try {
+          chunks = [];
+          for (const ch of chunkMarkdown(msg.text, { maxTokens, countTokens })) {
+            let vector = null;
+            try {
+              vector = Array.from((await embed(ch.text, { pooling: 'mean', normalize: true })).data);
+            } catch { /* this chunk alone is skipped, as in the embed branch below */ }
+            chunks.push({ ...ch, vector });
+          }
+        } catch {
+          chunks = null;
+        }
+        parentPort.postMessage({ type: 'chunks', id: msg.id, chunks });
+        return;
+      }
       if (msg.type !== 'embed') return;
-      const out = await embed(msg.text, { pooling: 'mean', normalize: true });
-      parentPort.postMessage({
-        type: 'embed',
-        id: msg.id,
-        vector: Array.from(out.data),
-      });
+      try {
+        const out = await embed(msg.text, { pooling: 'mean', normalize: true });
+        parentPort.postMessage({
+          type: 'embed',
+          id: msg.id,
+          vector: Array.from(out.data),
+        });
+      } catch {
+        // One bad chunk (e.g. an ONNX runtime error) must cost one chunk, not
+        // the whole worker: reply null instead of letting the throw kill it.
+        parentPort.postMessage({ type: 'embed', id: msg.id, vector: null });
+      }
     });
 
     parentPort.postMessage({ type: 'ready' });
@@ -97,11 +126,11 @@ function warmUp() {
       return;
     }
 
-    if (msg.type === 'embed') {
+    if (msg.type === 'embed' || msg.type === 'chunks') {
       const resolve = pending.get(msg.id);
       if (!resolve) return;
       pending.delete(msg.id);
-      resolve(msg.vector);
+      resolve(msg.type === 'chunks' ? msg.chunks : msg.vector);
       return;
     }
 
@@ -153,14 +182,25 @@ function waitUntilReady(timeoutMs = 300000) {
   });
 }
 
-function embedText(text) {
+function request(type, text) {
   if (!workerReady || !worker) return Promise.resolve(null);
 
   return new Promise((resolve) => {
     const id = ++msgId;
     pending.set(id, resolve);
-    worker.postMessage({ type: 'embed', id, text });
+    worker.postMessage({ type, id, text });
   });
+}
+
+function embedText(text) {
+  return request('embed', text);
+}
+
+// Chunks a whole doc and embeds every chunk. Resolves
+// [{ headingPath, startLine, text, vector }] (vector null for a chunk that failed
+// on its own), or null when the embedder is unavailable.
+function embedDocChunks(text) {
+  return request('chunks', String(text || ''));
 }
 
 async function embedQuery(text) {
@@ -178,6 +218,7 @@ module.exports = {
   shutdown,
   embedQuery,
   embedDocument,
+  embedDocChunks,
   MODEL_ID,
   MODEL_DTYPE,
   EMBED_DIM,

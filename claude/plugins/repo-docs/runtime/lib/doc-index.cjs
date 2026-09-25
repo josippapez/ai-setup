@@ -28,7 +28,9 @@ function createIndex(o) {
   return o.create({
     // mtime powers the incremental cache in build-semantic-index.cjs (not returned
     // by hybridSearch — callers don't need it).
-    schema: { path: 'string', heading: 'string', content: 'string', startLine: 'number', mtime: 'number', embedding: `vector[${EMBED_DIM}]` },
+    // embedding is the chunk text alone; ctxEmbedding adds the doc path and heading
+    // breadcrumb, so a chunk also matches questions about what its doc is for.
+    schema: { path: 'string', heading: 'string', content: 'string', startLine: 'number', mtime: 'number', embedding: `vector[${EMBED_DIM}]`, ctxEmbedding: `vector[${EMBED_DIM}]` },
   });
 }
 
@@ -36,11 +38,11 @@ function addChunks(o, db, records) {
   o.insertMultiple(db, records);
 }
 
-function hybridSearch(o, db, { term, vector, limit = 30 }) {
+function hybridSearch(o, db, { term, vector, property = 'embedding', limit = 30 }) {
   const res = o.search(db, {
     mode: 'hybrid',
     term,
-    vector: { value: vector, property: 'embedding' },
+    vector: { value: vector, property },
     // Vector-heavy: real-pipeline eval on a real 82-doc corpus showed 0.2/0.8 beats
     // 0.5/0.5 by +23pts hit@1 (81% vs 58%) on paraphrased queries — dense
     // similarity carries semantic intent; BM25 is a lighter exact-term boost.

@@ -33,14 +33,49 @@ if (!isMainThread) {
     // instead of crashing.
     embed.tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
 
+    const { chunkMarkdown } = require('./chunker.cjs');
+    // Chunks are sized with the model's own tokenizer, leaving room for [CLS] and
+    // [SEP], so none is cut at the context limit and loses its tail. The budget
+    // covers the context-prefixed text, the longer of the two a chunk is embedded as.
+    const maxTokens = MODEL_MAX_TOKENS - 2;
+    const vectorOf = async (text) => Array.from((await embed(text, { pooling: 'mean', normalize: true })).data);
+
     parentPort.on('message', async (msg) => {
+      if (msg.type === 'chunks') {
+        const docName = String(msg.path || '').replace(/\.mdx?$/, '');
+        const context = (headingPath) => `${[docName, headingPath].filter(Boolean).join(' › ')}\n`;
+        const countTokens = (text, headingPath) =>
+          embed.tokenizer.encode(context(headingPath) + text, { add_special_tokens: false }).length;
+        let chunks;
+        try {
+          chunks = [];
+          for (const ch of chunkMarkdown(msg.text, { maxTokens, countTokens })) {
+            let vector = null, ctxVector = null;
+            try {
+              vector = await vectorOf(ch.text);
+              ctxVector = await vectorOf(context(ch.headingPath) + ch.text);
+            } catch { /* this chunk alone is skipped, as in the embed branch below */ }
+            chunks.push(vector && ctxVector ? { ...ch, vector, ctxVector } : { ...ch, vector: null, ctxVector: null });
+          }
+        } catch {
+          chunks = null;
+        }
+        parentPort.postMessage({ type: 'chunks', id: msg.id, chunks });
+        return;
+      }
       if (msg.type !== 'embed') return;
-      const out = await embed(msg.text, { pooling: 'mean', normalize: true });
-      parentPort.postMessage({
-        type: 'embed',
-        id: msg.id,
-        vector: Array.from(out.data),
-      });
+      try {
+        const out = await embed(msg.text, { pooling: 'mean', normalize: true });
+        parentPort.postMessage({
+          type: 'embed',
+          id: msg.id,
+          vector: Array.from(out.data),
+        });
+      } catch {
+        // One bad chunk (e.g. an ONNX runtime error) must cost one chunk, not
+        // the whole worker: reply null instead of letting the throw kill it.
+        parentPort.postMessage({ type: 'embed', id: msg.id, vector: null });
+      }
     });
 
     parentPort.postMessage({ type: 'ready' });
@@ -95,11 +130,11 @@ function warmUp() {
       return;
     }
 
-    if (msg.type === 'embed') {
+    if (msg.type === 'embed' || msg.type === 'chunks') {
       const resolve = pending.get(msg.id);
       if (!resolve) return;
       pending.delete(msg.id);
-      resolve(msg.vector);
+      resolve(msg.type === 'chunks' ? msg.chunks : msg.vector);
       return;
     }
 
@@ -151,14 +186,26 @@ function waitUntilReady(timeoutMs = 300000) {
   });
 }
 
-function embedText(text) {
+function request(type, text, extra = {}) {
   if (!workerReady || !worker) return Promise.resolve(null);
 
   return new Promise((resolve) => {
     const id = ++msgId;
     pending.set(id, resolve);
-    worker.postMessage({ type: 'embed', id, text });
+    worker.postMessage({ ...extra, type, id, text });
   });
+}
+
+function embedText(text) {
+  return request('embed', text);
+}
+
+// Chunks a whole doc and embeds every chunk twice: its text alone (vector) and
+// with the doc path and heading breadcrumb in front (ctxVector). Resolves
+// [{ headingPath, startLine, text, vector, ctxVector }] (both null for a chunk that
+// failed on its own), or null when the embedder is unavailable.
+function embedDocChunks(text, docPath) {
+  return request('chunks', String(text || ''), { path: docPath });
 }
 
 async function embedQuery(text) {
@@ -176,6 +223,7 @@ module.exports = {
   shutdown,
   embedQuery,
   embedDocument,
+  embedDocChunks,
   MODEL_ID,
   MODEL_DTYPE,
   EMBED_DIM,
