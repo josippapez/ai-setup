@@ -32,11 +32,11 @@ test('reranker retries load after cooldown once a working stub appears', async (
         // Deterministic stub: scores 'b' higher than 'a' so a real rerank is
         // distinguishable from the identity fallback.
         "exports.AutoTokenizer = { from_pretrained: async () => ((query, opts) => ({ __text: opts.text_pair })) };",
-        "exports.AutoModelForSequenceClassification = { from_pretrained: async () => (async (inputs) => ({ logits: { data: [inputs.__text === 'b' ? 1 : 0] } })) };",
+        "exports.AutoModelForSequenceClassification = { from_pretrained: async (id, opts) => { globalThis.__modelOpts = opts; return async (inputs) => ({ logits: { data: [inputs.__text === 'b' ? 1 : 0] } }); } };",
       ].join('\\n'));
       await new Promise((r) => setTimeout(r, 100)); // past the test cooldown
       const second = await reranker.rerank('q', candidates);
-      console.log(JSON.stringify({ first, second }));
+      console.log(JSON.stringify({ first, second, sessionOptions: globalThis.__modelOpts && globalThis.__modelOpts.session_options }));
       process.exit(0);
     })().catch((e) => { console.error(e); process.exit(1); });
   `);
@@ -56,4 +56,5 @@ test('reranker retries load after cooldown once a working stub appears', async (
   const result = JSON.parse(stdout.trim().split('\n').pop());
   assert.deepStrictEqual(result.first, [0, 1], 'must fall back to identity order while the model is unavailable');
   assert.deepStrictEqual(result.second, [1, 0], 'must recover and actually rerank once the stub becomes available');
+  assert.deepStrictEqual(result.sessionOptions, { intraOpNumThreads: 2, interOpNumThreads: 1 }, 'the reranker must load with the thread cap');
 });

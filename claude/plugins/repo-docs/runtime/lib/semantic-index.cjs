@@ -10,6 +10,10 @@ const MODEL_MAX_TOKENS = 512;
 const EMBED_DIM = 384;
 // bge-small wants the retrieval instruction on QUERIES only (not documents).
 const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
+// onnxruntime spreads each run over every core by default: a doc-index build
+// measured 278% CPU on an 8-core Mac. Two threads measured 191% with a third less
+// total CPU work and no slower build. The reranker uses the same cap.
+const SESSION_OPTIONS = { intraOpNumThreads: 2, interOpNumThreads: 1 };
 
 if (!isMainThread) {
   (async () => {
@@ -25,7 +29,7 @@ if (!isMainThread) {
     // with the REPO_DOCS_MODELS_DIR env var.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
       || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
-    const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE });
+    const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });
     // Some model configs ship model_max_length as Infinity, so the pipeline's
     // hardcoded `truncation: true` never clips and docs over 512 tokens crash the
     // ONNX model (position-embedding broadcast mismatch). Pin the tokenizer's
@@ -227,4 +231,5 @@ module.exports = {
   MODEL_ID,
   MODEL_DTYPE,
   EMBED_DIM,
+  SESSION_OPTIONS,
 };

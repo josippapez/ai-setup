@@ -1,5 +1,7 @@
 'use strict';
 
+const { SESSION_OPTIONS } = require('./semantic-index.cjs');
+
 const RERANKER_ID = 'Xenova/bge-reranker-base';
 let _mod = null, _lastFailedAt = 0;
 
@@ -32,7 +34,7 @@ async function load() {
     const tokenizer = await AutoTokenizer.from_pretrained(RERANKER_ID);
     // q8: measured identical ranking to fp32 on 27/27 verbatim rerank queries
     // (both 100% hit@1 / 1.000 MRR) while ~4x smaller (~300MB vs 1.1GB).
-    const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'q8' });
+    const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'q8', session_options: SESSION_OPTIONS });
     _mod = { tokenizer, model };
   } catch { _lastFailedAt = Date.now(); }
   return _mod;
