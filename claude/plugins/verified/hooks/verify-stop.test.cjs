@@ -96,6 +96,15 @@ test('a claim about a file that is not there blocks as fiction', () => {
   assert.match(reason(r), /another one \(an SSH host/);
 });
 
+test('a block asks for the answer rewritten, not a reply to the gate', () => {
+  const fx = fixture();
+  // Models answered the note ("The path I gave is relative to...") instead of
+  // re-sending a corrected answer, leaving the user a fragment.
+  const r = run(fx, 'The config lives at src/nope.ts:42.');
+  assert.match(reason(r), /replaces your previous answer/);
+  assert.match(reason(r), /Do not reply to this note/);
+});
+
 test('the remote-machine note only rides on a path-missing flag', () => {
   const fx = fixture();
   fx.file('src/db.ts');

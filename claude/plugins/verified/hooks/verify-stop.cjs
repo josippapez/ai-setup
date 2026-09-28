@@ -358,7 +358,10 @@ const main = async () => {
       `Go run the check, or reword the claim as the guess it is, then finish the turn. ` +
       `A name used only as an example is not a claim once it is written as e.g. NAME or "NAME". ` +
       remote +
-      `Do not restate the claim unchanged.`,
+      `Do not restate the claim unchanged.\n\n` +
+      `The user does not see this note. Your next message replaces your previous answer: write the ` +
+      `whole answer again, corrected, in the same style and length. Do not reply to this note, ` +
+      `mention a check or flag, or explain what you meant earlier ("the path I gave", "to clarify").`,
   }));
 };
 
