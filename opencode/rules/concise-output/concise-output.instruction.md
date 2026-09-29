@@ -82,6 +82,7 @@ Write for a smart colleague who does not know this codebase. Explain in layman's
 - Colons before a list or example only, never as mid-sentence connectors.
 - Don't bold every proper noun. A bold lead-in is fine when it names an item and real detail follows, not when it restates the line.
 - Use the natural number of items, not three because three feels balanced.
+- Name a file by a path that opens from the working directory, never a bare filename: `.orchestration/PROJECT.md`, not `PROJECT.md`. A file in another repo or outside this one gets its full `~/` path, not a path relative to its own repo. This holds every time the file comes up, not just the first.
 
 ## Tone
 

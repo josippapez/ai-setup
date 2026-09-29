@@ -58,6 +58,7 @@ test('style carries the substance of both former rules', () => {
     'Exempt: agent-to-agent traffic',    // the exemption subagents rely on
     'Outbound content',                  // former outbound-content rule
     'Not a licence to under-deliver',    // the anti-under-delivery guard
+    'never a bare filename',             // a bare PROJECT.md tripped the verified gate's path check
   ]) assert.ok(body.includes(marker), marker);
 });
 
