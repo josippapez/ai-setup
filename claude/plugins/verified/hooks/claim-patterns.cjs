@@ -210,13 +210,14 @@ function classify(answer, ev, cfg) {
   const unbacked = [];
   const covered = [];
 
+  const dirs = C.pathMissing ? resolve.namedDirs(text) : [];
   if (C.path || C.pathMissing) for (const m of text.matchAll(PATH_RE)) {
     const span = m[2] ? `${m[1]}:${m[2]}` : m[1];
     covered.push(m[0]);
     if (BARE_EXT_RE.test(m[1])) continue;
     if (C.pathRequiresSlash && !m[1].includes('/')) continue;
     if (isPlaceholderPath(span) || isMention(text, span)) continue;
-    if (C.pathMissing && resolve.exists(span, ev.cwd) === 'missing') {
+    if (C.pathMissing && resolve.exists(span, ev.cwd, dirs) === 'missing') {
       unbacked.push({
         class: 'path-missing',
         span,

@@ -14,6 +14,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
 const kinds = new Map();
@@ -66,15 +67,31 @@ function suffixHit(root, rel) {
  * 'unknown' whenever there is no usable cwd, so a claim is never called
  * fabricated on the strength of not knowing where to look.
  */
-function exists(span, cwd) {
+function exists(span, cwd, extraRoots = []) {
   const rel = span.replace(/:\d+$/, '');
   if (!cwd || kind(cwd) !== 'dir') return 'unknown';
   if (rel.startsWith('/')) return kind(rel) === 'missing' ? 'missing' : 'file';
   if (kind(path.resolve(cwd, rel)) !== 'missing') return 'file';
-  const root = gitRoot(cwd);
-  if (!root) return 'missing';
-  if (kind(path.resolve(root, rel)) !== 'missing') return 'file';
-  return suffixHit(root, rel) ? 'file' : 'missing';
+  // A file in another repo is written relative to that repo, so also try the
+  // repos of the folders the answer itself named.
+  for (const dir of [cwd, ...extraRoots]) {
+    const root = gitRoot(dir);
+    if (!root) continue;
+    if (kind(path.resolve(root, rel)) !== 'missing' || suffixHit(root, rel)) return 'file';
+  }
+  return 'missing';
 }
 
-module.exports = { exists, kind, gitRoot };
+// Existing folders the answer names by `~/` or absolute path.
+function namedDirs(text) {
+  const dirs = new Set();
+  for (const m of String(text).matchAll(/(?<![\w.])(~\/|\/)[^\s`'"<>()]+/g)) {
+    const p = m[0].replace(/^~(?=\/)/, os.homedir()).replace(/[.,:;]+$/, '');
+    const k = kind(p);
+    if (k === 'dir') dirs.add(p);
+    else if (k === 'file') dirs.add(path.dirname(p));
+  }
+  return [...dirs];
+}
+
+module.exports = { exists, kind, gitRoot, namedDirs };

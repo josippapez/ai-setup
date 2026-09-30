@@ -476,6 +476,21 @@ test('a route path with $param and (group) segments stays whole', () => {
   assert.deepStrictEqual(found.map((f) => f.span), ['src/routes/$locale/_layout/(public)/_public/$id.tsx']);
 });
 
+test('a path in another repo resolves when the answer names that repo', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const { execFileSync: run } = require('node:child_process');
+  const other = fs.mkdtempSync(path.join(os.tmpdir(), 'verified-other-'));
+  fs.mkdirSync(path.join(other, 'src', 'routes'), { recursive: true });
+  fs.writeFileSync(path.join(other, 'src', 'routes', 'info.tsx'), '');
+  run('git', ['init', '-q', other]);
+  run('git', ['-C', other, 'add', '.']);
+  const here = fs.mkdtempSync(path.join(os.tmpdir(), 'verified-here-'));
+  const ev = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, cwd: here };
+  const cfg = { path: false, pathMissing: true };
+  assert.strictEqual(classify('It reads src/routes/info.tsx.', ev, cfg).unbacked.length, 1);
+  assert.strictEqual(classify(`It reads src/routes/info.tsx in ${other}.`, ev, cfg).unbacked.length, 0);
+});
+
 test('a long session keeps its manifest bounded and its stamps aligned', () => {
   const fx = fixture();
   const ledger = require('./ledger.cjs');
