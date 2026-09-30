@@ -71,7 +71,7 @@ async function handleRequest(message) {
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
       instructions:
-        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup, and find_libs to check installed packages and versions. For code structure (callers, callees, blast radius before a rename/move/API change) use codegraph_codegraph_explore from the codegraph MCP server, or `codegraph explore` in the shell, in repos that have a .codegraph/ directory. Paths are repo-root-relative POSIX.',
+        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup. When looking for docs on a topic or deciding which doc a change belongs in, run find_docs before grepping docs folders: it searches by meaning, so it finds a doc that describes the topic in different words, which grep misses. Use find_libs to check installed packages and versions. For code structure (callers, callees, blast radius before a rename/move/API change) use codegraph_codegraph_explore from the codegraph MCP server, or `codegraph explore` in the shell, in repos that have a .codegraph/ directory. Paths are repo-root-relative POSIX.',
     });
     // Ensure the OpenCode server is reachable; if not, start it in the
     // background at the configured port so tools that rely on it work without

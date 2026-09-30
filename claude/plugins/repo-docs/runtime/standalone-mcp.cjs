@@ -11,7 +11,7 @@ const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
 const { findLibsTool } = require('./tools/find-libs.cjs');
 
-const SERVER_INFO = { name: 'repo-docs', version: '0.4.2' };
+const SERVER_INFO = { name: 'repo-docs', version: '0.4.3' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
 const context = createContext(process.argv[2]);
 const registeredTools = [
@@ -56,7 +56,7 @@ async function handleRequest(message) {
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
       instructions:
-        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup, and find_libs to check installed packages and versions. For code structure (callers, callees, blast radius before a rename/move/API change) use the codegraph_explore tool from the sibling codegraph server, or `codegraph explore` in the shell, in repos that have a .codegraph/ directory. Paths are repo-root-relative POSIX.',
+        'Use these tools to ground answers in THIS repository instead of guessing. Prefer find_docs/list_docs/read_doc over web knowledge for repo conventions and setup. When looking for docs on a topic or deciding which doc a change belongs in, run find_docs before grepping docs folders: it searches by meaning, so it finds a doc that describes the topic in different words, which grep misses. Use find_libs to check installed packages and versions. For code structure (callers, callees, blast radius before a rename/move/API change) use the codegraph_explore tool from the sibling codegraph server, or `codegraph explore` in the shell, in repos that have a .codegraph/ directory. Paths are repo-root-relative POSIX.',
     });
     warmUp();
     // Pre-embed docs in the background on connect (fire-and-forget, incremental
