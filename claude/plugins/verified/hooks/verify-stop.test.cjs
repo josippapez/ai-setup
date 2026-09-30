@@ -120,6 +120,7 @@ test('reading a file does not excuse it having been deleted', () => {
   ]);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
+  assert.match(reason(r), /keep the reference and correct it/);
 });
 
 test('a ~ path is not read as an absolute path that cannot exist', () => {

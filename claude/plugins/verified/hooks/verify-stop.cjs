@@ -327,8 +327,13 @@ const main = async () => {
   const list = all.map((c) => `  - [${c.class}] "${c.span}" — needs ${c.needs}`).join('\n');
   // path-missing asks the local disk, so a path the session checked over SSH or
   // on a device reads as fiction. The gate cannot see that machine; the model can.
+  // Told only to reword, models deleted the path and left the reader a vaguer
+  // answer. A wrong path is corrected, not dropped.
   const remote = all.some((c) => c.class === 'path-missing')
-    ? `A [path-missing] flag only checks this machine. If that path lives on another one ` +
+    ? `For a [path-missing] flag, keep the reference and correct it: find where the file really ` +
+      `is and write that path, with its full ~/ path if it is in another repo. A path you quote ` +
+      `as broken or example output goes in "double quotes". Drop it only if no such file exists. ` +
+      `A [path-missing] flag only checks this machine. If that path lives on another one ` +
       `(an SSH host, a container, a device), treat the flag as a suggestion: say which machine ` +
       `in one line and finish, without repeating the path. `
     : '';
