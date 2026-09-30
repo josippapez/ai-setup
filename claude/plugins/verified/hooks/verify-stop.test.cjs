@@ -236,6 +236,18 @@ test('an uncited URL blocks, a fetched one passes', () => {
   assert.strictEqual(r, null);
 });
 
+test('a URL read through agent-browser in Bash counts as fetched', () => {
+  const fx = fixture();
+  const r = run(fx, 'Details are on https://www.borovo.hr/hr/o-nama/kontakt/.', [
+    { name: 'Bash', input: { command: 'for u in kontakt reklamacije; do agent-browser read "https://www.borovo.hr/hr/$u/" --max-output 6000; done' } },
+  ], 'u3');
+  assert.strictEqual(r, null);
+  const fx2 = fixture();
+  assert.ok(blocked(run(fx2, 'Details are on https://www.borovo.hr/hr/o-nama/kontakt/.', [
+    { name: 'Bash', input: { command: 'echo "https://www.borovo.hr/hr/"' } },
+  ], 'u4')));
+});
+
 test('the reentry guard stops the judge child from recursing', () => {
   const fx = fixture();
   const r = run(fx, 'The config lives at src/db.ts:42.', [], 's-guard', { VERIFIED_JUDGE: '1' });

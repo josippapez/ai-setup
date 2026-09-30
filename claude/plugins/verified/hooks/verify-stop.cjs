@@ -27,7 +27,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE } = require('./claim-patterns.cjs');
+const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
 const { TEST_PASS_RE, outputKind, pathsInOutput } = require('./corpus.cjs');
 
@@ -155,6 +155,7 @@ function collect(rec, ev, errored, toolOf) {
       if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
       if (SEARCH_CMD_RE.test(cmd)) ev.searches.push({ pattern: cmd, ok, seq: ev.seq });
       if (LIB_CMD_RE.test(cmd)) ev.libLookup = true;
+      for (const h of fetchedHosts(cmd)) ev.urls.add(h);
       // Any path-looking token the command touched counts as read.
       for (const t of cmd.split(/[\s'"|;&()<>]+/)) {
         if (/[\w.-]+\.[A-Za-z]\w{0,9}$/.test(t) || t.includes('/')) {

@@ -125,6 +125,18 @@ const TEST_CMD_RE =
 
 const SEARCH_TOOLS = new Set(['Grep', 'Glob']);
 const SEARCH_CMD_RE = /\b(?:rg|grep|ag|ack|find|codegraph)\b/;
+// A shell command that pulls a page off the web backs the hosts it names, the
+// same as WebFetch does. Without this, pages read through agent-browser were
+// flagged as never fetched.
+const FETCH_CMD_RE = /\b(?:agent-browser|curl|wget)\b/;
+function fetchedHosts(cmd) {
+  if (!FETCH_CMD_RE.test(cmd)) return [];
+  const hosts = [];
+  for (const m of cmd.matchAll(URL_RE)) {
+    try { hosts.push(new URL(m[0]).host); } catch { /* malformed */ }
+  }
+  return hosts;
+}
 const LIB_CMD_RE = /\b(?:opensrc|npm\s+(?:ls|list|view|info)|pnpm\s+(?:ls|list|why)|yarn\s+(?:list|why)|pip\s+show|cargo\s+tree)\b/;
 // Files that declare a version. `plugin.json` and `manifest.json` are here
 // because the gate blocked twice on version strings that the same turn had just
@@ -301,4 +313,4 @@ const BACKED_BY = {
   state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
 };
 
-module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE };
+module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE, fetchedHosts };

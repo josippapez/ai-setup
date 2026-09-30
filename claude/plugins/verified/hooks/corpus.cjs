@@ -25,6 +25,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const ledger = require('./ledger.cjs');
+const { fetchedHosts } = require('./claim-patterns.cjs');
 
 const EMPTY = () => ({
   paths: new Set(), commands: [], searches: [], urls: new Set(),
@@ -72,6 +73,7 @@ function fold(ev, name, inp, ok) {
     const cmd = inp.command;
     ev.commands.push({ cmd: cmd.slice(0, 300), ok, seq: ev.seq });
     if (/\b(?:rg|grep|ag|ack|find|codegraph)\b/.test(cmd)) ev.searches.push({ pattern: cmd, ok, seq: ev.seq });
+    for (const h of fetchedHosts(cmd)) ev.urls.add(h);
     if (/\b(?:opensrc|npm\s+(?:ls|list|view|info)|pip\s+show|cargo\s+tree)\b/.test(cmd)) ev.libLookup = true;
     if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
     for (const t of cmd.split(/[\s'"|;&()<>]+/)) if (t.includes('/') || /\.[A-Za-z]\w{0,9}$/.test(t)) add(t);
