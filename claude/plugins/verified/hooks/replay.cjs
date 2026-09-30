@@ -80,7 +80,7 @@ function score(worlds, classify, cfg) {
       // one label here that is not inferred, so it wins outright.
       const t = w.truth && w.truth[f.span];
       const v = typeof t === 'boolean'
-        ? (t ? { c: 1, e: 0, u: 0 } : { c: 0, e: 1, u: 0 })
+        ? labels.truthLabel(f, w, t)
         : labels.label(f, w, found.get(f.span.replace(/:\d+$/, '')), found.testPassSeqs);
       caught += v.c; fp += v.e; unknown += v.u;
       byClass[f.class] = byClass[f.class] || { caught: 0, fp: 0, unknown: 0 };
@@ -161,7 +161,27 @@ function main() {
     // false in this mode: every "did the evidence show up later" test compared
     // the manifest against itself. The session's end-state manifest is the
     // record that answers it, and it is already on disk.
-    worlds = ledger.read()
+    const nodes = ledger.read();
+    // The rewrite after a block is the session's next node.
+    const nextAnswer = new Map();
+    const lastOf = new Map();
+    for (const n of nodes) {
+      const prev = lastOf.get(n.session);
+      if (prev) nextAnswer.set(prev, n.answer);
+      lastOf.set(n.session, n);
+    }
+    // Basenames of every blocked path, looked up once per session in its tool output.
+    const wanted = new Map();
+    for (const n of nodes) {
+      if (n.action !== 'block') continue;
+      for (const c of n.claims || []) {
+        if (c.class !== 'path-missing' && c.class !== 'url') continue;
+        if (!wanted.has(n.session)) wanted.set(n.session, new Set());
+        wanted.get(n.session).add(c.class === 'url' ? c.span : path.basename(c.span.replace(/:\d+$/, '')));
+      }
+    }
+    const seenOutput = new Map([...wanted].map(([s, w]) => [s, corpus.seenInSession(s, w)]));
+    worlds = nodes
       .filter((n) => n.answer && n.evidence)
       .map((n) => {
         const ev = {
@@ -183,7 +203,7 @@ function main() {
           for (const c of n.claims || []) truth[c.span] = n.resolved;
         }
         return {
-          answer: n.answer, ev, final, truth,
+          answer: n.answer, ev, final, truth, nextAnswer: nextAnswer.get(n), seenOutput: seenOutput.get(n.session),
           nextUser: '', idx: 0, cwd: n.evidence.cwd || '', ageDays: 0,
           file: null, bytes: 0,
         };

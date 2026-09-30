@@ -289,4 +289,39 @@ function outputIndex(file, maxBytes, wanted) {
   return found;
 }
 
-module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex, TEST_PASS_RE, outputKind, pathsInOutput };
+// Which of `wanted` appeared in tool output anywhere in a session, subagents
+// included: a subagent's reads land in its own transcript, not the parent's.
+// Maps each name to the time it was first printed, in ms.
+function seenInSession(session, wanted) {
+  const seen = new Map();
+  if (!wanted.size) return seen;
+  const base = path.join(os.homedir(), '.claude', 'projects');
+  let dirs = [];
+  try { dirs = fs.readdirSync(base); } catch { return seen; }
+  for (const d of dirs) {
+    const main = path.join(base, d, `${session}.jsonl`);
+    if (!fs.existsSync(main)) continue;
+    const files = [main];
+    const sub = path.join(base, d, session, 'subagents');
+    try { for (const f of fs.readdirSync(sub)) if (f.endsWith('.jsonl')) files.push(path.join(sub, f)); } catch { /* none */ }
+    for (const f of files) {
+      let text = '';
+      try { text = fs.readFileSync(f, 'utf8'); } catch { continue; }
+      for (const line of text.split('\n')) {
+        if (!line.includes('tool_result')) continue;
+        let r;
+        try { r = JSON.parse(line); } catch { continue; }
+        const at = Date.parse(r.timestamp) || 0;
+        const blocks = Array.isArray(r.message && r.message.content) ? r.message.content : [];
+        for (const b of blocks) {
+          if (!b || b.type !== 'tool_result' || b.is_error) continue;
+          const out = typeof b.content === 'string' ? b.content : JSON.stringify(b.content || '');
+          for (const w of wanted) if (out.includes(w) && !(seen.get(w) <= at)) seen.set(w, at);
+        }
+      }
+    }
+  }
+  return seen;
+}
+
+module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex, seenInSession, TEST_PASS_RE, outputKind, pathsInOutput };

@@ -17,6 +17,7 @@
 // in this session's tool OUTPUT before the claim. The manifest records what
 // tools were asked for, not what they printed, so that is exactly the blind spot.
 
+const path = require('node:path');
 const resolve = require('./resolve.cjs');
 
 // Replaying old transcripts, a file can be missing now because it was never
@@ -94,4 +95,33 @@ function label(flag, world, seen, passSeqs) {
   return { c: 0, e: 0, u: 1 };
 }
 
-module.exports = { label, resolvedLater, CORRECTION_RE, STALE };
+/**
+ * Verdict for a block the gate really issued, from what the rewrite did.
+ * The flagged span not coming back used to be a catch on its own, but in the
+ * live ledger 450 of 582 path blocks were "resolved" by deleting the file from
+ * the answer. That is a loss when the file is real: the reader got less.
+ */
+function truthLabel(flag, world, resolved) {
+  if (!resolved) return { c: 0, e: 1, u: 0 };
+  if (typeof world.nextAnswer !== 'string') return { c: 1, e: 0, u: 0 };
+  if (flag.class === 'url') {
+    if (world.nextAnswer.includes(flag.span)) return { c: 1, e: 0, u: 0 };
+    // Dropped. A URL some tool printed was real, so the reader lost the link.
+    return world.seenOutput && world.seenOutput.has(flag.span) ? { c: 0, e: 1, u: 0 } : { c: 0, e: 0, u: 1 };
+  }
+  if (flag.class !== 'path-missing') return { c: 1, e: 0, u: 0 };
+  const base = path.basename(flag.span.replace(/:\d+$/, ''));
+  if (world.nextAnswer.includes(base)) return { c: 1, e: 0, u: 0 };
+  // Dropped. A file the repo tracks, the session touched, or any tool printed
+  // (subagents included) was real, so the reader lost it. Without the tool output
+  // a real file outside the repo (~/.claude, gitignored .orchestration, a sibling
+  // repo) looked the same as a made-up one: 245 of 255 such drops showed up there.
+  // A stamp is the file's mtime when the session touched it, null if it wasn't there.
+  const stamps = (world.final && world.final.stamps) || {};
+  const read = Object.keys(stamps).some((p) => typeof stamps[p] === 'number' && (p === base || p.endsWith('/' + base)));
+  const printed = !!(world.seenOutput && world.seenOutput.has(base));
+  if (read || printed || resolve.basenameTracked(world.cwd, base)) return { c: 0, e: 1, u: 0 };
+  return { c: 0, e: 0, u: 1 };
+}
+
+module.exports = { label, resolvedLater, truthLabel, CORRECTION_RE, STALE };

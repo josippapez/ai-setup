@@ -94,4 +94,12 @@ function namedDirs(text) {
   return [...dirs];
 }
 
-module.exports = { exists, kind, gitRoot, namedDirs };
+// Is any tracked file in cwd's repo named `base`?
+function basenameTracked(cwd, base) {
+  const root = cwd && kind(cwd) === 'dir' ? gitRoot(cwd) : null;
+  if (!root) return false;
+  for (const f of tracked(root)) if (f === base || f.endsWith('/' + base)) return true;
+  return false;
+}
+
+module.exports = { exists, kind, gitRoot, namedDirs, basenameTracked };

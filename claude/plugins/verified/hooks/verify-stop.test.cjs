@@ -492,6 +492,21 @@ test('a path in another repo resolves when the answer names that repo', () => {
   assert.strictEqual(classify(`It reads src/routes/info.tsx in ${other}.`, ev, cfg).unbacked.length, 0);
 });
 
+test('a path block is a catch only if the rewrite keeps the file', () => {
+  const { truthLabel } = require('./labels.cjs');
+  const flag = { class: 'path-missing', span: 'docs/EPIC.md:4' };
+  const final = { stamps: { '/repo/.orchestration/x/EPIC.md': 1, '/repo/gone.md': null } };
+  const w = (nextAnswer) => ({ nextAnswer, cwd: '', final });
+  assert.deepStrictEqual(truthLabel(flag, w('It is in .orchestration/x/EPIC.md.'), true), { c: 1, e: 0, u: 0 });
+  assert.deepStrictEqual(truthLabel(flag, w('It is in the epic file.'), true), { c: 0, e: 1, u: 0 });
+  const made = { class: 'path-missing', span: 'gone.md' };
+  assert.deepStrictEqual(truthLabel(made, w('Nothing to cite.'), true), { c: 0, e: 0, u: 1 });
+  const outside = { class: 'path-missing', span: 'RTK.md' };
+  const printed = { nextAnswer: 'See the rules file.', cwd: '', final, seenOutput: new Set(['RTK.md']) };
+  assert.deepStrictEqual(truthLabel(outside, printed, true), { c: 0, e: 1, u: 0 });
+  assert.deepStrictEqual(truthLabel(flag, w('same'), false), { c: 0, e: 1, u: 0 });
+});
+
 test('a long session keeps its manifest bounded and its stamps aligned', () => {
   const fx = fixture();
   const ledger = require('./ledger.cjs');
