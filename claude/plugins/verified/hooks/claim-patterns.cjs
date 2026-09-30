@@ -27,8 +27,12 @@ const resolve = require('./resolve.cjs');
 // preceded by `/`, so the match failed and claims about absolute paths were
 // invisible to the gate entirely. Keeping `/` in the lookbehind still keeps the
 // pattern out of URLs, which `URL_RE` owns.
+//
+// A segment may be a `$param` or a `(group)` directory, the file-based routing
+// names TanStack uses. Without them `src/routes/$locale/(public)/info.tsx` split
+// at the `)` and the gate flagged `/info.tsx` as a missing absolute path.
 const PATH_RE =
-  /(?<![\w@/.~\u2026-])(\/(?:[\w.-]+\/)*[\w.-]+\.[A-Za-z][\w]{0,9}|(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
+  /(?<![\w@/.~\u2026$)-])(\/(?:(?:\$?[\w.-]+|\([\w.-]+\))\/)*\$?[\w.-]+\.[A-Za-z][\w]{0,9}|(?:(?:\$?[\w.-]+|\([\w.-]+\))\/)+\$?[\w.-]+\.[A-Za-z][\w]{0,9}|[\w.-]+\.(?:ts|tsx|js|jsx|cjs|mjs|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|sql|json|ya?ml|toml|md))(?::(\d+))?(?![\w/-])/g;
 
 // Claims that a command succeeded. Anchored on the verb so "the test file" or
 // "a passing grade" do not match.

@@ -469,6 +469,13 @@ test('an absolute path is a claim like any other', () => {
   assert.deepStrictEqual(url.map((u) => u.class), ['url']);
 });
 
+test('a route path with $param and (group) segments stays whole', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const bare = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
+  const found = classify('The site reads three pages (src/routes/$locale/_layout/(public)/_public/$id.tsx:24-32).', bare, { path: true, pathMissing: false }).unbacked;
+  assert.deepStrictEqual(found.map((f) => f.span), ['src/routes/$locale/_layout/(public)/_public/$id.tsx']);
+});
+
 test('a long session keeps its manifest bounded and its stamps aligned', () => {
   const fx = fixture();
   const ledger = require('./ledger.cjs');
