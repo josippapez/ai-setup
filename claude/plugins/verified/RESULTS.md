@@ -64,7 +64,7 @@ Per class at `9f92298`:
 |---|---|---|---|
 | re-enable the manifest path check | +73 catches | 179 more blocked turns, 572 ungradable flags; V 395.5 | not at β2=0.25 |
 | version class | +57 | 285 fp; V 137.5 | no |
-| url hosts from Bash output | +24 | untested | open |
+| url hosts from Bash output | shipped 97ade34 | V 398.1 → 371.6, labeller blind spot (README) | overridden |
 | demote url to a non-blocking note | | blocks 18.3% → 16.2% | defensible |
 | demote command-outcome | | blocks 18.3% → 14.9%, loses the class with 0 fp | no |
 
@@ -79,10 +79,40 @@ Per class at `9f92298`:
 
 ## Live blocks so far
 
-Four, of which two were wrong and both were the mention shape now fixed. One
-asked for a full path on a file that really does sit outside the repo, which
-was correct. Too few to mean anything yet; the point of the ledger is to make
-this table worth reading.
+As of 2026-09-30 the live ledger holds 3079 nodes and 466 blocked turns (15.1%).
+Score it with `node hooks/replay.cjs`.
+
+A block used to count as a catch whenever the flagged span didn't come back.
+But 450 of 582 path blocks came back with the file deleted from the answer,
+not corrected. The labeller now reads the rewrite (`truthLabel` in
+`hooks/labels.cjs`): a path block is a catch if the rewrite still names the
+file, a false positive if it dropped a real file, and unknown otherwise. A
+file counts as real if the repo tracks it, the session touched it, or any tool
+printed its name, subagent transcripts included. Without the tool-output check,
+a real file outside the repo looked the same as a made-up one.
+
+| scorer | V | path-missing catch / fp / unknown |
+|---|---|---|
+| span-gone counts as a catch | 456.7 | 562 / 72 / 0 |
+| rewrite must keep the file (repo + touched files) | -49.1 | 203 / 213 / 239 |
+| ... plus names seen in tool output | -279.7 | 202 / 443 / 10 |
+
+The gate now skips a file name or URL some tool already printed, and reads a
+subagent's own transcript on SubagentStop. The labeller treats a url block the
+same way as a path block: a catch only if the rewrite keeps the link.
+
+| gate, same labeller | V | blocked turns |
+|---|---|---|
+| before the printed-name skip | -30.8 | 141 (4.6%) |
+| skip printed file names and URLs | **21.9** | 118 (3.8%) |
+
+Path-missing alone went from -278.7 to 70.2 when the skip covered only files.
+
+Live, path-missing blocks drop a real file about twice as often as they catch a wrong one. Most of the
+dropped real files sit where the resolver doesn't look: `~/.claude` (RTK.md,
+memory notes), gitignored `.orchestration` epics, and sibling repos. None of
+the 10 still unknown is clearly made up: temp scripts written by heredoc, an
+elided `...Factory.cs`, a file fetched from GitHub, a regex fragment.
 
 ## Targets once live
 
@@ -94,7 +124,7 @@ the first at 87-96% and the second at ~15% after discounting staleness.
 `~/.claude/verified/`: `ledger.jsonl` (one node per evaluated turn, ~100 KB each,
 carries answer text so it stays out of git), `manifests/`, `worlds.lock.json`,
 `replay-log.jsonl` (one aggregate line per replay run, safe to copy anywhere),
-`offsets.json`. Live ledger at time of writing: 11 nodes, 1 block, resolved.
+`offsets.json`.
 
 ## Re-measure
 
