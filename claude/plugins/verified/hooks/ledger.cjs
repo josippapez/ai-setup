@@ -63,7 +63,7 @@ function setOffset(session, offset) {
 // cap of 1000 clipped both. Command text is truncated because the only thing
 // that reads it is a regex matching the program name at the front, and storing
 // it whole made commands 610-739 KB of an ~800 KB manifest.
-const CAP = { paths: 8000, commands: 5000, searches: 5000, urls: 500, cmdChars: 300 };
+const CAP = { paths: 8000, printed: 8000, commands: 5000, searches: 5000, urls: 500, cmdChars: 300 };
 
 const manifestPath = (session) =>
   path.join(dir(), 'manifests', String(session).replace(/[^\w.-]/g, '_') + '.json');
@@ -78,12 +78,13 @@ function readManifest(session) {
       urls: new Set(m.urls || []),
       libLookup: !!m.libLookup,
       stamps: m.stamps || {},
+      printed: new Set(m.printed || []),
       seq: m.seq || 0,
       lastWrite: m.lastWrite || 0,
       testOut: m.testOut || 0,
     };
   } catch {
-    return { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, stamps: {}, seq: 0, lastWrite: 0, testOut: 0 };
+    return { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, stamps: {}, printed: new Set(), seq: 0, lastWrite: 0, testOut: 0 };
   }
 }
 
@@ -104,6 +105,7 @@ function writeManifest(session, ev) {
       urls: [...ev.urls].slice(-CAP.urls),
       libLookup: ev.libLookup,
       stamps,
+      printed: [...(ev.printed || [])].slice(-CAP.printed),
       seq: ev.seq,
       lastWrite: ev.lastWrite,
       testOut: ev.testOut || 0,

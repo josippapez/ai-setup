@@ -133,6 +133,14 @@ const SEARCH_CMD_RE = /\b(?:rg|grep|ag|ack|find|codegraph)\b/;
 // same as WebFetch does. Without this, pages read through agent-browser were
 // flagged as never fetched.
 const FETCH_CMD_RE = /\b(?:agent-browser|curl|wget)\b/;
+// File names a tool printed, so a real file outside the repo is not called missing.
+const PRINTED_NAME_RE = /[\w$@-][\w.$@-]*\.[A-Za-z]\w{0,9}\b/g;
+function printedNames(out, cap = 2000) {
+  const names = [];
+  for (const m of out.matchAll(PRINTED_NAME_RE)) { names.push(m[0]); if (names.length >= cap) break; }
+  for (const m of out.matchAll(URL_RE)) { names.push(m[0].replace(/[.,;:]+$/, '')); if (names.length >= cap) break; }
+  return names;
+}
 function fetchedHosts(cmd) {
   if (!FETCH_CMD_RE.test(cmd)) return [];
   const hosts = [];
@@ -217,7 +225,11 @@ function classify(answer, ev, cfg) {
     if (BARE_EXT_RE.test(m[1])) continue;
     if (C.pathRequiresSlash && !m[1].includes('/')) continue;
     if (isPlaceholderPath(span) || isMention(text, span)) continue;
-    if (C.pathMissing && resolve.exists(span, ev.cwd, dirs) === 'missing') {
+    // A name some tool already printed is a real file, wherever it lives. Blocking
+    // on it made the model drop real files from its answer twice as often as the
+    // gate caught a wrong one (live ledger, 2026-09-30).
+    if (C.pathMissing && !(ev.printed && ev.printed.has(path.basename(m[1])))
+      && resolve.exists(span, ev.cwd, dirs) === 'missing') {
       unbacked.push({
         class: 'path-missing',
         span,
@@ -284,6 +296,9 @@ function classify(answer, ev, cfg) {
     if (isMention(text, m[0])) continue;
     let host = '';
     try { host = new URL(m[0]).host; } catch { /* malformed, treat as unbacked */ }
+    // A URL a tool printed (search result, page links) is real; blocking on it
+    // made the model drop the link in 40 of 61 live url blocks.
+    if (ev.printed && ev.printed.has(m[0].replace(/[.,;:]+$/, ''))) continue;
     if (!host || !ev.urls.has(host)) {
       unbacked.push({
         class: 'url',
@@ -318,4 +333,4 @@ const BACKED_BY = {
   state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
 };
 
-module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE, fetchedHosts };
+module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE, fetchedHosts, printedNames };

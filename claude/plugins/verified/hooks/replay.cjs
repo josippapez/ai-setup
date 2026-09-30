@@ -192,6 +192,9 @@ function main() {
           // classify reads cwd off the manifest, not off the world, because the
           // live hook only ever hands it a manifest.
           cwd: n.evidence.cwd || '',
+          // Names printed before this answer, since nodes do not store them.
+          printed: new Set([...(seenOutput.get(n.session) || new Map())]
+            .filter(([, at]) => at < Date.parse(n.ts)).map(([w]) => w)),
         };
         const m = ledger.readManifest(n.session);
         const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;

@@ -27,7 +27,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts } = require('./claim-patterns.cjs');
+const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts, printedNames } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
 const { TEST_PASS_RE, outputKind, pathsInOutput } = require('./corpus.cjs');
 
@@ -124,6 +124,7 @@ function collect(rec, ev, errored, toolOf) {
       const c = b.content;
       const out = typeof c === 'string' ? c : JSON.stringify(c || '');
       if (out && TEST_PASS_RE.test(out)) ev.testOut = ev.seq;
+      if (out) { ev.printed = ev.printed || new Set(); for (const n of printedNames(out)) ev.printed.add(n); }
       const src = toolOf.get(b.tool_use_id);
       if (out && src && outputKind(src.tool, src.cmd) === 'content') for (const p of pathsInOutput(out)) see(ev, p);
       continue;
@@ -276,7 +277,10 @@ const main = async () => {
   if (typeof answer !== 'string' || !answer.trim()) return;
   const session = String(ev0.session_id || 'unknown');
 
-  const evidence = buildEvidence(ev0.transcript_path, session);
+  // A subagent's tool calls are in its own transcript, not the parent's.
+  const evidence = ev0.agent_transcript_path
+    ? buildEvidence(ev0.agent_transcript_path, `${session}.${ev0.agent_id || 'agent'}`)
+    : buildEvidence(ev0.transcript_path, session);
   evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
   pruneStale(evidence);
   const { unbacked, residualText } = classify(answer, evidence);

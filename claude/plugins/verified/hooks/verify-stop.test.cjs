@@ -507,6 +507,33 @@ test('a path block is a catch only if the rewrite keeps the file', () => {
   assert.deepStrictEqual(truthLabel(flag, w('same'), false), { c: 0, e: 1, u: 0 });
 });
 
+test('a file or URL a tool printed is not blocked as missing or unfetched', () => {
+  const fx = fixture();
+  assert.ok(blocked(run(fx, 'The rules are in docs/RTK.md.', [], 'pr1')));
+  const fx2 = fixture();
+  assert.strictEqual(run(fx2, 'The rules are in docs/RTK.md.', [
+    { name: 'Bash', input: { command: 'ls ~/.claude' }, result: 'CLAUDE.md\nRTK.md\n' },
+  ], 'pr2'), null);
+  const fx3 = fixture();
+  assert.strictEqual(run(fx3, 'Terms are at https://shop.example/terms/.', [
+    { name: 'Bash', input: { command: 'node links.js' }, result: '["https://shop.example/terms/"]' },
+  ], 'pr3'), null);
+});
+
+test('a subagent is checked against its own transcript', () => {
+  const fx = fixture();
+  const sub = fx.transcript([{ name: 'WebFetch', input: { url: 'https://example.com/docs/x' } }], 'sub-agent');
+  const out = execFileSync('node', [HOOK], {
+    input: JSON.stringify({
+      hook_event_name: 'SubagentStop', session_id: 'parent', agent_id: 'a1',
+      transcript_path: fx.transcript([], 'parent'), agent_transcript_path: sub,
+      last_assistant_message: 'See https://example.com/docs/x.', cwd: fx.home,
+    }),
+    encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home },
+  });
+  assert.strictEqual(out.trim(), '');
+});
+
 test('a long session keeps its manifest bounded and its stamps aligned', () => {
   const fx = fixture();
   const ledger = require('./ledger.cjs');
