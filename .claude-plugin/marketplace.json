@@ -95,6 +95,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/feedback"
+    },
+    {
+      "name": "prompt-timeline",
+      "description": "Draws your own prompts as a distinct card in the transcript, keeps a strip of your recent prompts above the prompt box, and adds /timeline to jump to any earlier prompt.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/prompt-timeline"
     }
   ]
 }

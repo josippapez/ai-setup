@@ -42,7 +42,10 @@
       "mcp__plugin_dev-core_chrome-devtools__take_screenshot",
       "mcp__plugin_dev-core_chrome-devtools__take_snapshot",
       "mcp__plugin_dev-core_chrome-devtools__list_console_messages",
-      "mcp__plugin_dev-core_chrome-devtools__list_network_requests"
+      "mcp__plugin_dev-core_chrome-devtools__list_network_requests",
+      "mcp__plugin_feedback_feedback__collect_feedback",
+      "mcp__plugin_feedback_feedback__read_feedback",
+      "mcp__plugin_feedback_feedback__update_feedback"
     ]
   },
   "model": "opus[1m]",
@@ -76,7 +79,8 @@
     "better-design@ai-setup": true,
     "fundamentals@ai-setup": true,
     "verified@ai-setup": true,
-    "feedback@ai-setup": true
+    "feedback@ai-setup": true,
+    "prompt-timeline@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {
