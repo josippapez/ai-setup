@@ -69,61 +69,9 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" writing-code"
-          }
-        ]
-      },
-      {
-        "matcher": "Grep|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching '' '((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$))'"
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Grep|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" reading-libraries '(^|[^\\w.-])(node_modules|\\.opensrc)/' '(-not\\s+-path|!\\s+-path|--exclude-dir|--exclude=|--ignore-dir|-prune|(-g|--glob|--iglob)\\s*.{0,2}!)'"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" writing-code '(^|[\\s;&|])(sed\\s+-i|tee)\\b|>>?\\s*(?!/dev/|/tmp/)[^\\s&|>]+\\.[A-Za-z0-9]{1,6}(\\s|$)'"
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" searching '(^|[;&\\n]|&&)\\s*(sudo\\s+)?((grep|rg|ag|find)\\b|codegraph\\s+explore\\b)' '((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$)|/(private/)?tmp/claude-\\d+/)'"
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" reading-libraries '(^|[^\\w.-])(node_modules|\\.opensrc)/' '(-not\\s+-path|!\\s+-path|--exclude-dir|--exclude=|--ignore-dir|-prune|(-g|--glob|--iglob)\\s*.{0,2}!)'"
-          },
-          {
-            "type": "command",
-            "if": "Bash(git commit *)",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule-card.cjs\" git-commit '(^|[\\s;&|])git\\s+commit\\b'"
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/git-mv-guard.cjs\""
-          }
-        ]
-      }
     ]
-  }
+  },
+  "modules": [
+    "./register.tsx"
+  ]
 }
