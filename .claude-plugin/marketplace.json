@@ -86,6 +86,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/verified"
+    },
+    {
+      "name": "feedback",
+      "description": "Local feedback inbox MCP for the AI setup: collect_feedback records bugs, pain points, ambiguities, and ideas; read_feedback lists them so they can be acted on later. Stored as JSONL inside the plugin.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/feedback"
     }
   ]
 }
