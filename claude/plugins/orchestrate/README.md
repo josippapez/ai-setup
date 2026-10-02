@@ -42,3 +42,7 @@ The existing repository-owned `agent-browser` skill is not copied into this plug
 ## Prerequisites
 
 None for tracking. The store is created automatically. The `repo-docs` plugin must be installed for repo grounding (its dependencies install on its own SessionStart); WCAG lookups use the bundled CLI skill on demand. If the filesystem is read-only, the workflow reports that persistence is unavailable and falls back to in-session tracking.
+
+## Mod
+
+`/epics` opens a pane with the `.orchestration/` epics in the working directory: open epics as cards with a progress bar and each chunk's status, closed epics behind "Show closed".
