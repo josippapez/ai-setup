@@ -6,12 +6,14 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 
-const SERVER_INFO = { name: 'feedback', version: '0.1.0' };
+const SERVER_INFO = { name: 'feedback', version: '0.4.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
 const DATA_DIR = path.resolve(process.argv[2] || path.join(__dirname, '..', 'data'));
 const STORE = path.join(DATA_DIR, 'feedback.jsonl');
 const KINDS = ['bug', 'pain_point', 'ambiguity', 'idea'];
 const SEVERITIES = ['low', 'medium', 'high'];
+const STATUSES = ['open', 'resolved', 'wontfix'];
+const EDITABLE = ['status', 'resolution', 'kind', 'severity', 'title', 'details', 'area'];
 
 const tools = [
   {
@@ -52,8 +54,29 @@ const tools = [
         area: { type: 'string', description: 'Case-insensitive substring match on area.' },
         severity: { type: 'string', enum: SEVERITIES },
         query: { type: 'string', description: 'Case-insensitive substring match on title and details.' },
+        status: { type: 'string', enum: [...STATUSES, 'all'], default: 'open' },
         limit: { type: 'integer', minimum: 1, default: 50 },
       },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_feedback',
+    description:
+      'Update a recorded feedback entry by id: resolve it (status "resolved" plus a resolution note saying what fixed it), close it as "wontfix", reopen it, or correct its kind, severity, title, details, or area. Use after fixing something read_feedback listed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'The entry id read_feedback shows.' },
+        status: { type: 'string', enum: STATUSES },
+        resolution: { type: 'string', description: 'What fixed it, or why it will not be fixed.' },
+        kind: { type: 'string', enum: KINDS },
+        severity: { type: 'string', enum: SEVERITIES },
+        title: { type: 'string' },
+        details: { type: 'string' },
+        area: { type: 'string' },
+      },
+      required: ['id'],
       additionalProperties: false,
     },
   },
@@ -93,29 +116,53 @@ function collectFeedback(args) {
   return `Recorded feedback ${entry.id}: [${entry.kind}/${entry.severity}] ${entry.title}`;
 }
 
+// The store is append-only: an entry line, then `{ op: 'update', id, ... }` lines that
+// are merged into it on read. Concurrent sessions only ever append, so none overwrites another.
 function loadEntries() {
   if (!fs.existsSync(STORE)) return [];
-  return fs
-    .readFileSync(STORE, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
+  const byId = new Map();
+  for (const line of fs.readFileSync(STORE, 'utf8').split('\n').filter(Boolean)) {
+    const { op, ...record } = JSON.parse(line);
+    if (op === 'update') {
+      if (byId.has(record.id)) byId.set(record.id, { ...byId.get(record.id), ...record });
+    } else byId.set(record.id, { status: 'open', ...record });
+  }
+  return [...byId.values()];
+}
+
+function updateFeedback(args) {
+  const id = requireString(args, 'id');
+  const entry = loadEntries().find((e) => e.id === id);
+  if (!entry) throw new Error(`No feedback entry with id "${id}"`);
+  if (args.status !== undefined) requireEnum(args.status, STATUSES, 'status');
+  if (args.kind !== undefined) requireEnum(args.kind, KINDS, 'kind');
+  if (args.severity !== undefined) requireEnum(args.severity, SEVERITIES, 'severity');
+  const changes = {};
+  for (const key of EDITABLE) if (args[key] !== undefined) changes[key] = typeof args[key] === 'string' ? requireString(args, key) : args[key];
+  if (!Object.keys(changes).length) throw new Error(`Give at least one of: ${EDITABLE.join(', ')}`);
+  fs.appendFileSync(STORE, `${JSON.stringify({ op: 'update', id, ...changes, updatedAt: new Date().toISOString() })}\n`);
+  const after = { ...entry, ...changes };
+  return `Updated feedback ${id}: [${after.kind}/${after.severity}/${after.status}] ${after.title}`;
 }
 
 function formatEntry(e) {
-  const lines = [`## ${e.id} [${e.kind}/${e.severity}] ${e.title}`, `${e.createdAt}${e.area ? ` · ${e.area}` : ''} · ${e.cwd}`, '', e.details];
+  const lines = [`## ${e.id} [${e.kind}/${e.severity}/${e.status}] ${e.title}`, `${e.createdAt}${e.area ? ` · ${e.area}` : ''} · ${e.cwd}`, '', e.details];
   if (e.evidence) lines.push('', `Evidence: ${e.evidence}`);
+  if (e.resolution) lines.push('', `Resolution (${e.updatedAt}): ${e.resolution}`);
   return lines.join('\n');
 }
 
 function readFeedback(args) {
   if (args.kind !== undefined) requireEnum(args.kind, KINDS, 'kind');
   if (args.severity !== undefined) requireEnum(args.severity, SEVERITIES, 'severity');
+  const status = args.status ?? 'open';
+  requireEnum(status, [...STATUSES, 'all'], 'status');
   const area = args.area?.toLowerCase();
   const query = args.query?.toLowerCase();
   const limit = Number.isInteger(args.limit) && args.limit > 0 ? args.limit : 50;
   const all = loadEntries();
   const matches = all
+    .filter((e) => status === 'all' || e.status === status)
     .filter((e) => !args.kind || e.kind === args.kind)
     .filter((e) => !args.severity || e.severity === args.severity)
     .filter((e) => !area || (e.area || '').toLowerCase().includes(area))
@@ -126,7 +173,7 @@ function readFeedback(args) {
   return [`${matches.length} of ${all.length} entries match, showing ${shown.length}. Store: ${STORE}`, ...shown.map(formatEntry)].join('\n\n');
 }
 
-const handlers = { collect_feedback: collectFeedback, read_feedback: readFeedback };
+const handlers = { collect_feedback: collectFeedback, read_feedback: readFeedback, update_feedback: updateFeedback };
 
 function writeMessage(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -142,7 +189,7 @@ function handleRequest({ id, method, params }) {
         capabilities: { tools: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'Feedback inbox for the AI setup (rules, skills, hooks, agents, MCP servers, plugins). Call collect_feedback when the user reports a bug, pain point, or ambiguity with the setup, or when you hit conflicting or unclear instructions yourself. Call read_feedback to review what has been reported before improving the setup.',
+          'Feedback inbox for the AI setup (rules, skills, hooks, agents, MCP servers, plugins). Call collect_feedback when the user reports a bug, pain point, or ambiguity with the setup, or when you hit conflicting or unclear instructions yourself. Call read_feedback to review what is open before improving the setup, and update_feedback to mark an entry resolved once you fix it.',
       },
     });
   }
