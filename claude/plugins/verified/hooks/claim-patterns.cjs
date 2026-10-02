@@ -10,7 +10,7 @@
 // Precision over recall, deliberately. A missed claim costs one unverified
 // sentence; a false positive costs the user a blocked turn and a rewrite, and a
 // gate that cries wolf is a gate that gets muted. Every pattern here is anchored
-// and narrow for the same reason git-mv-guard's mv parser is.
+// and narrow for the same reason dev-core's mv guard parser is.
 
 const path = require('node:path');
 const resolve = require('./resolve.cjs');
@@ -105,6 +105,17 @@ function onlyQuoted(text, span) {
 
 function isMention(text, span) {
   return onlyQuoted(text, span);
+}
+
+// A file the answer says gets created later ("created on first write", "doesn't exist
+// yet") is a forward reference, not a claim that it exists now.
+const FUTURE_FILE_RE = /\b(will be (created|written|generated)|gets? (created|written|generated)|(is|are) created (on|when|the first)|created on (its )?first|(does ?n[o']t|does not|won'?t) exist yet|not (created|written) yet|on (its )?first (use|write|save|run))\b/i;
+function isFutureFile(text, span) {
+  const at = text.indexOf(span);
+  if (at < 0) return false;
+  const start = Math.max(text.lastIndexOf('.', at) , text.lastIndexOf('\n', at)) + 1;
+  const ends = ['. ', '.\n', '\n'].map((d) => text.indexOf(d, at + span.length)).filter((i) => i >= 0);
+  return FUTURE_FILE_RE.test(text.slice(start, ends.length ? Math.min(...ends) : text.length));
 }
 
 const isPlaceholderPath = (span) => PLACEHOLDER_RE.test(path.basename(span.replace(/:\d+$/, '')));
@@ -228,7 +239,7 @@ function classify(answer, ev, cfg) {
     // A name some tool already printed is a real file, wherever it lives. Blocking
     // on it made the model drop real files from its answer twice as often as the
     // gate caught a wrong one (live ledger, 2026-09-30).
-    if (C.pathMissing && !(ev.printed && ev.printed.has(path.basename(m[1])))
+    if (C.pathMissing && !(ev.printed && ev.printed.has(path.basename(m[1]))) && !isFutureFile(text, m[0])
       && resolve.exists(span, ev.cwd, dirs) === 'missing') {
       unbacked.push({
         class: 'path-missing',

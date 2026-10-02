@@ -81,3 +81,7 @@ Overriding again needs the same evidence: every block the fix removes has to be 
 ```sh
 node --test claude/plugins/verified/hooks/verify-stop.test.cjs
 ```
+
+## Mod
+
+`hooks/ui.tsx` shows a toast and a band above the prompt listing the flagged claims whenever the Stop hook sends an answer back, since the block reason otherwise reaches only the model. The band clears on the next prompt or on Dismiss.

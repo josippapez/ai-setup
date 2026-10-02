@@ -5,7 +5,7 @@
 // The observed case: this repo's correctness guidance is eight plugins' worth of
 // prose injected before the model acts (SessionStart, SubagentStart,
 // UserPromptSubmit, PreToolUse) and exactly one hook that enforces anything
-// (git-mv-guard). evidence-first Gate 1 already states the rule — "if you cannot
+// (dev-core's mv guard). evidence-first Gate 1 already states the rule — "if you cannot
 // point to a file:line, a command output, or a URL you fetched this session, it is
 // not a finding" — and nothing checks whether it was obeyed. So answers assert
 // unchecked things and the user re-verifies by hand.

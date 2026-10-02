@@ -390,6 +390,15 @@ test('an MCP tool call counts as external evidence', () => {
   assert.strictEqual(classify('Upgrade to v2.1.0 first.', viaMcp, on).unbacked.length, 0);
 });
 
+test('a path the answer says gets created later is not flagged as missing', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const ev = { cwd: os.tmpdir(), paths: new Set(), printed: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
+  const classes = (text) => classify(text, ev).unbacked.map((u) => u.class);
+  assert.deepStrictEqual(classes('Entries go to `data/feedback.jsonl`, which gets created on the first write.'), []);
+  assert.deepStrictEqual(classes('Run it once; `out/report.json` does not exist yet.'), []);
+  assert.deepStrictEqual(classes('The settings live in `data/feedback.jsonl`.'), ['path-missing']);
+});
+
 test('reading the file that declares a version backs a claim about it', () => {
   const fx = fixture();
   // The gate blocked twice on version strings the same turn had just read out
