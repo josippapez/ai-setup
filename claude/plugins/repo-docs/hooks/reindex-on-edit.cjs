@@ -63,6 +63,12 @@ function sendOp(root, op) {
 }
 
 const main = async () => {
+  // `--now <root>`: the repo-docs mod's turn-end call, which knows a doc changed already.
+  if (process.argv[2] === '--now' && process.argv[3]) {
+    const root = process.argv[3];
+    if (claimReindex(path.join(root, '.claude', 'repo-docs', 'reindex.lock'))) await sendOp(root, 'reindex');
+    process.exit(0);
+  }
   let event;
   try { event = JSON.parse(await readStdin()); } catch { process.exit(0); }
   const tool = normalizeTool(event.tool_name || event.toolName || event.tool || event.name);

@@ -20,4 +20,4 @@ MODULES="$(ls -d "$BASE"/data/repo-docs-*/node_modules 2>/dev/null | head -1)"
 
 Where `$ARGUMENTS` is: $ARGUMENTS
 
-Report the `repo_docs_index updated=… skipped=… cache=…` line back to the user verbatim. First run downloads the embedding model (~90 MB) and builds a chunked hybrid index.
+Report the result as one plain sentence built from that line, without the cache path, for example: `Reindexed ai-setup: 1 doc re-embedded, 319 unchanged, 0 skipped.` If the line ends with a note (such as another build in progress), add it. If the command printed an error instead, report the error text verbatim. First run downloads the embedding model (~90 MB) and builds a chunked hybrid index.

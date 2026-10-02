@@ -22,6 +22,8 @@ function indexPath(context) { return path.join(context.root, '.claude', 'repo-do
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
 function lockPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.lock'); }
 function stampPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.stamp'); }
+// "<done> <total>" while a build runs, for the status-line mod; removed with the lock.
+function progressPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.progress'); }
 
 // A build shouldn't outlast this; a lock older than it is treated as a crashed
 // build and taken over. Comfortably above a full cold rebuild of this corpus.
@@ -74,6 +76,15 @@ function recentlyBuilt(context) {
   try { return Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')) < BUILD_DEBOUNCE_MS; }
   catch { return false; }
 }
+// saveIndex writes `<index>.tmp.<pid>` and renames it over the index; a server killed
+// mid-write leaves that file behind. Only the lock holder writes, so any left now is dead.
+function removeAbandonedTempFiles(context) {
+  const dir = path.dirname(indexPath(context));
+  const prefix = `${path.basename(indexPath(context))}.tmp.`;
+  try {
+    for (const name of fs.readdirSync(dir)) if (name.startsWith(prefix)) fs.rmSync(path.join(dir, name), { force: true });
+  } catch {}
+}
 function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
 // Groups the prior persisted index's records by path, keyed to their mtime, so
@@ -121,10 +132,12 @@ async function buildDocIndex(context, { force = false } = {}) {
   if (!acquireBuildLock(context)) {
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), locked: true };
   }
+  removeAbandonedTempFiles(context);
   try {
     return await runBuild(context);
   } finally {
     markBuilt(context);
+    try { fs.rmSync(progressPath(context), { force: true }); } catch {}
     releaseBuildLock(context);
   }
 }
@@ -133,7 +146,14 @@ async function runBuild(context) {
   const db = await createIndex();
   const priorCache = loadPriorCache(context);
   let updated = 0, unchanged = 0, skipped = 0;
-  for (const filePath of getDocFiles(context)) {
+  const files = getDocFiles(context);
+  let lastPercent = -1;
+  for (const [i, filePath] of files.entries()) {
+    const percent = Math.floor((i * 100) / files.length);
+    if (percent !== lastPercent) {
+      lastPercent = percent;
+      try { fs.writeFileSync(progressPath(context), `${i} ${files.length}`); } catch {}
+    }
     let stat;
     try {
       stat = fs.statSync(filePath);

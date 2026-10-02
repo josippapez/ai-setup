@@ -42,6 +42,21 @@ test('second build reuses unchanged files and only re-embeds a touched one', { s
   assert.strictEqual(second.skipped, 0);
 });
 
+test('a build removes temp files a killed writer left behind', { skip }, async (t) => {
+  const root = makeRepo(1);
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  const dir = path.join(root, '.claude', 'repo-docs');
+  fs.mkdirSync(dir, { recursive: true });
+  const leftover = path.join(dir, 'repo-docs-index.json.tmp.999999');
+  fs.writeFileSync(leftover, '');
+
+  await buildDocIndex(context, { force: true });
+
+  assert.ok(!fs.existsSync(leftover), 'the abandoned temp file should be gone');
+  assert.ok(fs.existsSync(path.join(dir, 'repo-docs-index.json')), 'the build still writes the index');
+});
+
 test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', { skip }, async (t) => {
   const root = makeRepo(2);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });

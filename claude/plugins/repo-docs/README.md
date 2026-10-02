@@ -24,7 +24,7 @@ No manual `npm install`. A `SessionStart` hook (`hooks/hooks.json`) runs `npm in
 
 The MCP pre-embeds the repo's Markdown in the background when it connects (fire-and-forget, incremental via an mtime cache), so the first `find_docs` doesn't pay the indexing cost. `find_docs` runs a chunked hybrid search (BM25 keyword + dense `bge-small` embeddings) and returns, per file, the best-matching chunk with its section anchor and a snippet. Each chunk is embedded twice, on its own and with its doc path and heading breadcrumb in front; the two rankings are fused, and a cross-encoder (`bge-reranker-base`) votes on the top 10. The vote adds about half a second per call; pass `rerank: false`, or set `RERANK_ENABLED=0` for every call, to skip it. While the model is still loading or before the first index build, `find_docs` answers with a keyword scorer and says so in its header. `read_doc` returns the raw file by default, so `find_docs` line numbers line up; `compact: true` returns a minified read. Force a rebuild of changed files any time with `/reindex` or `node runtime/tools/build-semantic-index.cjs <repo-root>` (delete `.claude/repo-docs/` first for a full rebuild).
 
-A `PostToolUse` hook (`hooks/reindex-on-edit.cjs`) asks the running server, over a local socket (`.claude/repo-docs/inject.sock`), to re-embed a Markdown file right after it is written or edited, so mid-session doc edits are searchable without a reconnect.
+At the end of a turn that touched a Markdown file, the mod in `hooks/reindex.ts` runs `hooks/reindex-on-edit.cjs`, which asks the running server, over a local socket (`.claude/repo-docs/inject.sock`), to re-embed changed docs, so mid-session doc edits are searchable without a reconnect.
 
 ## Removed in 0.3.0
 
@@ -39,3 +39,9 @@ A `SessionEnd` hook (`hooks/reap-mcp-on-exit.cjs`) kills this session's own `sta
 ```bash
 node --test claude/plugins/repo-docs/hooks/*.test.cjs claude/plugins/repo-docs/runtime/lib/*.test.cjs claude/plugins/repo-docs/runtime/tools/*.test.cjs
 ```
+
+## Mod
+
+`hooks/status.ts` shows "repo-docs: indexing docs…" with the build percentage while `.claude/repo-docs/index-build.lock` exists, and a toast when the build finishes.
+- `hooks/transcript.tsx` draws the `/repo-docs:reindex` Bash call as "Reindex repo docs" and its result as a one-line count of re-embedded, unchanged and skipped docs.
+- `hooks/reindex.ts` replaces the old `PostToolUse` reindex hook: when a turn ends, if it touched a markdown file through Edit, Write or a Bash command naming one, it asks the running server to re-embed changed docs once.
