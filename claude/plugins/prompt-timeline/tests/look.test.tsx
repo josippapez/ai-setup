@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { familyColor, fitColumns, modelLabel, parseTable, splitTables, tableWidth, wrappedLines } from '../hooks/look'
+import { familyColor, fitColumns, modelLabel, parseTable, scriptOf, splitTables, tableWidth, wrappedLines } from '../hooks/look'
 
 test('model ids read as short names', () => {
   expect(modelLabel('claude-opus-5-5[1m]')).toBe('Opus 5.5')
@@ -227,8 +227,8 @@ test('a call that sends text shows it as markdown, folded after eight lines', as
   await card.unmount()
 })
 
-test('Bash output sits under its card, folded, with stderr in red', async $ => {
-  const stdout = ['\x1b[32mok\x1b[0m', ...Array.from({ length: 14 }, (_, i) => `row ${i + 2}`), '[see remaining: tail -n +1 "/x/tee.log"]'].join('\n')
+test('short Bash output sits under its card, with stderr in red', async $ => {
+  const stdout = ['\x1b[32mok\x1b[0m', 'row 2', '[see remaining: tail -n +1 "/x/tee.log"]'].join('\n')
   const result = await $.ui.mount({
     plugin: 'prompt-timeline',
     surface: 'terminal',
@@ -237,8 +237,44 @@ test('Bash output sits under its card, folded, with stderr in red', async $ => {
     props: { tool_use_id: 'r1', tool: 'Bash', output: { stdout, stderr: 'warning: slow' }, isErrored: false },
   })
   expect(await result.find({ text: 'ok' })).toBeDefined()
-  expect(await result.find({ text: '… 3 more lines' })).toBeDefined()
+  expect(await result.find({ text: /see remaining/ })).toBeUndefined()
   expect(await result.find({ text: 'warning: slow' })).toBeDefined()
+  await result.unmount()
+})
+
+test('long Bash output goes to Claude Code, so details can unfold it; changed files keep their diff', async ($, on) => {
+  on('ui.render', { component: 'ToolResult' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>{`engine row${(e.props.output as { bashEditDiff?: unknown }).bashEditDiff ? ' with diff' : ''}`}</Text>
+  })
+  const stdout = Array.from({ length: 15 }, (_, i) => `row ${i + 1}`).join('\n')
+  const bashEditDiff = { files: [{ filePath: '/r/a.json', hunks: [{ oldStart: 1, newStart: 1, lines: ['-1', '+2'] }] }] }
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'r3',
+    props: { tool_use_id: 'r3', tool: 'Bash', output: { stdout, stderr: '', bashEditDiff }, isErrored: false },
+  })
+  expect(await result.find({ text: 'engine row' })).toBeDefined()
+  expect(await result.find({ text: 'a.json' })).toBeDefined()
+  expect(await result.find({ text: 'row 1' })).toBeUndefined()
+  await result.unmount()
+})
+
+test('a printed diff in short output goes to the highlighter', async $ => {
+  const stdout = ['diff --git a/src/a.ts b/src/a.ts', '--- a/src/a.ts', '+++ b/src/a.ts', '@@ -1,1 +1,1 @@', '-old', '+new'].join('\n')
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'r4',
+    props: { tool_use_id: 'r4', tool: 'Bash', output: { stdout, stderr: '' }, isErrored: false },
+  })
+  expect(await result.find({ text: 'diff --git a/src/a.ts b/src/a.ts' })).toBeDefined()
+  const code = await result.find({ type: 'Code' })
+  expect(code?.text).toBe('@@ -1,1 +1,1 @@\n-old\n+new')
+  expect(code?.props.path).toBe('src/a.ts')
   await result.unmount()
 })
 
@@ -303,5 +339,38 @@ test('Bash output colours outcomes and draws rg matches with a gutter and highli
   expect(await result.find({ text: ' 172' })).toBeDefined()
   expect(await result.find({ text: '  return x' })).toBeDefined()
   expect(await result.find({ text: '✔ Validation passed' })).toBeDefined()
+  await result.unmount()
+})
+
+test('an inline script is found with its language', () => {
+  expect(scriptOf("python3 - <<'PY'\nprint(1)\nPY")).toEqual({ source: 'print(1)', language: 'python' })
+  expect(scriptOf('cd /r && node -e "console.log(1)"')).toEqual({ source: 'console.log(1)', language: 'javascript' })
+  expect(scriptOf("cat > /r/a.ts <<'EOF'\nexport const a = 1\nEOF")).toEqual({ source: 'export const a = 1', path: '/r/a.ts' })
+  expect(scriptOf('git status')).toBeNull()
+})
+
+test('a script run shows its code numbered, then its output', async $ => {
+  const command = "node - <<'JS'\nconst r = [1]\nconsole.log(JSON.stringify(r))\nJS"
+  const use = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolUse',
+    requestId: 'x1',
+    props: { tool_use_id: 'x1', tool: 'Bash', input: { command, description: 'Run it' }, isRunning: false, isErrored: false, isInterrupted: false },
+  })
+  await use.unmount()
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'x1',
+    props: { tool_use_id: 'x1', tool: 'Bash', output: { stdout: '[1]', stderr: '' }, isErrored: false },
+  })
+  const codes = await result.findAll({ type: 'Code' })
+  expect(codes.map(code => [code.text, code.props.language, code.props.startLine])).toEqual([
+    ['const r = [1]\nconsole.log(JSON.stringify(r))', 'javascript', 1],
+    ['[1]', 'json', 1],
+  ])
+  expect(await result.find({ text: 'Output' })).toBeDefined()
   await result.unmount()
 })

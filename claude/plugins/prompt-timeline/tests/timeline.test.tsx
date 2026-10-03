@@ -1,3 +1,4 @@
+import { midTurnText } from '../hooks/register'
 import { expect, test } from 'claude-code/testing'
 
 const RUN = { origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } } as const
@@ -109,4 +110,11 @@ test('earlier prompts come from the transcript and get numbered cards, strip ent
   const reloaded = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'Pane', requestId: 'timeline', props: PANE })
   expect(await reloaded.find({ text: '2 this session' })).toBeDefined()
   await reloaded.unmount()
+})
+
+test('a message typed while a turn runs is read back out of its stored rendering', () => {
+  const rendered =
+    '<system-reminder>\nThe user sent a new message while you were working:\ni have installed shadow mount+\n\nThis is how Claude Code surfaces messages the user sends mid-turn.'
+  expect(midTurnText(rendered)).toBe('i have installed shadow mount+')
+  expect(midTurnText('<system-reminder>\nsomething else')).toBe('')
 })

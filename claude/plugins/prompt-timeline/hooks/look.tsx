@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { BoxProps, CodeProps, ElementConstructor, On, TextProps } from 'claude-code'
+import type { BoxProps, CodeProps, ElementConstructor, On, RenderChildren, TextProps } from 'claude-code'
 
 import type { ReplyTag } from '../types'
 import { describe, pngIn, resultLine } from './cards'
@@ -19,6 +19,11 @@ let effort = ''
 const replyTags = atom({ plugin: 'prompt-timeline', key: 'replyTags' } as const, {} as Record<string, ReplyTag>)
 const enlarged = atom({ plugin: 'prompt-timeline', key: 'enlarged' } as const, null as { png: string; width: number; height: number } | null)
 const SHOT_PANE = 'screenshot'
+// Each Bash call's command and, for calls made since the module loaded, how long it ran, by id:
+// the result row has neither.
+const runs = new Map<string, { command: string; ms?: number }>()
+// An inline script shows this many lines before it folds.
+const SCRIPT_LINES = 20
 // A call's text body (a PR comment, a query) shows this many lines before it folds.
 const BODY_LINES = 8
 // Bash output shows this many lines before it folds.
@@ -160,7 +165,45 @@ type Ui = { Box: ElementConstructor<BoxProps>; Code: ElementConstructor<CodeProp
 const PASSED = /^\s*(?:✔|✓|ok\b|PASS\b)|\b0 fail(?:ed|ures?)?\b|\b\d+ pass(?:ed|ing)?\b/i
 const FAILED = /^\s*(?:✘|✗|×|FAIL\b)|\b[1-9]\d* fail(?:ed|ures?)?\b|\berror\b/i
 
-export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
+const INTERPRETERS: [RegExp, string][] = [
+  [/\bpython3?\b/, 'python'],
+  [/\b(?:bun|tsx|ts-node)\b/, 'typescript'],
+  [/\b(?:node|deno)\b/, 'javascript'],
+  [/\bruby\b/, 'ruby'],
+  [/\b(?:bash|sh|zsh)\b/, 'bash'],
+]
+
+// The script a command runs inline: a heredoc fed to an interpreter or written by cat, or an
+// interpreter's -e/-c string. Null for any other command.
+export function scriptOf(command: string): { source: string; language?: string; path?: string } | null {
+  const heredoc = command.match(/^([^\n]*?)<<-?\s*(['"]?)(\w+)\2[^\n]*\n([\s\S]*?)\n\s*\3(?:\n|$)/m)
+  const inline = command.match(/\b(node|bun|deno|python3?|ruby)\s+(?:-e|-c|--eval|-p)\s+(['"])([\s\S]+)\2\s*$/)
+  const [head, source] = heredoc ? [heredoc[1] ?? '', heredoc[4] ?? ''] : inline ? [inline[1] ?? '', inline[3] ?? ''] : ['', '']
+  if (!source.trim()) return null
+  const written = head.match(/\bcat\s*>>?\s*(['"]?)([^\s'"]+)\1/)?.[2]
+  if (written) return { source, path: written }
+  const language = INTERPRETERS.find(([re]) => re.test(head.split(/&&|;|\|/).pop() ?? ''))?.[1]
+  return language ? { source, language } : null
+}
+
+const duration = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`)
+
+// After OpenCode's run view: the script numbered and highlighted, then its output.
+function scriptSection({ Box, Code, Text }: Ui, script: NonNullable<ReturnType<typeof scriptOf>>, ms: number | undefined) {
+  const lines = script.source.split('\n')
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Box justifyContent="space-between">
+        <Text dimColor>Code</Text>
+        {ms !== undefined && <Text dimColor>{`Completed · ${duration(ms)}`}</Text>}
+      </Box>
+      <Code source={lines.slice(0, SCRIPT_LINES).join('\n').slice(0, 10000)} language={script.language} path={script.path} startLine={1} />
+      {lines.length > SCRIPT_LINES && <Text dimColor>{`… ${lines.length - SCRIPT_LINES} more lines`}</Text>}
+    </Box>
+  )
+}
+
+export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput, withStdout = true, run?: { command: string; ms?: number }) {
   const clean = (text: string | undefined) =>
     (text ?? '')
       .replace(/\x1b\[[0-9;]*m/g, '')
@@ -169,18 +212,27 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
   const stdout = clean(output.stdout)
   const stderr = clean(output.stderr)
   const diffs = output.bashEditDiff?.files ?? []
-  const lines = stdout ? stdout.split('\n') : []
+  const lines = stdout && withStdout ? stdout.split('\n') : []
   const hidden = lines.length - OUTPUT_LINES
+  // Printed diffs (git diff, diff -u): the lines from the first hunk on go to the highlighter.
+  const hunk = lines.slice(0, OUTPUT_LINES).findIndex(line => /^@@ -\d/.test(line))
+  const diffPath = stdout.match(/^\+\+\+ (?:b\/)?(\S+)/m)?.[1]
+  const script = withStdout && run ? scriptOf(run.command) : null
+  const isJson = /^[[{]/.test(stdout) && hidden <= 0 && (() => { try { JSON.parse(stdout); return true } catch { return false } })()
 
   // Full width, so diff lines wrap at the window's edge and not at their frame's own width.
   return (
     <Box flexDirection="column" width="100%">
-      {lines.length === 0 && !stderr && diffs.length === 0 && <Text dimColor>(no output)</Text>}
-      {lines.length > 0 && (
+      {withStdout && !script && lines.length === 0 && !stderr && diffs.length === 0 && <Text dimColor>(no output)</Text>}
+      {(lines.length > 0 || script) && (
         <Box width="100%" backgroundColor={PANEL} marginTop={1}>
           <Box width={1} backgroundColor={OUTPUT_BAR} />
           <Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
-          {lines.slice(0, OUTPUT_LINES).map((line, i) => {
+          {script && scriptSection({ Box, Code, Text }, script, run?.ms)}
+          {script && <Text dimColor>Output</Text>}
+          {script && lines.length === 0 && <Text dimColor>(no output)</Text>}
+          {isJson && <Code source={stdout.slice(0, 10000)} language="json" startLine={1} />}
+          {!isJson && lines.slice(0, hunk < 0 ? OUTPUT_LINES : hunk).map((line, i) => {
             // `path:12:code` (rg, grep) gets a dim gutter and the code coloured by its file type.
             const hit = line.match(/^([^\s:]+\.[\w]+):(\d+)[:-](.*)$/)
             if (hit?.[1] && hit[2]) {
@@ -208,11 +260,12 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
               </Text>
             )
           })}
+          {!isJson && hunk >= 0 && <Code source={lines.slice(hunk, OUTPUT_LINES).join('\n')} path={diffPath} format="diff" />}
           {hidden > 0 && <Text dimColor>{`… ${hidden} more lines`}</Text>}
           </Box>
         </Box>
       )}
-      {stderr && (
+      {withStdout && stderr && (
         <Text color="red" wrap="wrap">
           {stderr.split('\n').slice(0, OUTPUT_LINES).join('\n')}
         </Text>
@@ -392,7 +445,16 @@ export function registerLook(on: On) {
 
   // Tool calls read as cards: status dot, a colored tool label, one readable title, and a dim
   // detail line, instead of the raw tool name and its whole input. See cards.ts per tool.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const start = Date.now()
+    const result = await next(e)
+    runs.set(e.tool_use_id, { command: e.command, ms: Date.now() - start })
+    return result
+  })
+
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const command = (e.props.input as { command?: unknown } | undefined)?.command
+    if (e.props.tool === 'Bash' && typeof command === 'string' && !runs.has(e.props.tool_use_id)) runs.set(e.props.tool_use_id, { command })
     const card = describe(e.props.tool, (e.props.input ?? {}) as Record<string, unknown>)
     if (!card) return next(e)
     const { Box, Code, Markdown, Text } = $.ui.resolve(e)
@@ -446,7 +508,7 @@ export function registerLook(on: On) {
         {grouped.has(e.props.tool_use_id) && e.props.output !== undefined && !picture && (
           <Box paddingLeft={2}>
             {e.props.tool === 'Bash' ? (
-              bashOutput({ Box, Code, Text }, e.props.output as BashOutput)
+              bashOutput({ Box, Code, Text }, e.props.output as BashOutput, true, runs.get(e.props.tool_use_id))
             ) : resultLine(e.props.tool, e.props.output) ? (
               <Text dimColor wrap="truncate-end">{`↳ ${resultLine(e.props.tool, e.props.output)}`}</Text>
             ) : null}
@@ -463,8 +525,32 @@ export function registerLook(on: On) {
     const output = (e.props.output ?? {}) as BashOutput
     if (/repo_docs_index updated=/.test(output.stdout ?? '') || !isPlainBash(output)) return next(e)
     const { Box, Code, Text } = $.ui.resolve(e)
+    const pad = (tree: RenderChildren) => <Box paddingLeft={INDENT + 2} paddingRight={1} width="100%">{tree}</Box>
+    const run = runs.get(e.props.tool_use_id)
+    // There is no expanded flag here, so output that would fold goes to Claude Code's own row,
+    // which details and ctrl+o unfold. A script and the files the command changed stay drawn here.
+    if ((output.stdout ?? '').replace(/^\[see remaining: .*\]$/gm, '').trimEnd().split('\n').length > OUTPUT_LINES) {
+      const own = await next({ ...e, props: { ...e.props, output: { ...output, bashEditDiff: undefined } } })
+      const script = scriptOf(run?.command ?? '')
+      if (!output.bashEditDiff?.files?.length && !script) return own
+      return (
+        <Box flexDirection="column" width="100%">
+          {script &&
+            pad(
+              <Box width="100%" backgroundColor={PANEL} marginTop={1}>
+                <Box width={1} backgroundColor={OUTPUT_BAR} />
+                <Box flexDirection="column" flexGrow={1} paddingX={2} paddingTop={1}>
+                  {scriptSection({ Box, Code, Text }, script, run?.ms)}
+                </Box>
+              </Box>,
+            )}
+          {own}
+          {output.bashEditDiff?.files?.length ? pad(bashOutput({ Box, Code, Text }, output, false)) : null}
+        </Box>
+      )
+    }
 
-    return <Box paddingLeft={INDENT + 2} paddingRight={1} width="100%">{bashOutput({ Box, Code, Text }, output)}</Box>
+    return pad(bashOutput({ Box, Code, Text }, output, true, run))
   })
 
   // The enlarged screenshot fills the pane's width; Escape closes it.
