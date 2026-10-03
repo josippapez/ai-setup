@@ -21,11 +21,12 @@ const entries = atom({ plugin: 'feedback', key: 'entries' } as const, [])
 const filter = atom({ plugin: 'feedback', key: 'filter' } as const, 'all' as Kind | 'all')
 const justLogged = atom({ plugin: 'feedback', key: 'justLogged' } as const, null as Entry | null)
 const show = atom({ plugin: 'feedback', key: 'show' } as const, 'open' as Status | 'all')
+const secondsLeft = atom({ plugin: 'feedback', key: 'secondsLeft' } as const, 0)
 
 // The MCP server owns the store; the mod only reads it, so there is one writer. The store is
 // entry lines plus `{ op: 'update' }` lines merged into them, the same fold the server does.
 const POLL_MS = 3000
-const CARD_MS = 8000
+const CARD_SECONDS = 8
 const storePath = ($: EngineInterface) => `${$.plugin.root}/data/feedback.jsonl`
 
 async function reload($: EngineInterface) {
@@ -75,7 +76,7 @@ export const register: Register = on => {
 
   on('command.run', { command: 'feedback' }, async $ => {
     await reload($)
-    await $.ui.open({ id: PANE, title: 'Feedback' })
+    await $.ui.open({ id: PANE, title: 'Feedback', focus: true, closeOnEscape: true })
 
     return { text: 'Feedback pane opened.' }
   })
@@ -95,8 +96,17 @@ export const register: Register = on => {
       const list = await reload($)
       const logged = list[0] ?? null
       await update($, justLogged, () => logged)
-      $.clock.after(CARD_MS, () => {
-        void update($, justLogged, shown => (shown?.id === logged?.id ? null : shown))
+      await update($, secondsLeft, () => CARD_SECONDS)
+      const tick = $.clock.every(1000, () => {
+        void (async () => {
+          const shown = await read($, justLogged)
+          if (shown?.id !== logged?.id) return tick.cancel()
+          const left = (await read($, secondsLeft)) - 1
+          await update($, secondsLeft, () => left)
+          if (left > 0) return
+          tick.cancel()
+          await update($, justLogged, () => null)
+        })()
       })
     }
 
@@ -124,17 +134,15 @@ export const register: Register = on => {
     const entry = await read($, justLogged)
     if (entry === null || e.props.hasSurvey) return next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
+    const left = await read($, secondsLeft)
     const rest = await next(e)
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="column" borderStyle="round" borderColor="green" paddingX={1}>
-          <Box justifyContent="space-between">
-            <Text color="green" bold>
-              ✓ Feedback logged · {entry.id}
-            </Text>
-            <Button key="dismiss-logged" plain role="dismiss" label="Dismiss" onPress={() => update($, justLogged, () => null)} />
-          </Box>
+          <Text color="green" bold>
+            ✓ Feedback logged · {entry.id}
+          </Text>
           <Box gap={1}>
             <Text backgroundColor={SEVERITY_COLOR[entry.severity]} color="black" bold>
               {` ${entry.severity.toUpperCase()} `}
@@ -144,7 +152,10 @@ export const register: Register = on => {
             </Text>
             <Text wrap="truncate-end">{entry.title}</Text>
           </Box>
-          <Text dimColor>/feedback to see all</Text>
+          <Box gap={1}>
+            <Text dimColor>/feedback to see all · closes in {left}s ·</Text>
+            <Button key="dismiss-logged" plain role="dismiss" label="Dismiss" onPress={() => update($, justLogged, () => null)} />
+          </Box>
         </Box>
         {rest}
       </Box>
@@ -163,7 +174,10 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" paddingX={1}>
         <Box justifyContent="space-between">
-          <Text bold>Feedback</Text>
+          <Box gap={2}>
+            <Text bold>Feedback</Text>
+            <Button key="close-pane" plain hotkey="q" label="✕ Close" onPress={() => $.ui.close({ id: PANE })} />
+          </Box>
           <Text dimColor>
             {everything.filter(one => one.status === 'open').length} open ·{' '}
             {everything.filter(one => one.status === 'open' && one.severity === 'high').length} high

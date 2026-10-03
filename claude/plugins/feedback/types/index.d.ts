@@ -16,6 +16,6 @@ export type Entry = {
 
 declare module 'claude-code' {
   interface PluginState {
-    feedback: { entries: Entry[]; filter: Kind | 'all'; justLogged: Entry | null; show: Status | 'all' }
+    feedback: { entries: Entry[]; filter: Kind | 'all'; justLogged: Entry | null; show: Status | 'all'; secondsLeft: number }
   }
 }

@@ -46,10 +46,21 @@ test('/fb with no text shows usage and logs nothing', async ($, on) => {
 test('the pane lists entries newest first and filters by kind', async ($, on) => {
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: STORE }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const closed: unknown[] = []
+  on('ui.close', (_, e) => {
+    closed.push(e)
+    return { value: undefined }
+  })
+  const opened: unknown[] = []
+  on('ui.open', (_, e) => {
+    opened.push(e)
+    return { value: { isPlaced: true } }
+  })
 
   await $.command.run({ ...RUN, command: 'feedback', args: '' })
 
+  // Escape closes it, and the pane takes the keys so Escape does not interrupt a running turn.
+  expect(opened).toEqual([expect.objectContaining({ focus: true, closeOnEscape: true })])
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'feedback', surface, component: 'Pane', requestId: 'feedback', props: PANE })
     const titles = await ui.findAll({ type: 'Text', text: /old bug|new idea/ })
@@ -62,6 +73,11 @@ test('the pane lists entries newest first and filters by kind', async ($, on) =>
     await ui.press({ key: 'filter-all' })
     await ui.unmount()
   }
+
+  const ui = await $.ui.mount({ plugin: 'feedback', surface: 'terminal', component: 'Pane', requestId: 'feedback', props: PANE })
+  await ui.press({ key: 'close-pane' })
+  expect(closed).toEqual([expect.objectContaining({ id: 'feedback' })])
+  await ui.unmount()
 })
 
 const BAND = {
@@ -183,7 +199,7 @@ test('the footer follows writes made outside this session', async ($, on) => {
   expect(statuses.at(-1)).toBe('1 open · 0 high · 0 medium · 1 low · /feedback to view')
 })
 
-test('the logged card goes away on its own after a few seconds', async ($, on) => {
+test('the logged card counts down and goes away on its own', async ($, on) => {
   const clock = mock.clock(on)
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: STORE }))
@@ -199,7 +215,12 @@ test('the logged card goes away on its own after a few seconds', async ($, on) =
   const ui = await $.ui.mount({ plugin: 'feedback', surface: 'terminal', ...BAND })
   expect(await ui.find({ text: /Feedback logged/ })).toBeDefined()
 
-  await clock.advance(8000)
+  expect(await ui.find({ text: /closes in 8s/ })).toBeDefined()
+
+  await clock.advance(3000)
+  expect(await ui.find({ text: /closes in 5s/ })).toBeDefined()
+
+  await clock.advance(5000)
   expect(await ui.find({ text: /Feedback logged/ })).toBeUndefined()
   await ui.unmount()
 })

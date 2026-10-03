@@ -1,6 +1,6 @@
 {
   "name": "feedback",
-  "version": "0.4.2",
+  "version": "0.4.6",
   "description": "Local feedback inbox for the AI setup: collect_feedback records bugs, pain points, ambiguities, and ideas about rules, skills, hooks, agents, and MCP servers; read_feedback lists them so they can be acted on later. Stored as JSONL inside the plugin.",
   "author": {
     "name": "Personal AI Setup"
