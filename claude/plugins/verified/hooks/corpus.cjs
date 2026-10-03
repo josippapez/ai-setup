@@ -238,10 +238,10 @@ function outputKind(tool, cmd) {
 }
 
 // A test runner's own summary line. node:test prints "pass 38", vitest "✓ 38",
-// jest "Tests: 38 passed"; the claim text "tests pass" appearing in output is
+// jest "Tests: 38 passed", bun and `claude plugin test` "38 pass" over "0 fail"; the claim text "tests pass" appearing in output is
 // not one of these, it is usually the claim being quoted back.
 const TEST_PASS_RE =
-  /(?:^|\n)\s*(?:\S\s+)?pass\s+\d+\b|\b\d+ (?:tests? )?(?:passed|passing)\b|\ball tests passed\b|\bTests:\s+\d+ passed|\b0 failures?\b|Test Suites:.*passed|\u2713\s+\d+|\bbuild (?:succeeded|complete)\b/i;
+  /(?:^|\n)\s*(?:\S\s+)?pass\s+\d+\b|(?:^|\n)\s*\d+ pass\s*\n\s*0 fail\b|\b\d+ (?:tests? )?(?:passed|passing)\b|\ball tests passed\b|\bTests:\s+\d+ passed|\b0 failures?\b|Test Suites:.*passed|\u2713\s+\d+|\bbuild (?:succeeded|complete)\b/i;
 
 /**
  * For each wanted literal, the first turn index at which it shows up in this

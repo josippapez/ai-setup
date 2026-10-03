@@ -196,6 +196,30 @@ test('"tests pass" is not backed by a test command that errored', () => {
   assert.ok(blocked(JSON.parse(out)));
 });
 
+function runWithOutput(fx, command, output, answer) {
+  const file = path.join(fx.home, 'transcript.jsonl');
+  fs.writeFileSync(file, [
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Bash', input: { command } }] } }),
+    JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'a', content: output }] } }),
+  ].join('\n') + '\n');
+  const out = execFileSync('node', [HOOK], {
+    input: JSON.stringify({ hook_event_name: 'Stop', session_id: 'out', transcript_path: file, last_assistant_message: answer }),
+    encoding: 'utf8',
+    env: { ...process.env, VERIFIED_HOME: fx.home },
+  });
+  return out.trim() ? JSON.parse(out) : null;
+}
+
+test('"tests pass" is backed by a bun-style summary from any command', () => {
+  const r = runWithOutput(fixture(), 'claude plugin test .', ' 10 pass\n 0 fail\nRan 10 tests across 3 files.', 'All 10 tests pass.');
+  assert.strictEqual(r, null);
+});
+
+test('a bun-style summary with failures does not back "tests pass"', () => {
+  const r = runWithOutput(fixture(), 'claude plugin test .', ' 12 pass\n 3 fail\nRan 15 tests across 3 files.', 'All 15 tests pass.');
+  assert.ok(blocked(r));
+});
+
 test('the absence class is off, on the evidence', () => {
   const fx = fixture();
   // 66 flags across 3260 replayed turns and not one that any signal could
