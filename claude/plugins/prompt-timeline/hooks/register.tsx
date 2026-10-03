@@ -4,6 +4,7 @@ import type { Register } from 'claude-code'
 import type { Prompt } from '../types'
 import type { ReplyTag } from '../types'
 import { registerLook, setModel, setSessionId, storeKey } from './look'
+import { registerReplay } from './replay'
 
 const PANE = 'timeline'
 const STRIP = 6
@@ -19,9 +20,11 @@ const firstLine = (text: string) => text.trim().split('\n')[0] ?? ''
 
 export const register: Register = on => {
   registerLook(on)
+  registerReplay(on)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'timeline', description: 'List your prompts in this session and jump to one' })
+    await $.command.register({ name: 'replay', description: "Step through the last turn's file edits side by side" })
     setModel(await $.session.model())
     // Prompts sent before the plugin loaded are only in the transcript file.
     const sessionId = await $.session.id()

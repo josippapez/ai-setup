@@ -38,6 +38,18 @@ function browser(action: string, input: Input): Card {
   }
 }
 
+function docs(action: string, input: Input): Card {
+  const query = `"${str(input.query)}"`
+  const titles: Record<string, string> = {
+    find_docs: `Search ${query}`,
+    read_doc: str(input.path),
+    list_docs: input.source && input.source !== 'all' ? `List ${human(str(input.source))}` : 'List docs',
+    find_libs: `Package ${query}`,
+  }
+
+  return { label: action === 'find_libs' ? 'Packages' : 'Docs', color: 'yellow', title: titles[action] ?? human(action) }
+}
+
 export function describe(tool: string, input: Input): Card | null {
   const path = str(input.file_path) || str(input.notebook_path)
   switch (tool) {
@@ -77,6 +89,10 @@ export function describe(tool: string, input: Input): Card | null {
       return { label: 'Web', color: 'cyan', title: `Search "${str(input.query)}"` }
     case 'ToolSearch':
       return { label: 'Tools', color: 'blackBright', title: `Load ${str(input.query).replace(/^select:/, '')}` }
+    case 'Skill': {
+      const [plugin, name] = str(input.skill).includes(':') ? str(input.skill).split(':') : ['', str(input.skill)]
+      return { label: 'Skill', color: 'magenta', title: `/${name}`, detail: firstLine(str(input.args)) || (plugin ? `from ${plugin}` : undefined) }
+    }
     case 'Agent':
     case 'Task':
       return { label: 'Agent', color: 'green', title: str(input.description), detail: str(input.subagent_type) || undefined }
@@ -87,7 +103,25 @@ export function describe(tool: string, input: Input): Card | null {
   // The feedback plugin draws its own rows.
   if (server === 'feedback') return null
   if (server === 'chrome-devtools') return browser(mcp[2], input)
+  if (server === 'repo-docs') return docs(mcp[2], input)
+  if (server === 'codegraph') return { label: 'Code', color: 'yellow', title: firstLine(str(input.query)) }
   const firstArg = Object.values(input).find(value => typeof value === 'string') as string | undefined
 
   return { label: human(server), color: 'blue', title: human(mcp[2]), detail: firstArg ? firstLine(firstArg) : undefined }
 }
+
+// A PNG the tool returned as an MCP image block (a browser screenshot), with its size from the
+// PNG header so the picture keeps its shape.
+export function pngIn(output: unknown): { png: string; width: number; height: number } | null {
+  type Block = { type?: string; data?: string; mimeType?: string; source?: { data?: string; media_type?: string } }
+  const blocks: Block[] = Array.isArray(output) ? output : []
+  // The MCP block form, or the API's `source` form the transcript stores.
+  const image = blocks.find(block => block.type === 'image' && (block.mimeType ?? block.source?.media_type) === 'image/png')
+  const png = image?.data ?? image?.source?.data
+  if (!png) return null
+  const head = atob(png.slice(0, 44))
+  const at = (i: number) => ((head.charCodeAt(i) << 24) | (head.charCodeAt(i + 1) << 16) | (head.charCodeAt(i + 2) << 8) | head.charCodeAt(i + 3)) >>> 0
+
+  return { png, width: at(16), height: at(20) }
+}
+

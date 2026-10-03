@@ -13,6 +13,12 @@ test('each tool reads as one label and a short title', () => {
   expect(describe('Grep', { pattern: 'useAuth', path: 'src' })?.title).toBe('"useAuth"')
   expect(describe('WebFetch', { url: 'https://example.com/docs', prompt: 'find the flag' })?.title).toBe('example.com/docs')
   expect(describe('WebSearch', { query: 'ink box border' })?.title).toBe('Search "ink box border"')
+  expect(describe('Skill', { skill: 'dev-core:plugin-authoring' })).toEqual({ label: 'Skill', color: 'magenta', title: '/plugin-authoring', detail: 'from dev-core' })
+  expect(describe('Skill', { skill: 'review', args: 'PR 12' })?.detail).toBe('PR 12')
+  expect(describe('mcp__plugin_repo-docs_repo-docs__find_docs', { query: 'reindex lock' })).toEqual({ label: 'Docs', color: 'yellow', title: 'Search "reindex lock"' })
+  expect(describe('mcp__plugin_repo-docs_repo-docs__read_doc', { path: 'docs/setup.md' })?.title).toBe('docs/setup.md')
+  expect(describe('mcp__plugin_repo-docs_repo-docs__find_libs', { query: 'zod' })).toEqual({ label: 'Packages', color: 'yellow', title: 'Package "zod"' })
+  expect(describe('mcp__plugin_repo-docs_codegraph__codegraph_explore', { query: 'describe cards.ts' })).toEqual({ label: 'Code', color: 'yellow', title: 'describe cards.ts' })
   expect(describe('ToolSearch', { query: 'select:WebFetch' })?.title).toBe('Load WebFetch')
 })
 

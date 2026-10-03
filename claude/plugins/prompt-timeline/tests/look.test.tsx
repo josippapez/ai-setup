@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { familyColor, modelLabel, splitTables, tableWidth } from '../hooks/look'
+import { familyColor, fitColumns, modelLabel, parseTable, splitTables } from '../hooks/look'
 
 test('model ids read as short names', () => {
   expect(modelLabel('claude-opus-5-5[1m]')).toBe('Opus 5.5')
@@ -18,10 +18,14 @@ test('tables are split out of prose so they can be drawn at full width', () => {
   expect(splitTables(text)[2]?.text).toContain('| not a table |')
 })
 
-test('a table is measured by its widest cells', () => {
-  // | Tool | Calls |  ->  1 + (4+3) + (5+3)
-  expect(tableWidth('| Tool | Calls |\n| --- | --- |\n| Bash | 2151 |')).toBe(16)
-  expect(tableWidth('| a | **bold text** |\n|---|---|')).toBe(1 + 4 + 12)
+test('a table parses into header and rows, and its columns fit the room given', () => {
+  expect(parseTable('| Tool | Calls |\n| --- | --- |\n| Bash | 2151 |')).toEqual({ header: ['Tool', 'Calls'], rows: [['Bash', '2151']] })
+  // Everything fits: natural widths.
+  expect(fitColumns([4, 5], 40, 2)).toEqual([4, 5])
+  // Too wide: the narrow column keeps its width, the long ones share the rest.
+  const widths = fitColumns([10, 80, 90], 100, 2)
+  expect(widths[0]).toBe(10)
+  expect(widths.reduce((a, b) => a + b, 0) + 4).toBeLessThanOrEqual(100)
 })
 
 test('a reply opens with a model pill, every block is indented, notices get a command pill', async ($, on) => {
@@ -78,6 +82,20 @@ test('a reply opens with a model pill, every block is indented, notices get a co
   })
   expect(await fresh.find({ text: ' ◆ Haiku 4.5 ' })).toBeDefined()
   expect(await fresh.find({ text: 'effort low' })).toBeDefined()
+
+  // A table wider than the frame is drawn as fitted columns inside the one frame.
+  const wide = await $.ui.mount({
+    surface: 'terminal',
+    requestId: 'reply-3',
+    plugin: 'prompt-timeline',
+    component: 'AssistantMessage',
+    props: { text: 'Before.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nAfter.', isFirstOfReply: true },
+  })
+  expect((await wide.find({ key: 'part-0' }))?.text).toContain('Before.')
+  expect(await wide.find({ type: 'Markdown', text: '**a**' })).toBeDefined()
+  expect(await wide.find({ type: 'Markdown', text: '2' })).toBeDefined()
+  expect((await wide.find({ key: 'part-2' }))?.text).toContain('After.')
+  await wide.unmount()
   await fresh.unmount()
 
   const notice = await $.ui.mount({
@@ -107,7 +125,7 @@ test('a Bash card leads with its description and shows the command as one dim li
     const card = await $.ui.mount({ surface, ...row({ command: 'cd x && npm test\necho done\necho again', description: 'Run the tests' }) })
     expect(await card.find({ text: 'Run the tests' })).toBeDefined()
     expect(await card.find({ text: ' Bash ' })).toBeDefined()
-    expect(await card.find({ text: '  $ cd x && npm test  (+2 lines)' })).toBeDefined()
+    expect(await card.find({ text: '$ cd x && npm test  (+2 lines)' })).toBeDefined()
     await card.unmount()
 
     const bare = await $.ui.mount({ surface, ...row({ command: 'ls' }) })
@@ -117,4 +135,43 @@ test('a Bash card leads with its description and shows the command as one dim li
     expect(await reindex.find({ text: 'engine row' })).toBeDefined()
     await reindex.unmount()
   }
+})
+
+test('a screenshot returned in a grouped row is drawn under its card in the terminal and opens large', async ($, on) => {
+  const opened: unknown[] = []
+  on('ui.open', (_, e) => {
+    opened.push(e)
+    return { value: { isPlaced: true } }
+  })
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const props = {
+    tool_use_id: 's1',
+    tool: 'mcp__plugin_dev-core_chrome-devtools__take_screenshot',
+    input: { pageId: 2 },
+    isRunning: false,
+    isErrored: false,
+    isInterrupted: false,
+    output: [{ type: 'text', text: 'Took a screenshot.' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }],
+  }
+
+  const terminal = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolUse', requestId: 's1', props })
+  expect(await terminal.find({ text: 'Screenshot' })).toBeDefined()
+  expect(await terminal.find({ type: 'Image' })).toBeDefined()
+  await terminal.press({ key: 'enlarge-s1' })
+  expect(opened).toEqual([expect.objectContaining({ id: 'screenshot', focus: true, closeOnEscape: true })])
+  await terminal.unmount()
+
+  const pane = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'screenshot',
+    props: { title: 'Screenshot', isFocused: true, bodyColumns: 100, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
+  })
+  expect(await pane.find({ type: 'Image' })).toBeDefined()
+  await pane.unmount()
+
+  const desktop = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'desktop', component: 'ToolUse', requestId: 's1', props })
+  expect(await desktop.find({ type: 'Image' })).toBeUndefined()
+  await desktop.unmount()
 })
