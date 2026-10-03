@@ -1,6 +1,6 @@
 {
   "name": "prompt-timeline",
-  "version": "0.10.0",
+  "version": "0.10.8",
   "description": "Draws your own prompts as a distinct card in the transcript and adds /timeline, a pane listing your prompts that jumps to any of them.",
   "author": {
     "name": "Personal AI Setup"

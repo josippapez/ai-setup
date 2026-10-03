@@ -125,11 +125,11 @@ test('a Bash card leads with its description and shows the command as one dim li
     const card = await $.ui.mount({ surface, ...row({ command: 'cd x && npm test\necho done\necho again', description: 'Run the tests' }) })
     expect(await card.find({ text: 'Run the tests' })).toBeDefined()
     expect(await card.find({ text: ' Bash ' })).toBeDefined()
-    expect(await card.find({ text: '$ cd x && npm test  (+2 lines)' })).toBeDefined()
+    expect(await card.find({ text: 'x $ npm test  (+2 lines)' })).toBeDefined()
     await card.unmount()
 
     const bare = await $.ui.mount({ surface, ...row({ command: 'ls' }) })
-    expect(await bare.find({ text: 'engine row' })).toBeDefined()
+    expect(await bare.find({ text: '$ ls' })).toBeDefined()
     await bare.unmount()
     const reindex = await $.ui.mount({ surface, ...row({ command: 'node build-semantic-index.cjs .', description: 'Rebuild' }) })
     expect(await reindex.find({ text: 'engine row' })).toBeDefined()
@@ -174,4 +174,104 @@ test('a screenshot returned in a grouped row is drawn under its card in the term
   const desktop = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'desktop', component: 'ToolUse', requestId: 's1', props })
   expect(await desktop.find({ type: 'Image' })).toBeUndefined()
   await desktop.unmount()
+})
+
+test('a call that sends text shows it as markdown, folded after eight lines', async $ => {
+  const content = ['`useQuery` must be **on**.', ...Array.from({ length: 10 }, (_, i) => `line ${i + 2}`)].join('\n')
+  const card = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolUse',
+    requestId: 'm1',
+    props: {
+      tool_use_id: 'm1',
+      tool: 'mcp__ado__repo_pull_request_thread_write',
+      input: { action: 'create', pullRequestId: 6179, content },
+      isRunning: false,
+      isErrored: false,
+      isInterrupted: false,
+    },
+  })
+  expect(await card.find({ type: 'Markdown', text: /^`useQuery` must be \*\*on\*\*\.\nline 2/ })).toBeDefined()
+  expect(await card.find({ text: '… 3 more lines' })).toBeDefined()
+  await card.unmount()
+})
+
+test('Bash output sits under its card, folded, with stderr in red', async $ => {
+  const stdout = ['\x1b[32mok\x1b[0m', ...Array.from({ length: 14 }, (_, i) => `row ${i + 2}`), '[see remaining: tail -n +1 "/x/tee.log"]'].join('\n')
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'r1',
+    props: { tool_use_id: 'r1', tool: 'Bash', output: { stdout, stderr: 'warning: slow' }, isErrored: false },
+  })
+  expect(await result.find({ text: 'ok' })).toBeDefined()
+  expect(await result.find({ text: '… 3 more lines' })).toBeDefined()
+  expect(await result.find({ text: 'warning: slow' })).toBeDefined()
+  await result.unmount()
+})
+
+test('files a Bash command changed show as a diff under its output', async $ => {
+  const bashEditDiff = {
+    files: [{ filePath: '/Users/me/repo/plugin.json', hunks: [{ oldStart: 2, newStart: 2, lines: [' "name": "x",', '-"version": "0.1.0",', '+"version": "0.1.1",'] }] }],
+  }
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'r2',
+    props: { tool_use_id: 'r2', tool: 'Bash', output: { stdout: '', stderr: '', bashEditDiff }, isErrored: false },
+  })
+  expect(await result.find({ text: 'plugin.json' })).toBeDefined()
+  expect(await result.find({ text: '~/repo/' })).toBeDefined()
+  expect(await result.find({ text: ' +1 ' })).toBeDefined()
+  expect(await result.find({ text: ' −1 ' })).toBeDefined()
+  // Claude Code's highlighter draws the hunk, so syntax colours come from the path.
+  expect((await result.find({ type: 'Code' }))?.text).toBe('@@ -2,2 +2,2 @@\n "name": "x",\n-"version": "0.1.0",\n+"version": "0.1.1",')
+  expect(await result.find({ text: '(no output)' })).toBeUndefined()
+  await result.unmount()
+})
+
+test('rows of an expanded group show their result inline, as Claude Code does', async ($, on) => {
+  on('ui.render', { component: 'ToolGroup' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine group</Text>
+  })
+  const calls = [
+    { tool_use_id: 'g1', tool: 'Read', input: { file_path: '/r/a.ts' }, isRunning: false, isErrored: false, isInterrupted: false },
+    { tool_use_id: 'g2', tool: 'Bash', input: { command: 'ls', description: 'List' }, isRunning: false, isErrored: false, isInterrupted: false },
+  ]
+  const group = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolGroup', requestId: 'grp', props: { calls, isActive: false, isExpanded: true } })
+  await group.unmount()
+  const row = (id: string, tool: string, input: Record<string, string>, output: unknown) =>
+    ({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolUse', requestId: id, props: { tool_use_id: id, tool, input, isRunning: false, isErrored: false, isInterrupted: false, output } }) as const
+
+  const read = await $.ui.mount(row('g1', 'Read', { file_path: '/r/a.ts' }, { type: 'text', file: { numLines: 40, totalLines: 120 } }))
+  expect(await read.find({ text: '↳ 40 of 120 lines' })).toBeDefined()
+  await read.unmount()
+  const bash = await $.ui.mount(row('g2', 'Bash', { command: 'ls', description: 'List' }, { stdout: 'a.ts\nb.ts', stderr: '' }))
+  expect(await bash.find({ text: 'b.ts' })).toBeDefined()
+  await bash.unmount()
+  // A row outside any group leaves its result to the ToolResult row.
+  const alone = await $.ui.mount(row('s9', 'Read', { file_path: '/r/a.ts' }, { type: 'text', file: { numLines: 40, totalLines: 40 } }))
+  expect(await alone.find({ text: /↳/ })).toBeUndefined()
+  await alone.unmount()
+})
+
+test('Bash output colours outcomes and draws rg matches with a gutter and highlighting', async $ => {
+  const stdout = ['hooks/look.tsx:138:    <Box flexDirection="column">', '172:  return x', '✔ Validation passed', ' 18 pass', ' 2 fail'].join('\n')
+  const result = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolResult',
+    requestId: 'r3',
+    props: { tool_use_id: 'r3', tool: 'Bash', output: { stdout, stderr: '' }, isErrored: false },
+  })
+  expect(await result.find({ text: 'look.tsx:138' })).toBeDefined()
+  expect((await result.find({ type: 'Code' }))?.text).toBe('    <Box flexDirection="column">')
+  expect(await result.find({ text: ' 172' })).toBeDefined()
+  expect(await result.find({ text: '  return x' })).toBeDefined()
+  expect(await result.find({ text: '✔ Validation passed' })).toBeDefined()
+  await result.unmount()
 })

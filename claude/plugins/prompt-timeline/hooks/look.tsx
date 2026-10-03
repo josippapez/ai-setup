@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { On } from 'claude-code'
+import type { BoxProps, CodeProps, ElementConstructor, On, TextProps } from 'claude-code'
 
 import type { ReplyTag } from '../types'
-import { describe, pngIn } from './cards'
+import { describe, pngIn, resultLine } from './cards'
 
 // The rest of the transcript's look: a model pill opening each reply, so replies read apart
 // from your cyan prompt cards, and startup notices with an icon and their /command as a pill.
@@ -17,6 +17,12 @@ let effort = ''
 const replyTags = atom({ plugin: 'prompt-timeline', key: 'replyTags' } as const, {} as Record<string, ReplyTag>)
 const enlarged = atom({ plugin: 'prompt-timeline', key: 'enlarged' } as const, null as { png: string; width: number; height: number } | null)
 const SHOT_PANE = 'screenshot'
+// A call's text body (a PR comment, a query) shows this many lines before it folds.
+const BODY_LINES = 8
+// Bash output shows this many lines before it folds.
+const OUTPUT_LINES = 12
+// A file a Bash command changed shows this many diff lines before it folds.
+const DIFF_LINES = 20
 // A terminal cell is about twice as tall as it is wide.
 const rowsFor = (shot: { width: number; height: number }, columns: number) => Math.min(60, Math.max(1, Math.round((columns * shot.height) / shot.width / 2)))
 // Each session's tags are also saved to the plugin's store (a JSON file on disk) under this
@@ -97,7 +103,131 @@ export function modelLabel(id: string) {
   return m?.[1] ? `${m[1][0]!.toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : id.replace(/\[.*\]$/, '')
 }
 
+type Hunk = { oldStart: number; newStart: number; lines: string[] }
+type BashOutput = {
+  stdout?: string
+  stderr?: string
+  interrupted?: boolean
+  bashEditDiff?: { files?: { filePath: string; hunks: Hunk[] }[] }
+  backgroundTaskId?: string
+  timedOutAfterMs?: number
+  isImage?: boolean
+}
+// Results that carry something this view does not draw (a background task id, a timeout, an
+// image) keep Claude Code's own row, so nothing it shows goes missing.
+const isPlainBash = (output: BashOutput) => !output.backgroundTaskId && !output.timedOutAfterMs && !output.isImage && !output.interrupted
+type Ui = { Box: ElementConstructor<BoxProps>; Code: ElementConstructor<CodeProps>; Text: ElementConstructor<TextProps> }
+
+// Bash output: dim, ANSI stripped, folded after OUTPUT_LINES, stderr in red, then each file the
+// command changed as a framed diff (Claude Code attaches those to the result as bashEditDiff).
+// rtk adds a "[see remaining: tail …]" pointer to its own log; it is not the command's output.
+// Lines that report an outcome: test summaries, check marks, errors.
+const PASSED = /^\s*(?:✔|✓|ok\b|PASS\b)|\b0 fail(?:ed|ures?)?\b|\b\d+ pass(?:ed|ing)?\b/i
+const FAILED = /^\s*(?:✘|✗|×|FAIL\b)|\b[1-9]\d* fail(?:ed|ures?)?\b|\berror\b/i
+
+export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
+  const clean = (text: string | undefined) =>
+    (text ?? '')
+      .replace(/\x1b\[[0-9;]*m/g, '')
+      .replace(/^\[see remaining: .*\]$/gm, '')
+      .replace(/\s+$/, '')
+  const stdout = clean(output.stdout)
+  const stderr = clean(output.stderr)
+  const diffs = output.bashEditDiff?.files ?? []
+  const lines = stdout ? stdout.split('\n') : []
+  const hidden = lines.length - OUTPUT_LINES
+
+  // Full width, so diff lines wrap at the window's edge and not at their frame's own width.
+  return (
+    <Box flexDirection="column" width="100%">
+      {lines.length === 0 && !stderr && diffs.length === 0 && <Text dimColor>(no output)</Text>}
+      {lines.length > 0 && (
+        <Box width="100%" flexDirection="column" borderStyle="round" borderColor="gray" borderDimColor paddingX={1}>
+          {lines.slice(0, OUTPUT_LINES).map((line, i) => {
+            // `path:12:code` (rg, grep) gets a dim gutter and the code coloured by its file type.
+            const hit = line.match(/^([^\s:]+\.[\w]+):(\d+)[:-](.*)$/)
+            if (hit?.[1] && hit[2]) {
+              return (
+                <Box key={`o${i}`} gap={1}>
+                  <Text dimColor>{`${hit[1].split('/').pop()}:${hit[2]}`}</Text>
+                  {hit[3]?.trim() ? <Code source={hit[3]} path={hit[1]} /> : null}
+                </Box>
+              )
+            }
+            // `138:code` (rg -n on one file): the number in the gutter, the code as written.
+            const numbered = line.match(/^(\d+)[:-](.*)$/)
+            if (numbered?.[1]) {
+              return (
+                <Box key={`o${i}`} gap={1}>
+                  <Text dimColor>{numbered[1].padStart(4)}</Text>
+                  <Text wrap="truncate-end">{numbered[2] || ' '}</Text>
+                </Box>
+              )
+            }
+            const color = FAILED.test(line) ? 'red' : PASSED.test(line) ? 'green' : undefined
+            return (
+              <Text key={`o${i}`} color={color} dimColor={!color} wrap="truncate-end">
+                {line || ' '}
+              </Text>
+            )
+          })}
+          {hidden > 0 && <Text dimColor>{`… ${hidden} more lines`}</Text>}
+        </Box>
+      )}
+      {stderr && (
+        <Text color="red" wrap="wrap">
+          {stderr.split('\n').slice(0, OUTPUT_LINES).join('\n')}
+        </Text>
+      )}
+      {diffs.map((file, f) => {
+        // Claude Code's own highlighter draws the hunks: syntax colours from the path, gutters,
+        // and add/remove shading. Hunks past DIFF_LINES lines are left out and counted.
+        let budget = DIFF_LINES
+        const kept: Hunk[] = []
+        for (const hunk of file.hunks) {
+          if (budget <= 0) break
+          kept.push({ ...hunk, lines: hunk.lines.slice(0, budget) })
+          budget -= hunk.lines.length
+        }
+        const total = file.hunks.reduce((sum, hunk) => sum + hunk.lines.length, 0)
+        const shown = kept.reduce((sum, hunk) => sum + hunk.lines.length, 0)
+        const count = (hunk: Hunk, mark: string) => hunk.lines.filter(line => line[0] === mark || line[0] === ' ').length
+        const source = kept
+          .map(hunk => [`@@ -${hunk.oldStart},${count(hunk, '-')} +${hunk.newStart},${count(hunk, '+')} @@`, ...hunk.lines].join('\n'))
+          .join('\n')
+          .slice(0, 10000)
+        const all = file.hunks.flatMap(hunk => hunk.lines)
+        const path = file.filePath.replace(/^\/Users\/[^/]+/, '~')
+        const cut = path.lastIndexOf('/') + 1
+        return (
+          <Box key={`d${f}`} width="100%" flexDirection="column" marginTop={1} borderStyle="round" borderColor="gray" borderDimColor paddingX={1}>
+            <Box gap={1}>
+              <Text color="yellow">✎</Text>
+              <Text bold>{path.slice(cut)}</Text>
+              <Text dimColor>{path.slice(0, cut)}</Text>
+              <Text backgroundColor="green" color="black">{` +${all.filter(line => line[0] === '+').length} `}</Text>
+              <Text backgroundColor="red" color="black">{` −${all.filter(line => line[0] === '-').length} `}</Text>
+            </Box>
+            {source && <Code source={source} path={file.filePath} format="diff" />}
+            {total > shown && <Text dimColor>{`… ${total - shown} more lines`}</Text>}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+// Calls Claude Code folded into a group: when the group is expanded each draws its own row, and
+// Claude Code draws that row's result inline rather than as a separate ToolResult row.
+const grouped = new Set<string>()
+
 export function registerLook(on: On) {
+  on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
+    for (const call of e.props.calls) if (call.tool_use_id) grouped.add(call.tool_use_id)
+
+    return next(e)
+  })
+
   // Each model request of the main loop names the model and effort the reply is made with.
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) {
@@ -185,7 +315,7 @@ export function registerLook(on: On) {
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const card = describe(e.props.tool, (e.props.input ?? {}) as Record<string, unknown>)
     if (!card) return next(e)
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Code, Markdown, Text } = $.ui.resolve(e)
     // A grouped row gets its result here, not as its own ToolResult, so a returned PNG (a
     // browser screenshot) is drawn under the card. Only the terminal draws pictures.
     let picture = null
@@ -224,13 +354,39 @@ export function registerLook(on: On) {
             </Text>
           </Box>
         )}
+        {card.body && (
+          <Box paddingLeft={2} marginTop={1} flexDirection="column">
+            <Markdown text={card.body.split('\n').slice(0, BODY_LINES).join('\n')} />
+            {card.body.split('\n').length > BODY_LINES && <Text dimColor>{`… ${card.body.split('\n').length - BODY_LINES} more lines`}</Text>}
+          </Box>
+        )}
         {picture && (
           <Box paddingLeft={2} marginTop={1}>
             {picture}
           </Box>
         )}
+        {grouped.has(e.props.tool_use_id) && e.props.output !== undefined && !picture && (
+          <Box paddingLeft={2}>
+            {e.props.tool === 'Bash' ? (
+              bashOutput({ Box, Code, Text }, e.props.output as BashOutput)
+            ) : resultLine(e.props.tool, e.props.output) ? (
+              <Text dimColor wrap="truncate-end">{`↳ ${resultLine(e.props.tool, e.props.output)}`}</Text>
+            ) : null}
+          </Box>
+        )}
       </Box>
     )
+  })
+
+  // Bash output sits under its card; see bashOutput. repo-docs draws its own reindex summary,
+  // and anything Claude Code adds that this does not draw keeps Claude Code's own row.
+  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    if (e.props.tool !== 'Bash' || e.props.isErrored) return next(e)
+    const output = (e.props.output ?? {}) as BashOutput
+    if (/repo_docs_index updated=/.test(output.stdout ?? '') || !isPlainBash(output)) return next(e)
+    const { Box, Code, Text } = $.ui.resolve(e)
+
+    return <Box paddingLeft={INDENT + 2} paddingRight={1} width="100%">{bashOutput({ Box, Code, Text }, output)}</Box>
   })
 
   // The enlarged screenshot fills the pane's width; Escape closes it.

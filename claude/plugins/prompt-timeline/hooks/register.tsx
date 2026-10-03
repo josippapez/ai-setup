@@ -80,6 +80,8 @@ export const register: Register = on => {
       })
     }
     // Slash commands are saved as commands, not prompts, so they never join the list; they keep the default row.
+    // Task notifications and messages from other agents keep Claude Code's row, which names the sender.
+    if (e.props.task || e.props.from) return next(e)
     if ((index < 0 && e.props.origin.kind !== 'composer') || !text || text.startsWith('/')) return next(e)
     const { Box, Text } = $.ui.resolve(e)
 
