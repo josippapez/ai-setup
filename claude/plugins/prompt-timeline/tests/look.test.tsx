@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { familyColor, fitColumns, modelLabel, parseTable, splitTables } from '../hooks/look'
+import { familyColor, fitColumns, modelLabel, parseTable, splitTables, tableWidth, wrappedLines } from '../hooks/look'
 
 test('model ids read as short names', () => {
   expect(modelLabel('claude-opus-5-5[1m]')).toBe('Opus 5.5')
@@ -18,6 +18,17 @@ test('tables are split out of prose so they can be drawn at full width', () => {
   expect(splitTables(text)[2]?.text).toContain('| not a table |')
 })
 
+test('a table is measured at the width the markdown element draws it', () => {
+  expect(tableWidth('| Tool | Calls |\n| --- | --- |\n| Bash | 2151 |')).toBe(16)
+})
+
+test('a cell wraps by words, so its row height and dividers match the text', () => {
+  expect(wrappedLines('short', 10)).toBe(1)
+  expect(wrappedLines('one two three', 9)).toBe(2)
+  expect(wrappedLines('one two three four', 9)).toBe(3)
+  expect(wrappedLines('abcdefghijkl', 5)).toBe(3)
+})
+
 test('a table parses into header and rows, and its columns fit the room given', () => {
   expect(parseTable('| Tool | Calls |\n| --- | --- |\n| Bash | 2151 |')).toEqual({ header: ['Tool', 'Calls'], rows: [['Bash', '2151']] })
   // Everything fits: natural widths.
@@ -28,7 +39,7 @@ test('a table parses into header and rows, and its columns fit the room given', 
   expect(widths.reduce((a, b) => a + b, 0) + 4).toBeLessThanOrEqual(100)
 })
 
-test('a reply opens with a model pill, every block is indented, notices get a command pill', async ($, on) => {
+test('a reply is plain text and its turn footer names the model and effort that made it; notices get a command pill', async ($, on) => {
   const clock = mock.clock(on)
   const stored: Record<string, unknown> = {}
   on('store.get', (_, e) => ({ value: stored[e.key] }))
@@ -51,14 +62,19 @@ test('a reply opens with a model pill, every block is indented, notices get a co
   await $.session.start({ cwd: '/repo', surface: null, isInteractive: true })
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'claude-sonnet-5-5', effort: 'high', messageCount: 1 })) void _
 
+  const footer = async () => {
+    const ui = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
+    const text = (await ui.findAll({ type: 'Text' })).map(one => one.text).join('')
+    await ui.unmount()
+    return text
+  }
   const reply = (isFirstOfReply: boolean) =>
     ({ plugin: 'prompt-timeline', component: 'AssistantMessage', props: { text: 'The fix is **in**.', isFirstOfReply } }) as const
   for (const surface of ['terminal', 'desktop'] as const) {
     const first = await $.ui.mount({ surface, requestId: 'reply-1', ...reply(true) })
-    expect(await first.find({ text: ' ◆ Sonnet 5.5 ' })).toBeDefined()
-    expect(await first.find({ text: 'effort high' })).toBeDefined()
     expect(await first.find({ type: 'Markdown' })).toBeDefined()
     await first.unmount()
+    expect(await footer()).toBe('◆ Sonnet 5.5 · high · 3s')
     const later = await $.ui.mount({ surface, ...reply(false) })
     expect(await later.find({ type: 'Markdown' })).toBeDefined()
     expect(await later.find({ text: 'engine reply' })).toBeUndefined()
@@ -70,8 +86,8 @@ test('a reply opens with a model pill, every block is indented, notices get a co
   for await (const _ of $.turn.step({ turnId: 't2', index: 0, model: 'claude-haiku-4-5', effort: 'low', messageCount: 3 })) void _
   // After a resume the reply may be drawn under a new id; its text still finds its tag.
   const redrawn = await $.ui.mount({ surface: 'terminal', requestId: 'resumed-1', ...reply(true) })
-  expect(await redrawn.find({ text: ' ◆ Sonnet 5.5 ' })).toBeDefined()
   await redrawn.unmount()
+  expect(await footer()).toBe('◆ Sonnet 5.5 · high · 3s')
   expect(stored['replies:s']).toEqual({ 'The fix is **in**.': { model: 'Sonnet 5.5', effort: 'high' } })
   const fresh = await $.ui.mount({
     surface: 'terminal',
@@ -80,22 +96,36 @@ test('a reply opens with a model pill, every block is indented, notices get a co
     component: 'AssistantMessage',
     props: { text: 'A newer reply.', isFirstOfReply: true },
   })
-  expect(await fresh.find({ text: ' ◆ Haiku 4.5 ' })).toBeDefined()
-  expect(await fresh.find({ text: 'effort low' })).toBeDefined()
+  expect(await footer()).toBe('◆ Haiku 4.5 · low · 3s')
 
-  // A table wider than the frame is drawn as fitted columns inside the one frame.
+  // A table wider than the reply is drawn as a fitted grid.
   const wide = await $.ui.mount({
     surface: 'terminal',
     requestId: 'reply-3',
     plugin: 'prompt-timeline',
     component: 'AssistantMessage',
     props: { text: 'Before.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nAfter.', isFirstOfReply: true },
+    viewport: { columns: 10, rows: 40 },
   })
   expect((await wide.find({ key: 'part-0' }))?.text).toContain('Before.')
-  expect(await wide.find({ type: 'Markdown', text: '**a**' })).toBeDefined()
-  expect(await wide.find({ type: 'Markdown', text: '2' })).toBeDefined()
+  // Drawn as a grid: rounded border, column dividers, cells as text.
+  expect(await wide.find({ text: /^╭─+┬─+╮$/ })).toBeDefined()
+  expect(await wide.find({ type: 'Text', text: 'a' })).toBeDefined()
+  expect(await wide.find({ type: 'Text', text: '2' })).toBeDefined()
   expect((await wide.find({ key: 'part-2' }))?.text).toContain('After.')
   await wide.unmount()
+  // A table that fits keeps Claude Code's own table.
+  const fits = await $.ui.mount({
+    surface: 'terminal',
+    requestId: 'reply-4',
+    plugin: 'prompt-timeline',
+    component: 'AssistantMessage',
+    props: { text: '| a | b |\n| --- | --- |\n| 1 | 2 |', isFirstOfReply: true },
+    viewport: { columns: 120, rows: 40 },
+  })
+  expect(await fits.find({ type: 'Markdown', text: /\| a \| b \|/ })).toBeDefined()
+  expect(await fits.find({ text: /^╭/ })).toBeUndefined()
+  await fits.unmount()
   await fresh.unmount()
 
   const notice = await $.ui.mount({
@@ -124,7 +154,7 @@ test('a Bash card leads with its description and shows the command as one dim li
   for (const surface of ['terminal', 'desktop'] as const) {
     const card = await $.ui.mount({ surface, ...row({ command: 'cd x && npm test\necho done\necho again', description: 'Run the tests' }) })
     expect(await card.find({ text: 'Run the tests' })).toBeDefined()
-    expect(await card.find({ text: ' Bash ' })).toBeDefined()
+    expect(await card.find({ text: 'Bash' })).toBeDefined()
     expect(await card.find({ text: 'x $ npm test  (+2 lines)' })).toBeDefined()
     await card.unmount()
 
@@ -268,7 +298,7 @@ test('Bash output colours outcomes and draws rg matches with a gutter and highli
     requestId: 'r3',
     props: { tool_use_id: 'r3', tool: 'Bash', output: { stdout, stderr: '' }, isErrored: false },
   })
-  expect(await result.find({ text: 'look.tsx:138' })).toBeDefined()
+  expect(await result.find({ text: 'hooks/look.tsx:138' })).toBeDefined()
   expect((await result.find({ type: 'Code' }))?.text).toBe('    <Box flexDirection="column">')
   expect(await result.find({ text: ' 172' })).toBeDefined()
   expect(await result.find({ text: '  return x' })).toBeDefined()

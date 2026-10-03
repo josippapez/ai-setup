@@ -82,10 +82,10 @@ test('earlier prompts come from the transcript and get numbered cards, strip ent
 
   // The row is drawn under an id that is not the saved row's; the text still finds it.
   const card = await $.ui.mount({ surface: 'terminal', ...message('drawn-2', 'second prompt\nmore') })
-  expect(await card.find({ text: '› You · #2' })).toBeDefined()
+  expect(await card.find({ text: '#2' })).toBeDefined()
   await card.unmount()
   const again = await $.ui.mount({ surface: 'terminal', ...message('drawn-2', 'second prompt\nmore') })
-  expect(await again.find({ text: '› You · #2' })).toBeDefined()
+  expect(await again.find({ text: '#2' })).toBeDefined()
   await again.unmount()
 
   const band = await $.ui.mount({

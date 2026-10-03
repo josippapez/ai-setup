@@ -3,13 +3,15 @@ import type { BoxProps, CodeProps, ElementConstructor, On, TextProps } from 'cla
 
 import type { ReplyTag } from '../types'
 import { describe, pngIn, resultLine } from './cards'
+import { OUTPUT_BAR, PANEL } from './theme'
 
-// The rest of the transcript's look: a model pill opening each reply, so replies read apart
-// from your cyan prompt cards, and startup notices with an icon and their /command as a pill.
+// The rest of the transcript's look, after OpenCode's: replies as plain text with the model and
+// effort in a footer line where the turn ends, tool calls as one light line each, and output in
+// filled panels; startup notices with an icon and their /command as a pill.
 
-const INDENT = 2
+const INDENT = 3
 // Columns a reply frame takes: border and one column of padding on each side, plus the right margin.
-const FRAME = 5
+const FRAME = 2
 let model = ''
 let effort = ''
 // The model and effort each reply was made with, by its id, so redrawing an old reply after a
@@ -96,6 +98,39 @@ export function fitColumns(natural: number[], room: number, gap: number) {
   }
 }
 
+// The width the markdown element draws a table at: each column as wide as its widest cell, plus
+// one space a side and a border per column.
+export function tableWidth(text: string) {
+  const { header, rows } = parseTable(text)
+  const widths = header.map((cell, c) => Math.max(plainCell(cell).length, ...rows.map(row => plainCell(row[c] ?? '').length)))
+
+  return widths.reduce((sum, w) => sum + w + 3, 1)
+}
+
+// A cell's text as shown: markdown bold and code markers dropped.
+export const plainCell = (cell: string) => cell.replace(/\*\*|`/g, '')
+
+// How many lines `text` takes when word-wrapped at `width`, as the terminal wraps it.
+export function wrappedLines(text: string, width: number) {
+  let lines = 1
+  let used = 0
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const length = word.length
+    if (used === 0) used = length
+    else if (used + 1 + length <= width) used += 1 + length
+    else {
+      lines += 1
+      used = length
+    }
+    while (used > width) {
+      lines += 1
+      used -= width
+    }
+  }
+
+  return lines
+}
+
 // `claude-opus-5-5[1m]` reads as `Opus 5.5`; anything else is shown as given.
 export function modelLabel(id: string) {
   const m = id.match(/claude-([a-z]+)-(\d+)-(\d+)/i)
@@ -142,14 +177,16 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
     <Box flexDirection="column" width="100%">
       {lines.length === 0 && !stderr && diffs.length === 0 && <Text dimColor>(no output)</Text>}
       {lines.length > 0 && (
-        <Box width="100%" flexDirection="column" borderStyle="round" borderColor="gray" borderDimColor paddingX={1}>
+        <Box width="100%" backgroundColor={PANEL} marginTop={1}>
+          <Box width={1} backgroundColor={OUTPUT_BAR} />
+          <Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
           {lines.slice(0, OUTPUT_LINES).map((line, i) => {
             // `path:12:code` (rg, grep) gets a dim gutter and the code coloured by its file type.
             const hit = line.match(/^([^\s:]+\.[\w]+):(\d+)[:-](.*)$/)
             if (hit?.[1] && hit[2]) {
               return (
                 <Box key={`o${i}`} gap={1}>
-                  <Text dimColor>{`${hit[1].split('/').pop()}:${hit[2]}`}</Text>
+                  <Text dimColor>{`${hit[1]}:${hit[2]}`}</Text>
                   {hit[3]?.trim() ? <Code source={hit[3]} path={hit[1]} /> : null}
                 </Box>
               )
@@ -172,6 +209,7 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
             )
           })}
           {hidden > 0 && <Text dimColor>{`… ${hidden} more lines`}</Text>}
+          </Box>
         </Box>
       )}
       {stderr && (
@@ -200,7 +238,9 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
         const path = file.filePath.replace(/^\/Users\/[^/]+/, '~')
         const cut = path.lastIndexOf('/') + 1
         return (
-          <Box key={`d${f}`} width="100%" flexDirection="column" marginTop={1} borderStyle="round" borderColor="gray" borderDimColor paddingX={1}>
+          <Box key={`d${f}`} width="100%" marginTop={1} backgroundColor={PANEL}>
+            <Box width={1} backgroundColor={OUTPUT_BAR} />
+            <Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
             <Box gap={1}>
               <Text color="yellow">✎</Text>
               <Text bold>{path.slice(cut)}</Text>
@@ -210,6 +250,7 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
             </Box>
             {source && <Code source={source} path={file.filePath} format="diff" />}
             {total > shown && <Text dimColor>{`… ${total - shown} more lines`}</Text>}
+            </Box>
           </Box>
         )
       })}
@@ -220,6 +261,8 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput) {
 // Calls Claude Code folded into a group: when the group is expanded each draws its own row, and
 // Claude Code draws that row's result inline rather than as a separate ToolResult row.
 const grouped = new Set<string>()
+// The tag of the reply drawn last: the turn's footer, drawn after its replies, names it.
+let lastTag: ReplyTag | null = null
 
 export function registerLook(on: On) {
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
@@ -239,12 +282,12 @@ export function registerLook(on: On) {
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
-    // Each block of a reply sits in a dim rounded frame, INDENT in, so its edges are visible; the
-    // first block opens with the model pill inside the frame.
+    // Plain text behind a thin bar in the model's colour, so a reply reads apart from Claude
+    // Code's own rows (stop hooks, notices) at the same indent; the model and effort that made
+    // it go in the footer where the turn ends (TurnDuration, below).
     const { Box, Markdown, Text } = $.ui.resolve(e)
     const parts = splitTables(e.props.text)
     const room = (e.viewport?.columns ?? 0) - INDENT - FRAME
-    let pill = null
     if (e.props.isFirstOfReply) {
       const key = replyKey(e.props.text)
       const saved = (await read($, replyTags))[key]
@@ -259,53 +302,90 @@ export function registerLook(on: On) {
           })()
         })
       }
-      const color = familyColor(tag.model)
-      pill = (
-        <Box gap={1} marginBottom={1}>
-          <Text backgroundColor={color} color="black" bold>
-            {` ◆ ${tag.model} `}
-          </Text>
-          {tag.effort && <Text color={color}>{`effort ${tag.effort}`}</Text>}
-        </Box>
-      )
+      lastTag = tag
     }
 
-    // Tables are drawn as columns fitted to the frame, since the markdown element draws a table
-    // at its natural width whatever wraps it; long cells wrap inside their column.
-    const GAP = 2
+    // A table too wide for the reply is drawn as a grid fitted to the window: the markdown element
+    // draws a table at its natural width whatever wraps it. Cells are plain text with their bold and code spans kept,
+    // so each row's height is known and the column dividers line up when a cell wraps.
     const table = (text: string, i: number) => {
       const { header, rows } = parseTable(text)
-      const plain = (cell: string) => cell.replace(/\*\*|`/g, '').length
-      const widths = fitColumns(header.map((cell, c) => Math.max(plain(cell), ...rows.map(row => plain(row[c] ?? '')))), room, GAP)
-      const line = <Text dimColor>{'─'.repeat(widths.reduce((a, b) => a + b, 0) + GAP * (widths.length - 1))}</Text>
-      const row = (cells: string[], r: string, isHeader = false) => (
-        <Box key={r} gap={GAP}>
-          {widths.map((width, c) => (
-            <Box key={`c${c}`} width={width}>
-              <Markdown text={isHeader ? `**${cells[c] ?? ''}**` : (cells[c] ?? '')} />
-            </Box>
-          ))}
-        </Box>
+      const natural = header.map((cell, c) => Math.max(plainCell(cell).length, ...rows.map(row => plainCell(row[c] ?? '').length)))
+      // Each column costs its width, one space a side, and a divider.
+      const widths = fitColumns(natural, room - 1 - 3 * natural.length, 3)
+      const rule = (left: string, mid: string, right: string) => (
+        <Text dimColor>{left + widths.map(w => '─'.repeat(w + 2)).join(mid) + right}</Text>
       )
+      const cellText = (cell: string, isHeader: boolean) =>
+        cell.split(/(`[^`]+`|\*\*[^*]+\*\*)/).map((piece, k) =>
+          piece.startsWith('`') ? (
+            <Text key={`s${k}`} color="cyan">{piece.slice(1, -1)}</Text>
+          ) : piece.startsWith('**') ? (
+            <Text key={`s${k}`} bold>{piece.slice(2, -2)}</Text>
+          ) : (
+            <Text key={`s${k}`} bold={isHeader}>{piece}</Text>
+          ),
+        )
+      const row = (cells: string[], r: string, isHeader = false) => {
+        const height = Math.max(1, ...widths.map((w, c) => wrappedLines(plainCell(cells[c] ?? ''), w)))
+        const bar = <Text dimColor>{Array.from({ length: height }, () => '│').join('\n')}</Text>
+        return (
+          <Box key={r}>
+            {bar}
+            {widths.map((width, c) => (
+              <Box key={`c${c}`}>
+                <Box width={width + 2} paddingX={1} backgroundColor={isHeader ? PANEL : undefined}>
+                  <Text wrap="wrap">{cellText(cells[c] ?? '', isHeader)}</Text>
+                </Box>
+                {bar}
+              </Box>
+            ))}
+          </Box>
+        )
+      }
 
       return (
         <Box key={`part-${i}`} flexDirection="column" marginY={1}>
+          {rule('╭', '┬', '╮')}
           {row(header, 'h', true)}
-          {line}
+          {rule('├', '┼', '┤')}
           {rows.map((cells, r) => (
             <Box key={`r${r}`} flexDirection="column">
               {row(cells, `row${r}`)}
-              {r < rows.length - 1 && line}
+              {r < rows.length - 1 && rule('├', '┼', '┤')}
             </Box>
           ))}
+          {rule('╰', '┴', '╯')}
         </Box>
       )
     }
 
     return (
-      <Box marginTop={1} marginLeft={INDENT} marginRight={1} flexDirection="column" borderStyle="round" borderColor="gray" borderDimColor paddingX={1}>
-        {pill}
-        {parts.map((part, i) => (part.isTable ? table(part.text, i) : <Markdown key={`part-${i}`} text={part.text} />))}
+      <Box marginTop={1} marginRight={2}>
+        <Box width={1} backgroundColor={familyColor((lastTag ?? { model }).model || '')} />
+        <Box paddingLeft={INDENT - 1} paddingY={1} flexDirection="column" flexGrow={1}>
+        {parts.map((part, i) =>
+          // Claude Code's own table when it fits; the fitted grid only when the table is wider than
+          // the reply, where the markdown element would run past the edge and wrap its border.
+          part.isTable && tableWidth(part.text) > room ? table(part.text, i) : <Markdown key={`part-${i}`} text={part.text} />,
+        )}
+        </Box>
+      </Box>
+    )
+  })
+
+  // The turn's closing line, as OpenCode draws it: model, effort and time, the model in its
+  // family colour.
+  on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
+    if (!lastTag) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    const seconds = Math.round(e.props.durationMs / 1000)
+    const time = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`
+
+    return (
+      <Box paddingLeft={INDENT} marginY={1}>
+        <Text color={familyColor(lastTag.model)}>◆ {lastTag.model}</Text>
+        <Text dimColor>{`${lastTag.effort ? ` · ${lastTag.effort}` : ''} · ${time}`}</Text>
       </Box>
     )
   })
@@ -338,13 +418,11 @@ export function registerLook(on: On) {
     return (
       <Box paddingLeft={INDENT} paddingRight={1} flexDirection="column" marginTop={1}>
         <Box gap={1}>
-          <Text color={state}>●</Text>
-          <Text backgroundColor={card.color} color={card.color === 'blackBright' ? 'white' : 'black'} bold>
-            {` ${card.label} `}
+          <Text color={state}>→</Text>
+          <Text color={card.color === 'blackBright' ? 'gray' : card.color} bold>
+            {card.label}
           </Text>
-          <Text bold wrap="truncate-end">
-            {card.title}
-          </Text>
+          <Text wrap="truncate-end">{card.title}</Text>
           {e.props.isInterrupted && <Text color="yellow">interrupted</Text>}
         </Box>
         {card.detail && (

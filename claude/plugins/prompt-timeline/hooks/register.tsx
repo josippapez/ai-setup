@@ -5,6 +5,7 @@ import type { Prompt } from '../types'
 import type { ReplyTag } from '../types'
 import { registerLook, setModel, setSessionId, storeKey } from './look'
 import { registerReplay } from './replay'
+import { PANEL, PROMPT_BAR } from './theme'
 
 const PANE = 'timeline'
 const STRIP = 6
@@ -89,23 +90,27 @@ export const register: Register = on => {
     // so a prompt row that is not there yet is still waiting in the queue.
     if (index < 0) {
       return (
-        <Box marginX={1} flexDirection="column" borderStyle="single" borderColor="gray" borderDimColor paddingX={1}>
+        <Box marginTop={1} marginRight={1} backgroundColor={PANEL}>
+          <Box width={1} backgroundColor="gray" />
+          <Box paddingX={2} paddingY={1} flexDirection="column" flexGrow={1}>
           <Text dimColor italic>
             ◌ Queued · sends when the current turn ends
           </Text>
           <Text dimColor wrap="wrap">
             {e.props.text}
           </Text>
+          </Box>
         </Box>
       )
     }
 
     return (
-      <Box marginX={1} flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-        <Text color="cyan" bold>
-          › You · #{index + 1}
-        </Text>
-        <Text wrap="wrap">{e.props.text}</Text>
+      <Box marginY={1} marginRight={1} backgroundColor={PANEL}>
+        <Box width={1} backgroundColor={PROMPT_BAR} />
+        <Box paddingX={2} paddingY={1} flexGrow={1} justifyContent="space-between" gap={2}>
+          <Text wrap="wrap">{e.props.text}</Text>
+          <Text dimColor>#{index + 1}</Text>
+        </Box>
       </Box>
     )
   })
