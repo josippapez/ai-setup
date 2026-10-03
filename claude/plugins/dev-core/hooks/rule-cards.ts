@@ -1,4 +1,5 @@
 import type { EngineInterface, On } from 'claude-code'
+import { setInteractive } from './blast-radius'
 
 // One small rule card, injected next to the tool call it is about. The always-on rules
 // land at turn 0 and their pull fades by turn 40; a card arrives beside the action.
@@ -55,6 +56,8 @@ async function load($: EngineInterface) {
 
 export function registerRuleCards(on: On) {
   on('session.start', async ($, e, next) => {
+    // One session.start per module, so this one also tells blast-radius whether anyone can answer.
+    setInteractive(e.isInteractive)
     await load($)
 
     return next(e)
