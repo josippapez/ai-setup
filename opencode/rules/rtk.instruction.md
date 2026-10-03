@@ -6,7 +6,7 @@ description: How the rtk token-optimizing proxy rewrites bash commands, and the 
 
 # RTK — Rust Token Killer
 
-`plugins/rtk.ts` intercepts every bash/shell call and runs `rtk rewrite <command>`, so commands are
+`plugins/rtk/index.ts` intercepts every bash/shell call and runs `rtk rewrite <command>`, so commands are
 transparently token-optimized: `git status` → `rtk git status`, `cat f` → `rtk read f`,
 `grep` → `rtk grep`, `rg` → `rtk rg`, `find` → `rtk find`, `ls` → `rtk ls`. Heredocs, `sed`, and
 multi-line blocks are left alone. Verified against rtk 0.45.0. If `rtk` is not on PATH the plugin

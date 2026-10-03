@@ -21,6 +21,18 @@ mkdir -p "$DEST" "$DEST/agents" "$DEST/commands" "$DEST/plugins" "$DEST/rules" "
 
 cp "$SRC/env.sh" "$DEST/env.sh"
 
+# V2 discovers AGENTS.md, not the V1 instructions globs. Keep the source-owned
+# rule files modular while publishing one active global instruction file.
+{
+  printf '%s\n\n' '# OpenCode global instructions' '<!-- Generated from ai-setup/opencode/rules. -->'
+  for rule in "$SRC"/rules/*.md "$SRC"/rules/concise-output/*.md; do
+    [ -f "$rule" ] || continue
+    printf '\n<!-- %s -->\n\n' "$(basename "$rule")"
+    cat "$rule"
+    printf '\n'
+  done
+} > "$DEST/AGENTS.md"
+
 # Keep these variables literal so they resolve when the user's profile loads.
 # shellcheck disable=SC2016
 env_source_line='[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/env.sh" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/env.sh"'
@@ -43,10 +55,11 @@ node -e '
   for (const file of [destinationPath, claudePath]) {
     try {
       const previous = JSON.parse(fs.readFileSync(file, "utf8"));
-      const value = previous.mcp?.["Framelink Figma"]?.environment?.FIGMA_API_KEY
+      const value = previous.mcp?.servers?.["Framelink Figma"]?.environment?.FIGMA_API_KEY
+        || previous.mcp?.["Framelink Figma"]?.environment?.FIGMA_API_KEY
         || previous.mcpServers?.["Framelink Figma"]?.env?.FIGMA_API_KEY;
       if (value && !value.startsWith("{env:")) {
-        config.mcp["Framelink Figma"].environment.FIGMA_API_KEY = value;
+        config.mcp.servers["Framelink Figma"].environment.FIGMA_API_KEY = value;
         break;
       }
     } catch {}
