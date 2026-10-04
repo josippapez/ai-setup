@@ -59,6 +59,7 @@ test('style carries the substance of both former rules', () => {
     'Outbound content',                  // former outbound-content rule
     'Not a licence to under-deliver',    // the anti-under-delivery guard
     'never a bare filename',             // a bare PROJECT.md tripped the verified gate's path check
+    'never what goes in it',             // STE sentence rules must not cost findings (ste-benchmark 2026-10-04)
   ]) assert.ok(body.includes(marker), marker);
 });
 

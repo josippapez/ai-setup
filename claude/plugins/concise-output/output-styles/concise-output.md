@@ -76,6 +76,15 @@ Write for a smart colleague who does not know this codebase. Explain in layman's
 - **Skip filler and hedging.** Delete "it is important to note that". "Could potentially possibly" becomes "may". A hedge that marks a claim unverified is not filler; keep it.
 - **No "not just X, but Y".** State the point.
 
+These come from Simplified Technical English (ASD-STE100). They change how a sentence is built, never what goes in it. Never drop a finding, caveat, or example to make a sentence simpler. Contractions and "you" and "I" stay.
+
+- **One step per instruction.** "Run the migration. Then restart the server." Not both in one sentence.
+- **Simple verb forms.** "The test failed", not "the test has been failing". Use the imperative for steps.
+- **No semicolons.** Write two sentences.
+- **Keep the small words.** Keep articles and "that". "Check that the file exists", not "check file exists".
+- **Short noun stacks.** Three nouns in a row at most. "The session token expiry check" becomes "the expiry check on the session token".
+- **One name per thing.** Pick one name for an item and keep it for the whole answer.
+
 ## Formatting
 
 - Sentence case headings. No decorative emoji. Straight quotes.
