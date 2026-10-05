@@ -283,7 +283,7 @@ const main = async () => {
     : buildEvidence(ev0.transcript_path, session);
   evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
   pruneStale(evidence);
-  const { unbacked, residualText } = classify(answer, evidence);
+  const { unbacked, notes, residualText } = classify(answer, evidence);
 
   const all = unbacked.concat(judge(residualText, evidence));
   const spans = new Set(all.map((c) => c.span));
@@ -313,8 +313,16 @@ const main = async () => {
     },
   };
 
+  // Shown to the person, not sent back to the model: systemMessage ends the turn
+  // as normal, where a Stop additionalContext would start another round.
+  const noteMsg = notes.length
+    ? `verified: not found on this machine: ${notes.map((c) => c.span).join(', ')}`
+    : undefined;
+  const noted = notes.map(({ class: cls, span }) => ({ class: cls, span }));
+
   if (all.length === 0) {
-    ledger.append({ ...node, claims: [], action: 'pass' });
+    ledger.append({ ...node, claims: [], ...(noted.length ? { notes: noted, action: 'note' } : { action: 'pass' }) });
+    if (noteMsg) process.stdout.write(JSON.stringify({ systemMessage: noteMsg }));
     return;
   }
 
@@ -344,6 +352,7 @@ const main = async () => {
   ledger.append({
     ...node,
     claims: all.map(({ class: cls, span }) => ({ class: cls, span })),
+    ...(noted.length ? { notes: noted } : {}),
     decided_by: unbacked.length ? 'stage2' : 'stage3',
     action: stuck ? 'flag' : 'block',
   });
@@ -361,6 +370,7 @@ const main = async () => {
   }
 
   process.stdout.write(JSON.stringify({
+    ...(noteMsg ? { systemMessage: noteMsg } : {}),
     decision: 'block',
     reason:
       `verified: your answer asserts ${all.length} thing${all.length > 1 ? 's' : ''} nothing in ` +

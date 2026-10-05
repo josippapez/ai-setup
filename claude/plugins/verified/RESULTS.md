@@ -114,6 +114,52 @@ memory notes), gitignored `.orchestration` epics, and sibling repos. None of
 the 10 still unknown is clearly made up: temp scripts written by heredoc, an
 elided `...Factory.cs`, a file fetched from GitHub, a regex fragment.
 
+## Held-out split (2026-10-05)
+
+Sessions now split about 70/30 by a hash of the session id (`hooks/split.cjs`).
+The pinned corpus replays 2242 turns from 316 sessions today, out of 596 pinned
+worlds: the rest of the transcripts are gone from disk.
+
+| source | train V | test V | test 95% CI |
+|---|---|---|---|
+| corpus | 180.4 (201 sessions) | 117.2 (115 sessions) | 53.0 to 192.2 |
+
+Re-scoring the last eight claim-pattern commits, each against its parent, under
+today's labeller: five come out `REJECT` on corpus and five on the live ledger.
+Only the printed-name skip (`94471eb`) clears the new rule with a real gain:
+ledger train +368.6 and test +65.3, interval 20.5 to 120.3. Every rejected case
+moved fewer than 10 sessions on a side, and three moved none on test. That says more about the labeller than the split, as the next
+table shows.
+
+## Labeller agreement (2026-10-05)
+
+50 live blocks from train sessions (`hooks/gold.cjs`), labelled by hand. These
+are draft labels from a model reading each case, not yet confirmed by a person.
+
+| class | agree |
+|---|---|
+| path-missing | 24/25 (96%) |
+| url | 11/15 (73%) |
+| command-outcome | 4/10 (40%) |
+| all | 39/50 (78%) |
+
+The labeller calls 5 blocks a catch that the hand labels call wrong. On
+command-outcome, `truthLabel` scores every resolved block a catch, so it can't
+tell a missing test run from a mention ("checks for 'the tests pass' with no
+test run"), from a subagent's result that was reported as such, or from a recap
+of an earlier step.
+
+## Path-missing as a note (2026-10-05)
+
+| | blocks | V | path catch / fp |
+|---|---|---|---|
+| ledger, path blocks | 221 of 4202 | 69.3 | 116.8 / 56.2 |
+| ledger, path notes | 85 of 4202 | 42.8 | 0 / 0 |
+| corpus, path blocks | 523 of 2242 | 297.5 | |
+| corpus, path notes | 160 of 2242 | 92.0 | |
+
+The split rule says `REJECT` on both sources, and the change shipped as an override (README). The 116.8 ledger catches split into 5.0 from blocks with a recorded outcome (against 26.0 wrong blocks) and 111.8 from the fixed per-flag credit.
+
 ## Targets once live
 
 Precision (resolved blocks / all blocks) ≥ 0.9. Block rate ≤ 0.1. Replay puts

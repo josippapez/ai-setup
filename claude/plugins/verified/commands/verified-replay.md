@@ -32,10 +32,11 @@ node "${CLAUDE_PLUGIN_ROOT}/hooks/replay.cjs" --pin
 
 Pinning is append-only: re-running admits new sessions and never drops old ones.
 
-The scorer prints `SHIP` when the candidate scores at least as well as the config
-in place and `REJECT` otherwise. Report which it was and the two scores. On
-`REJECT`, do not apply the change: the current configuration stays, which is the
-whole point of the check.
+The scorer prints one verdict: `SHIP`, `REJECT` (a split scores worse), `OVERFIT`
+(train gains, held-out test sessions stay flat) or `NOISE` (the test gain's 95%
+interval reaches zero). Report the verdict, the train and test deltas, and the
+interval. On anything but `SHIP`, do not apply the change: the current
+configuration stays, which is the whole point of the check.
 
 Read the numbers back as: `catches` are blocks where the flagged claim actually
 changed on the next turn, `false-positives` are blocks where it came back

@@ -69,6 +69,8 @@ const blocked = (r) => !!r && r.decision === 'block';
 const reason = (r) => (r && r.reason) || '';
 
 const WITH_PATH = { VERIFIED_CONFIG: '{"path":true}' };
+// path-missing is a note by default; these tests check its detection through a block.
+const PM_BLOCKS = { VERIFIED_CONFIG: '{"pathMissingBlocks":true}' };
 
 test('a file that is there but was never read does not block by default', () => {
   const fx = fixture();
@@ -90,17 +92,36 @@ test('a claim about a file that is not there blocks as fiction', () => {
   const fx = fixture();
   // Nothing written: the manifest has nothing to say about a path that does not
   // exist, which is exactly the claim it could never catch before.
-  const r = run(fx, 'The config lives at src/nope.ts:42.');
+  const r = run(fx, 'The config lives at src/nope.ts:42.', [], 's1', PM_BLOCKS);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
   assert.match(reason(r), /another one \(an SSH host/);
+});
+
+test('a missing path is shown as a note, not sent back', () => {
+  const fx = fixture();
+  const r = run(fx, 'The config lives at src/nope.ts:42.', [], 'pm1');
+  assert.ok(!blocked(r));
+  assert.match(r.systemMessage, /not found on this machine: src\/nope\.ts:42/);
+  const node = JSON.parse(fs.readFileSync(path.join(fx.home, 'ledger.jsonl'), 'utf8').trim().split('\n').pop());
+  assert.strictEqual(node.action, 'note');
+  assert.deepStrictEqual(node.notes, [{ class: 'path-missing', span: 'src/nope.ts:42' }]);
+});
+
+test('a block on another claim leaves the missing path out of the rewrite', () => {
+  const fx = fixture();
+  const r = run(fx, 'The config lives at src/nope.ts:42, per https://example.com/docs/x.', [], 'pm2');
+  assert.ok(blocked(r));
+  assert.match(reason(r), /\[url\]/);
+  assert.doesNotMatch(reason(r), /path-missing/);
+  assert.match(r.systemMessage, /src\/nope\.ts:42/);
 });
 
 test('a block asks for the answer rewritten, not a reply to the gate', () => {
   const fx = fixture();
   // Models answered the note ("The path I gave is relative to...") instead of
   // re-sending a corrected answer, leaving the user a fragment.
-  const r = run(fx, 'The config lives at src/nope.ts:42.');
+  const r = run(fx, 'The config lives at src/nope.ts:42.', [], 's1', PM_BLOCKS);
   assert.match(reason(r), /replaces your previous answer/);
   assert.match(reason(r), /Do not reply to this note/);
 });
@@ -117,7 +138,7 @@ test('reading a file does not excuse it having been deleted', () => {
   const fx = fixture();
   const r = run(fx, 'The config lives at src/gone.ts:42.', [
     { name: 'Read', input: { file_path: path.join(fx.home, 'src/gone.ts') } },
-  ]);
+  ], 's1', PM_BLOCKS);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
   assert.match(reason(r), /keep the reference and correct it/);
@@ -303,7 +324,7 @@ test('a malformed transcript fails open rather than taking the turn down', () =>
 
 test('the ledger records a node that replay can score', () => {
   const fx = fixture();
-  run(fx, 'The config lives at src/db.ts:42.', [], 'led');
+  run(fx, 'The config lives at src/db.ts:42.', [], 'led', PM_BLOCKS);
   const nodes = fs.readFileSync(path.join(fx.home, 'ledger.jsonl'), 'utf8')
     .trim().split('\n').map((l) => JSON.parse(l));
   assert.strictEqual(nodes.length, 1);
@@ -352,6 +373,79 @@ test('replay rejects a candidate that scores worse', () => {
   }
   assert.match(out, /REJECT/);
   assert.strictEqual(code, 1, 'a rejected candidate exits non-zero so a script cannot ship it by accident');
+});
+
+// ---- held-out split ---------------------------------------------------------
+
+test('a session lands on the same side of the split every time, about 30% held out', () => {
+  const { splitOf } = require('./split.cjs');
+  const ids = Array.from({ length: 2000 }, (_, i) => `session-${i}`);
+  const first = ids.map(splitOf);
+  assert.deepStrictEqual(ids.map(splitOf), first);
+  const share = first.filter((s) => s === 'test').length / ids.length;
+  assert.ok(share > 0.27 && share < 0.33, `test share ${share}`);
+});
+
+test('the ship rule rejects a train-only gain and a gain inside the noise', () => {
+  const { verdict } = require('./split.cjs');
+  const d = (o) => ({ train: 0, test: 0, movedTrain: 0, movedTest: 0, ciTest: [0, 0], ...o });
+  assert.strictEqual(verdict(d({})).word, 'SHIP', 'nothing moved is the old no-regress pass');
+  assert.strictEqual(verdict(d({ train: 5, movedTrain: 3, test: -1, movedTest: 1, ciTest: [-2, 0] })).word, 'REJECT');
+  assert.strictEqual(verdict(d({ train: 5, movedTrain: 3 })).word, 'OVERFIT', 'no held-out session exercised it');
+  assert.strictEqual(verdict(d({ train: 5, movedTrain: 3, movedTest: 2 })).word, 'OVERFIT', 'held-out sessions moved but net flat');
+  assert.strictEqual(verdict(d({ train: 5, movedTrain: 3, test: 1, movedTest: 1, ciTest: [0, 2] })).word, 'NOISE');
+  assert.strictEqual(verdict(d({ train: 5, movedTrain: 3, test: 4, movedTest: 6, ciTest: [1, 7] })).word, 'SHIP');
+});
+
+test('the noise interval comes from resampling sessions, and is wider for fewer', () => {
+  const { interval } = require('./split.cjs');
+  const many = Array.from({ length: 200 }, (_, i) => (i % 2 ? 1 : -1) + 0.1);
+  const few = many.slice(0, 20);
+  const [a, b] = interval(many);
+  assert.ok(a < 20 && b > 20, `sum 20 should sit inside [${a}, ${b}]`);
+  const [c, d] = interval(few);
+  assert.ok(d - c < b - a, 'fewer sessions resample a smaller sum, so the absolute interval is narrower');
+  assert.deepStrictEqual(interval(many), [a, b], 'seeded, so the same input prints the same interval');
+});
+
+test('the review page embeds case text with $ sequences intact', () => {
+  const fx = fixture();
+  // A real case: "The hook dropped the `$`" holds $`, which String.replace expands.
+  const cases = [{ id: 'a', class: 'path-missing', span: '$tenantId.tsx', answer: 'The hook dropped the `$` and $& too.', rewrite: '', labeller: 'fp', draft: 'fp', gold: null, note: '' }];
+  fs.writeFileSync(path.join(fx.home, 'gold.json'), JSON.stringify(cases));
+  execFileSync('node', [path.join(__dirname, 'gold.cjs'), '--page'], { env: { ...process.env, VERIFIED_HOME: fx.home } });
+  const html = fs.readFileSync(path.join(fx.home, 'gold-review.html'), 'utf8');
+  assert.strictEqual((html.match(/<!doctype/gi) || []).length, 1, 'the page must not be spliced into itself');
+  const json = html.slice(html.indexOf('const CASES = ') + 14, html.indexOf(';\nconst KINDS'));
+  assert.strictEqual(JSON.parse(json)[0].answer, cases[0].answer);
+});
+
+test('agreement compares hand labels with the labeller', () => {
+  const fx = fixture();
+  const cases = [
+    { id: 'x|1|a', class: 'url', span: 'a', labeller: 'catch', draft: 'fp', gold: null },
+    { id: 'x|2|b', class: 'url', span: 'b', labeller: 'fp', draft: 'fp', gold: 'fp' },
+  ];
+  fs.writeFileSync(path.join(fx.home, 'gold.json'), JSON.stringify(cases));
+  const out = execFileSync('node', [path.join(__dirname, 'gold.cjs'), '--agreement'], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+  assert.match(out, /2 labelled cases \(1 confirmed by a person, 1 draft only\)/);
+  assert.match(out, /all\s+agree 1\/2 \(50%\)/);
+});
+
+test('replay prints train and held-out scores', () => {
+  const fx = fixture();
+  const nodes = [];
+  for (let i = 0; i < 40; i += 1) {
+    nodes.push(JSON.stringify({
+      ts: new Date().toISOString(), session: `s${i}`, action: 'pass',
+      answer: 'Nothing to check here.',
+      evidence: { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 1, lastWrite: 0 },
+      claims: [],
+    }));
+  }
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), nodes.join('\n') + '\n');
+  const out = execFileSync('node', [REPLAY], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+  assert.match(out, /train V=0\.0 \(\d+ sessions\)\s+test V=0\.0 \(\d+ sessions, 95% CI/);
 });
 
 test('a sentence a pattern already handled is not also sent to the judge', () => {
@@ -417,7 +511,7 @@ test('an MCP tool call counts as external evidence', () => {
 test('a path the answer says gets created later is not flagged as missing', () => {
   const { classify } = require('./claim-patterns.cjs');
   const ev = { cwd: os.tmpdir(), paths: new Set(), printed: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false };
-  const classes = (text) => classify(text, ev).unbacked.map((u) => u.class);
+  const classes = (text) => { const r = classify(text, ev); return r.unbacked.concat(r.notes).map((u) => u.class); };
   assert.deepStrictEqual(classes('Entries go to `data/feedback.jsonl`, which gets created on the first write.'), []);
   assert.deepStrictEqual(classes('Run it once; `out/report.json` does not exist yet.'), []);
   assert.deepStrictEqual(classes('The settings live in `data/feedback.jsonl`.'), ['path-missing']);
@@ -520,7 +614,7 @@ test('a path in another repo resolves when the answer names that repo', () => {
   run('git', ['-C', other, 'add', '.']);
   const here = fs.mkdtempSync(path.join(os.tmpdir(), 'verified-here-'));
   const ev = { paths: new Set(), commands: [], searches: [], urls: new Set(), libLookup: false, cwd: here };
-  const cfg = { path: false, pathMissing: true };
+  const cfg = { path: false, pathMissing: true, pathMissingBlocks: true };
   assert.strictEqual(classify('It reads src/routes/info.tsx.', ev, cfg).unbacked.length, 1);
   assert.strictEqual(classify(`It reads src/routes/info.tsx in ${other}.`, ev, cfg).unbacked.length, 0);
 });
@@ -542,7 +636,7 @@ test('a path block is a catch only if the rewrite keeps the file', () => {
 
 test('a file or URL a tool printed is not blocked as missing or unfetched', () => {
   const fx = fixture();
-  assert.ok(blocked(run(fx, 'The rules are in docs/RTK.md.', [], 'pr1')));
+  assert.ok(blocked(run(fx, 'The rules are in docs/RTK.md.', [], 'pr1', PM_BLOCKS)));
   const fx2 = fixture();
   assert.strictEqual(run(fx2, 'The rules are in docs/RTK.md.', [
     { name: 'Bash', input: { command: 'ls ~/.claude' }, result: 'CLAUDE.md\nRTK.md\n' },
@@ -661,7 +755,7 @@ test('a block the gate resolved outscores the same block it did not', () => {
   const V = (resolved) => {
     const fx = fixture();
     fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), nodes(resolved));
-    const out = execFileSync('node', [REPLAY], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+    const out = execFileSync('node', [REPLAY], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home, ...PM_BLOCKS } });
     return Number(out.match(/V=\s*(-?[\d.]+)/)[1]);
   };
   // The recorded outcome is the only label here that is not a proxy, so it has
@@ -689,7 +783,7 @@ test('a quoted phrase is not an outcome claim', () => {
 test('using a placeholder-shaped name unquoted is still a claim', () => {
   const fx = fixture();
   // lib/a.cjs is an ordinary filename, and an unquoted src/nope.ts is asserted.
-  const r = run(fx, 'The bug is in src/nope.ts:12.');
+  const r = run(fx, 'The bug is in src/nope.ts:12.', [], 's1', PM_BLOCKS);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
 });
@@ -725,7 +819,7 @@ test('a path introduced as an example is a mention, not a claim', () => {
 
 test('an example marker on one use does not excuse an unmarked use', () => {
   const fx = fixture();
-  const r = run(fx, 'Names like e.g. src/nope.ts are fine, but the bug is in src/nope.ts:12.');
+  const r = run(fx, 'Names like e.g. src/nope.ts are fine, but the bug is in src/nope.ts:12.', [], 's1', PM_BLOCKS);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
 });

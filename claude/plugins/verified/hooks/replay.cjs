@@ -17,12 +17,16 @@
 //   node replay.cjs --corpus              score the current config
 //   node replay.cjs --corpus --sweep      score every candidate, enforce no-regress
 //   node replay.cjs --candidate <file>    score a forked claim-patterns against current
+//
+// Every score is also split into train and held-out test sessions (split.cjs).
+// Design rules from train flags only; the ship rule reads both sides.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const ledger = require('./ledger.cjs');
 const corpus = require('./corpus.cjs');
 const labels = require('./labels.cjs');
+const split = require('./split.cjs');
 const { CONFIG } = require('./claim-patterns.cjs');
 
 const arg = (name, dflt) => {
@@ -71,9 +75,12 @@ function score(worlds, classify, cfg) {
 
   let caught = 0, fp = 0, unknown = 0, blocked = 0, clean = 0;
   const byClass = {};
+  // Each world's share of V, so the split and the bootstrap can regroup it.
+  const per = new Float64Array(worlds.length);
   worlds.forEach((w, i) => {
     if (!flags[i].length) { clean += 1; return; }
     blocked += 1;
+    per[i] = -B2;
     const found = seen.get(i) || new Map();
     for (const f of flags[i]) {
       // A block the gate actually issued has a recorded outcome, which is the
@@ -83,16 +90,17 @@ function score(worlds, classify, cfg) {
         ? labels.truthLabel(f, w, t)
         : labels.label(f, w, found.get(f.span.replace(/:\d+$/, '')), found.testPassSeqs);
       caught += v.c; fp += v.e; unknown += v.u;
+      per[i] += v.c - B1 * v.e;
       byClass[f.class] = byClass[f.class] || { caught: 0, fp: 0, unknown: 0 };
       byClass[f.class].caught += v.c; byClass[f.class].fp += v.e; byClass[f.class].unknown += v.u;
     }
   });
-  return { V: caught - B1 * fp - B2 * blocked, caught, fp, unknown, blocked, clean, byClass };
+  return { V: caught - B1 * fp - B2 * blocked, caught, fp, unknown, blocked, clean, byClass, per };
 }
 
 // One line per scored run, aggregates only, so the trajectory of V survives the
 // session that measured it. No answer text, so it is safe to copy anywhere.
-function record(mode, turns, s) {
+function record(mode, turns, s, halves) {
   let version = null;
   try { version = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8')).version; } catch { /* unversioned checkout */ }
   const lock = corpus.readLock();
@@ -102,6 +110,7 @@ function record(mode, turns, s) {
     config: CONFIG,
     V: Number(s.V.toFixed(1)), caught: Number(s.caught.toFixed(1)), fp: Number(s.fp.toFixed(1)),
     unknown: s.unknown, blocked: s.blocked, total: s.blocked + s.clean,
+    train: Number(halves.train.toFixed(1)), test: Number(halves.test.toFixed(1)),
     byClass: Object.fromEntries(Object.entries(s.byClass).map(([k, v]) => [k, { caught: Number(v.caught.toFixed(1)), fp: Number(v.fp.toFixed(1)), unknown: v.unknown }])),
   };
   try {
@@ -112,6 +121,13 @@ function record(mode, turns, s) {
 
 // Block rate is printed next to V because V alone does not see it: a policy that
 // flags half the session can still score well, and would be muted within a day.
+const halvesLine = (h) =>
+  `train V=${h.train.toFixed(1)} (${h.nTrain} sessions)  test V=${h.test.toFixed(1)} (${h.nTest} sessions, 95% CI ${h.ciTest[0].toFixed(1)} to ${h.ciTest[1].toFixed(1)})`;
+
+const deltaLine = (d) =>
+  `delta: train ${d.train >= 0 ? '+' : ''}${d.train.toFixed(1)} (${d.movedTrain} sessions moved)  ` +
+  `test ${d.test >= 0 ? '+' : ''}${d.test.toFixed(1)} (${d.movedTest} moved, 95% CI ${d.ciTest[0].toFixed(1)} to ${d.ciTest[1].toFixed(1)})`;
+
 const fmt = (s) =>
   `V=${s.V.toFixed(1).padStart(8)}  caught=${s.caught.toFixed(0).padStart(4)}  fp=${s.fp.toFixed(0).padStart(4)}  unknown=${String(s.unknown).padStart(5)}  blocks=${String(s.blocked).padStart(4)}/${s.blocked + s.clean} (${(100 * s.blocked / Math.max(1, s.blocked + s.clean)).toFixed(1)}%)`;
 
@@ -133,6 +149,64 @@ function candidates() {
   out.push({ name: 'NOTHING (no gate at all)', cfg: { path: false, outcome: false, absence: false, version: false, url: false, pathMissing: false } });
   out.push({ name: 'NOISE (every class, no filters)', cfg: { version: true, absence: true, pathRequiresSlash: false } });
   return out;
+}
+
+// The gate's own ledger as replay worlds.
+function ledgerWorlds() {
+  // `final` used to be a copy of `ev`, which made resolvedLater structurally
+  // false in this mode: every "did the evidence show up later" test compared
+  // the manifest against itself. The session's end-state manifest is the
+  // record that answers it, and it is already on disk.
+  const nodes = ledger.read();
+  // The rewrite after a block is the session's next node.
+  const nextAnswer = new Map();
+  const lastOf = new Map();
+  for (const n of nodes) {
+    const prev = lastOf.get(n.session);
+    if (prev) nextAnswer.set(prev, n.answer);
+    lastOf.set(n.session, n);
+  }
+  // Basenames of every blocked path, looked up once per session in its tool output.
+  const wanted = new Map();
+  for (const n of nodes) {
+    if (n.action !== 'block') continue;
+    for (const c of n.claims || []) {
+      if (c.class !== 'path-missing' && c.class !== 'url') continue;
+      if (!wanted.has(n.session)) wanted.set(n.session, new Set());
+      wanted.get(n.session).add(c.class === 'url' ? c.span : path.basename(c.span.replace(/:\d+$/, '')));
+    }
+  }
+  const seenOutput = new Map([...wanted].map(([s, w]) => [s, corpus.seenInSession(s, w)]));
+  return nodes
+    .filter((n) => n.answer && n.evidence)
+    .map((n) => {
+      const ev = {
+        paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
+        searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
+        libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0, lastWrite: n.evidence.lastWrite || 0,
+        testOut: n.evidence.testOut || 0,
+        // classify reads cwd off the manifest, not off the world, because the
+        // live hook only ever hands it a manifest.
+        cwd: n.evidence.cwd || '',
+        // Names printed before this answer, since nodes do not store them.
+        printed: new Set([...(seenOutput.get(n.session) || new Map())]
+          .filter(([, at]) => at < Date.parse(n.ts)).map(([w]) => w)),
+      };
+      const m = ledger.readManifest(n.session);
+      const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;
+      // resolved=true means none of the blocked spans came back, so the model
+      // went and fixed the claim. resolved=false means it came back unchanged,
+      // which is the gate having been wrong.
+      const truth = {};
+      if (n.action === 'block' && typeof n.resolved === 'boolean') {
+        for (const c of n.claims || []) truth[c.span] = n.resolved;
+      }
+      return {
+        answer: n.answer, ev, final, truth, nextAnswer: nextAnswer.get(n), seenOutput: seenOutput.get(n.session),
+        nextUser: '', idx: 0, cwd: n.evidence.cwd || '', ageDays: 0,
+        file: null, bytes: 0, group: n.session, ts: n.ts,
+      };
+    });
 }
 
 function main() {
@@ -157,60 +231,7 @@ function main() {
       : `replayed ${worlds.length} turns from the ${n} most recent transcripts, zero re-execution\n` +
         'WARNING: the history is not pinned, so a winner here can lose on the next draw. Run --pin first.\n');
   } else {
-    // `final` used to be a copy of `ev`, which made resolvedLater structurally
-    // false in this mode: every "did the evidence show up later" test compared
-    // the manifest against itself. The session's end-state manifest is the
-    // record that answers it, and it is already on disk.
-    const nodes = ledger.read();
-    // The rewrite after a block is the session's next node.
-    const nextAnswer = new Map();
-    const lastOf = new Map();
-    for (const n of nodes) {
-      const prev = lastOf.get(n.session);
-      if (prev) nextAnswer.set(prev, n.answer);
-      lastOf.set(n.session, n);
-    }
-    // Basenames of every blocked path, looked up once per session in its tool output.
-    const wanted = new Map();
-    for (const n of nodes) {
-      if (n.action !== 'block') continue;
-      for (const c of n.claims || []) {
-        if (c.class !== 'path-missing' && c.class !== 'url') continue;
-        if (!wanted.has(n.session)) wanted.set(n.session, new Set());
-        wanted.get(n.session).add(c.class === 'url' ? c.span : path.basename(c.span.replace(/:\d+$/, '')));
-      }
-    }
-    const seenOutput = new Map([...wanted].map(([s, w]) => [s, corpus.seenInSession(s, w)]));
-    worlds = nodes
-      .filter((n) => n.answer && n.evidence)
-      .map((n) => {
-        const ev = {
-          paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
-          searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
-          libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0, lastWrite: n.evidence.lastWrite || 0,
-          testOut: n.evidence.testOut || 0,
-          // classify reads cwd off the manifest, not off the world, because the
-          // live hook only ever hands it a manifest.
-          cwd: n.evidence.cwd || '',
-          // Names printed before this answer, since nodes do not store them.
-          printed: new Set([...(seenOutput.get(n.session) || new Map())]
-            .filter(([, at]) => at < Date.parse(n.ts)).map(([w]) => w)),
-        };
-        const m = ledger.readManifest(n.session);
-        const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;
-        // resolved=true means none of the blocked spans came back, so the model
-        // went and fixed the claim. resolved=false means it came back unchanged,
-        // which is the gate having been wrong.
-        const truth = {};
-        if (n.action === 'block' && typeof n.resolved === 'boolean') {
-          for (const c of n.claims || []) truth[c.span] = n.resolved;
-        }
-        return {
-          answer: n.answer, ev, final, truth, nextAnswer: nextAnswer.get(n), seenOutput: seenOutput.get(n.session),
-          nextUser: '', idx: 0, cwd: n.evidence.cwd || '', ageDays: 0,
-          file: null, bytes: 0,
-        };
-      });
+    worlds = ledgerWorlds();
     if (worlds.length < 20) {
       console.log(`The ledger holds ${worlds.length} replayable nodes, too few to score a change.`);
       console.log('Use --corpus to replay over real transcripts instead.');
@@ -220,8 +241,10 @@ function main() {
   }
 
   const current = score(worlds, classify, {});
-  record(useCorpus ? 'corpus' : 'ledger', worlds.length, current);
+  const halves = split.summarize(worlds, current.per);
+  record(useCorpus ? 'corpus' : 'ledger', worlds.length, current, halves);
   console.log(`current    ${fmt(current)}`);
+  console.log(`           ${halvesLine(halves)}`);
   for (const [k, v] of Object.entries(current.byClass).sort((a, b) => b[1].caught - a[1].caught)) {
     console.log(`             ${k.padEnd(16)} caught ${v.caught.toFixed(0).padStart(4)}  fp ${v.fp.toFixed(0).padStart(4)}  unknown ${String(v.unknown).padStart(5)}`);
   }
@@ -231,30 +254,44 @@ function main() {
     delete require.cache[require.resolve(path.resolve(candidatePath))];
     const alt = require(path.resolve(candidatePath)).classify;
     const cand = score(worlds, alt, {});
+    const d = split.compare(worlds, current.per, cand.per);
+    const v = split.verdict(d);
     console.log(`\ncandidate  ${fmt(cand)}`);
-    console.log(cand.V >= current.V
-      ? `\nSHIP. ${cand.V.toFixed(1)} >= ${current.V.toFixed(1)}, so the no-regress bound holds.`
-      : `\nREJECT. ${cand.V.toFixed(1)} < ${current.V.toFixed(1)}. The current config stays.`);
-    if (cand.V < current.V) process.exitCode = 1;
+    console.log(`           ${deltaLine(d)}`);
+    console.log(v.ship
+      ? `\nSHIP. ${v.why}. V ${cand.V.toFixed(1)} vs ${current.V.toFixed(1)}.`
+      : `\n${v.word}. ${v.why}. V ${cand.V.toFixed(1)} vs ${current.V.toFixed(1)}. The current config stays.`);
+    if (!v.ship) process.exitCode = 1;
     return;
   }
 
   if (!process.argv.includes('--sweep')) return;
 
   console.log('\n--- dreaming over candidate policies ---');
-  const scored = candidates().map((c) => ({ ...c, s: score(worlds, classify, c.cfg) }));
-  scored.sort((a, b) => b.s.V - a.s.V);
-  for (const c of scored) console.log(`${c.name.padEnd(34)} ${fmt(c.s)}`);
+  // Ranked by train V only: picking the winner on test would spend the held-out set.
+  const scored = candidates().map((c) => {
+    const s = score(worlds, classify, c.cfg);
+    return { ...c, s, h: split.summarize(worlds, s.per) };
+  });
+  scored.sort((a, b) => b.h.train - a.h.train);
+  for (const c of scored) console.log(`${c.name.padEnd(34)} ${fmt(c.s)}  train=${c.h.train.toFixed(1)} test=${c.h.test.toFixed(1)}`);
 
   const best = scored[0];
   const base = scored.find((c) => c.name.startsWith('current'));
   console.log();
-  if (best.name === base.name) {
-    console.log(`No candidate beat the current config (V=${base.s.V.toFixed(1)}). Nothing ships.`);
+  if (best.name === base.name || best.h.train <= base.h.train) {
+    console.log(`No candidate beat the current config on train (train V=${base.h.train.toFixed(1)}). Nothing ships.`);
   } else {
-    console.log(`BEST: ${best.name}  V=${best.s.V.toFixed(1)} vs current ${base.s.V.toFixed(1)}  (+${(best.s.V - base.s.V).toFixed(1)})`);
-    console.log('Apply by editing CONFIG in claim-patterns.cjs, then re-run to confirm.');
+    const d = split.compare(worlds, base.s.per, best.s.per);
+    const v = split.verdict(d);
+    console.log(`BEST on train: ${best.name}`);
+    console.log(deltaLine(d));
+    console.log(v.ship
+      ? `SHIP. ${v.why}. Apply by editing CONFIG in claim-patterns.cjs, then re-run to confirm.`
+      : `${v.word}. ${v.why}. Nothing ships.`);
   }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { score, ledgerWorlds };

@@ -10,7 +10,7 @@ The hook reads the session transcript, builds a list of what actually ran, and m
 
 | Class | Fires on | Backed by | State |
 |---|---|---|---|
-| `path-missing` | a file path | a tool having printed the file's name this session, or the file existing on this machine: from cwd, the git root, the tracked-file list, or the repo of any folder the answer names by `~/` or `/` path | on |
+| `path-missing` | a file path | a tool having printed the file's name this session, or the file existing on this machine: from cwd, the git root, the tracked-file list, or the repo of any folder the answer names by `~/` or `/` path | note: shown to you, never sent back (`pathMissingBlocks: false`) |
 | `command-outcome` | "tests pass", "build succeeds", "it works" | a clean test/build/lint run after the last file write | on |
 | `url` | a cited URL | a tool having printed that URL, WebFetch or WebSearch of that host, or an `agent-browser`, `curl` or `wget` command naming it | on |
 | `path` | a file path | a Read/Edit/codegraph of it | off |
@@ -35,7 +35,28 @@ node hooks/replay.cjs --corpus --sweep    # every single-knob candidate
 node hooks/replay.cjs --candidate <file>  # a forked claim-patterns.cjs vs current
 ```
 
-The score is `V = catches − false positives − 0.25 × blocked turns` (`hooks/replay.cjs:91`). A change ships only if V doesn't drop. This follows Dream-RSI (dream-rsi.com): the recorded history works as an exact simulator, the scorer (`hooks/labels.cjs`) stays fixed, and the current config is always one of the candidates. Don't tune `labels.cjs` to make a favoured config win. Change it only when you've looked at a labelled flag and shown it wrong.
+The score is `V = catches − false positives − 0.25 × blocked turns`. Sessions are split by a hash of their id, about 70% train and 30% held-out test (`hooks/split.cjs`), and every run prints V on each side with a 95% bootstrap interval over test sessions. A candidate gets one verdict:
+
+| Verdict | When |
+|---|---|
+| `REJECT` | V drops on train or on test |
+| `SHIP` | no session scores differently, or both sides gain and the test gain's interval stays above zero |
+| `OVERFIT` | train gains and test stays flat, including when no test session is affected |
+| `NOISE` | test gains, but its interval reaches zero |
+
+Only read flags from train sessions when you design a rule. Reading test flags spends the held-out set. `--sweep` ranks candidates by train V for the same reason. This follows Dream-RSI (dream-rsi.com): the recorded history works as an exact simulator, the scorer (`hooks/labels.cjs`) stays fixed, and the current config is always one of the candidates. Don't tune `labels.cjs` to make a favoured config win. Change it only when you've looked at a labelled flag and shown it wrong.
+
+### Checking the labeller
+
+`hooks/gold.cjs` checks the labeller against hand labels on real live blocks, drawn from train sessions only:
+
+```sh
+node hooks/gold.cjs --sample 50   # draw blocks into ~/.claude/verified/gold.json
+node hooks/gold.cjs --page        # write ~/.claude/verified/gold-review.html to label them
+node hooks/gold.cjs --agreement   # labeller vs the hand labels, per class
+```
+
+The page preselects each draft label. Change any you disagree with, download the file, and save it over `gold.json`. Both files carry answer text, so they stay in `~/.claude/verified/`.
 
 Scores per commit, the scorer's blind spots and the gap to the best possible score are in `RESULTS.md`.
 
@@ -53,6 +74,8 @@ On 2026-09-30 the user overrode the rule for three fixes whose removed blocks we
 | Bash `agent-browser`/`curl`/`wget` URLs count as fetched | 371.6 vs 398.1 |
 | `$param` and `(group)` route folders stay part of a path | 369.8 vs 371.6 |
 | A relative path is also looked up in the repos the answer names | 369.3 vs 369.8 |
+
+On 2026-10-05 the user overrode it again to make path-missing a note. Replay rejects it (ledger V 69.3 to 42.8, corpus 297.5 to 92.0), but 111.8 of the 116.8 path catches on the ledger are the fixed credit on flags the live gate never issued. On the 49 path blocks with a recorded outcome, the score was 5 catches to 26 wrong blocks, and the hand labels in `gold.json` have 1 right block in 25. The tradeoff was taken knowingly: about 1 real catch per 25 path blocks is lost.
 
 Overriding again needs the same evidence: every block the fix removes has to be a wrong block. Fixing the labeller so it can see these cases would end the need for overrides.
 

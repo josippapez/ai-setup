@@ -192,6 +192,10 @@ const CONFIG = {
   // is the only class that can catch a fabricated path, because a fabricated path
   // is exactly the one the manifest has nothing to say about.
   pathMissing: true,
+  // Off: a missing path is shown to the user as a note instead of sending the
+  // answer back. Hand-checked live path blocks (gold.json, 2026-10-05) were
+  // right 1 time in 25, and rewrites often dropped a real file to get past them.
+  pathMissingBlocks: false,
   url: true,
   // A basename match backs a claim when neither path is a suffix of the other.
   // Loose, and the replay is how we find out whether it pays for itself.
@@ -211,7 +215,8 @@ const BARE_EXT_RE = /^\.[A-Za-z]/;
 
 /**
  * Classify the answer's claims against what actually ran.
- * Returns { unbacked: [{class, span, needs}], residualText: string }
+ * Returns { unbacked: [{class, span, needs}], notes: [same shape], residualText: string }.
+ * `notes` are flags that are shown, not blocked on; replay only scores `unbacked`.
  */
 // The hook runs as its own process, so a test that wants to exercise a class the
 // replay turned off has no other way to reach the config.
@@ -328,7 +333,8 @@ function classify(answer, ev, cfg) {
     .filter((s) => !covered.some((c) => s.includes(c)))
     .join(' ');
 
-  return { unbacked, residualText: residual };
+  const notes = C.pathMissingBlocks ? [] : unbacked.filter((c) => c.class === 'path-missing');
+  return { unbacked: unbacked.filter((c) => !notes.includes(c)), notes, residualText: residual };
 }
 
 // What the session must actually have done for a claim of each kind to be backed.

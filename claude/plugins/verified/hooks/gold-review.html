@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate block review</title>
+<style>
+  :root { --bg: #fafaf9; --card: #fff; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --warn: #b45309; --mark: #fef3c7; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c0a09; --card: #1c1917; --fg: #f5f5f4; --muted: #a8a29e; --line: #292524; --warn: #f59e0b; --mark: #422006; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 96px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { color: var(--muted); margin: 0 0 16px; }
+  .bar { position: sticky; top: 0; background: var(--bg); padding: 8px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line); z-index: 1; }
+  button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+  .case { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+  .case.diff { border-color: var(--warn); }
+  .head { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+  .cls { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  code { font: 13px/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
+  .span { font-weight: 600; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .ctx { white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.45 ui-monospace, monospace; background: var(--bg); border-radius: 6px; padding: 8px; margin: 6px 0 0; max-height: 220px; overflow: auto; }
+  .ctx mark { background: var(--mark); color: inherit; }
+  .pick { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+  .pick label { cursor: pointer; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gate block review</h1>
+  <p class="lead">Each card is a real block from a train session. Pick what the block was: <b>catch</b> (the claim was wrong or unchecked), <b>fp</b> (the claim was fine, so the block was wrong), or <b>unknown</b>. The draft is preselected. Then download and save the file over <code>~/.claude/verified/gold.json</code>.</p>
+  <div class="bar">
+    <button id="dl">Download gold.json</button>
+    <label><input type="checkbox" id="only"> Only where my pick differs from the labeller</label>
+    <span id="count" class="meta"></span>
+  </div>
+  <div id="list"></div>
+</main>
+<script>
+const CASES = /*CASES*/[];
+const KINDS = ['catch', 'fp', 'unknown'];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hl = (text, span) => {
+  const base = span.replace(/:\d+(-\d+)?$/, '').split('/').pop();
+  let out = esc(text);
+  for (const n of [span, base]) if (n && out.includes(esc(n))) return out.split(esc(n)).join('<mark>' + esc(n) + '</mark>');
+  return out;
+};
+const pickOf = (c) => c.gold || c.draft || 'unknown';
+
+function render() {
+  const only = document.getElementById('only').checked;
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  let shown = 0;
+  CASES.forEach((c, i) => {
+    const diff = pickOf(c) !== c.labeller;
+    if (only && !diff) return;
+    shown += 1;
+    const el = document.createElement('div');
+    el.className = 'case' + (diff ? ' diff' : '');
+    el.innerHTML = `
+      <div class="head"><span class="cls">${esc(c.class)}</span><code class="span">${esc(c.span)}</code></div>
+      <div class="meta">labeller: <b>${esc(c.labeller)}</b> · draft: <b>${esc(c.draft || 'none')}</b> · claim came back after the block: ${c.resolved ? 'no' : 'yes'} · cwd <code>${esc(c.cwd || '')}</code></div>
+      ${c.note ? `<div class="meta">note: ${esc(c.note)}</div>` : ''}
+      <div class="ctx">${hl(c.answer, c.span)}</div>
+      <details><summary>next answer</summary><div class="ctx">${hl(c.rewrite || '(none)', c.span)}</div></details>
+      <div class="pick">${KINDS.map((k) => `<label><input type="radio" name="p${i}" value="${k}" ${pickOf(c) === k ? 'checked' : ''}> ${k}</label>`).join('')}</div>`;
+    el.querySelectorAll('input').forEach((r) => r.addEventListener('change', () => { c.gold = r.value; el.className = 'case' + (c.gold !== c.labeller ? ' diff' : ''); }));
+    list.appendChild(el);
+  });
+  document.getElementById('count').textContent = `${shown} of ${CASES.length} shown`;
+}
+
+document.getElementById('only').addEventListener('change', render);
+document.getElementById('dl').addEventListener('click', () => {
+  // Downloading confirms every card, including drafts left as they were.
+  const out = CASES.map((c) => ({ ...c, gold: pickOf(c) }));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+  a.download = 'gold.json';
+  a.click();
+});
+render();
+</script>
+</body>
+</html>
