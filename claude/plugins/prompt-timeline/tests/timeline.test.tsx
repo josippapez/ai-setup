@@ -1,4 +1,4 @@
-import { midTurnText } from '../hooks/register'
+import { midTurnText, promptOf, withPrompt } from '../hooks/register'
 import { expect, test } from 'claude-code/testing'
 
 const RUN = { origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } } as const
@@ -117,4 +117,23 @@ test('a message typed while a turn runs is read back out of its stored rendering
     '<system-reminder>\nThe user sent a new message while you were working:\ni have installed shadow mount+\n\nThis is how Claude Code surfaces messages the user sends mid-turn.'
   expect(midTurnText(rendered)).toBe('i have installed shadow mount+')
   expect(midTurnText('<system-reminder>\nsomething else')).toBe('')
+})
+
+test('a prompt the startup transcript read already listed is not added again', () => {
+  const listed = [{ id: 'u1', text: 'first prompt' }]
+  expect(withPrompt({ id: 'u1', text: 'first prompt' })(listed)).toEqual(listed)
+  expect(withPrompt({ id: 'u2', text: 'second' })(listed)).toEqual([...listed, { id: 'u2', text: 'second' }])
+})
+
+test('a message typed while a turn runs is saved from its queued_command delivery, already drawn', () => {
+  const rendering = [
+    { type: 'text', text: '<system-reminder>\nThe user sent a new message while you were working:\nDo i need to send a message?\n\nThis is how Claude Code surfaces messages the user sends mid-turn.' },
+  ]
+  expect(promptOf({ door: 'delivery', uuid: 'd1', message: { name: 'queued_command', content: rendering } })).toEqual({
+    id: 'd1',
+    text: 'Do i need to send a message?',
+    isDrawn: true,
+  })
+  expect(promptOf({ door: 'prompt', uuid: 'p1', message: { content: [{ type: 'text', text: 'hi' }] } })).toEqual({ id: 'p1', text: 'hi' })
+  expect(promptOf({ door: 'attachment', uuid: 'a1', message: { name: 'output_style', content: rendering } })).toBeUndefined()
 })

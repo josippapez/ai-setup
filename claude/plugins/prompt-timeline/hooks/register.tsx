@@ -32,8 +32,17 @@ const withTranscript = (stdout: string) => (seen: Prompt[]) => {
   })
   return [...merged, ...left]
 }
-// Texts of queued cards still waiting for their message to be stored.
-const waiting = new Set<string>()
+// The transcript read at session start can already hold a prompt stored while it ran.
+export const withPrompt = (prompt: Prompt) => (all: Prompt[]) =>
+  all.some(one => one.id === prompt.id) ? all : [...all, prompt]
+// A message typed while a turn runs comes in as a queued_command delivery, with only its rendering
+// on the event. Its row is drawn under the row's own id, so it is saved as drawn: the queue preview
+// drawn under another id with the same text must not take it over.
+export const promptOf = (e: { door: string; uuid: string; message: { name?: string; content: readonly { type: string }[] } }): Prompt | undefined => {
+  const text = e.door === 'prompt' ? textOf(e.message.content) : e.door === 'delivery' && e.message.name === 'queued_command' ? midTurnText(textOf(e.message.content)) : ''
+  if (!text.trim()) return undefined
+  return e.door === 'prompt' ? { id: e.uuid, text } : { id: e.uuid, text, isDrawn: true }
+}
 
 export const register: Register = on => {
   registerLook(on)
@@ -64,19 +73,8 @@ export const register: Register = on => {
   // Record each prompt as it is stored; its row id is the id the transcript draws it under.
   on('session.append', async ($, e, next) => {
     const stored = await next(e)
-    if (stored.deny === undefined && e.agentId === undefined) {
-      // A message typed while a turn runs is stored as an attachment, not a prompt; only its
-      // rendering is on the event, so the text is read back out of it.
-      const text = e.door === 'prompt' ? textOf(e.message.content) : e.door === 'attachment' ? midTurnText(textOf(e.message.content)) : ''
-      if (text.trim()) await update($, prompts, all => [...all, { id: stored.uuid, text }])
-      // A message sent mid-turn is filed as a queued_command row; while a card waits, each stored
-      // row reads the transcript again, which has that row whatever form the event took.
-      if (waiting.size > 0) {
-        const ran = await $.process.run(['node', `${$.plugin.root}/scripts/prompts.cjs`, await $.session.id()])
-        if (ran.exitCode === 0) await update($, prompts, withTranscript(ran.stdout))
-        for (const one of await read($, prompts)) waiting.delete(one.text.trim())
-      }
-    }
+    const prompt = stored.deny === undefined && e.agentId === undefined ? promptOf(e) : undefined
+    if (prompt) await update($, prompts, withPrompt(prompt))
 
     return stored
   })
@@ -106,7 +104,6 @@ export const register: Register = on => {
     // Every saved prompt is in the list (recorded on save, or read back from the transcript),
     // so a prompt row that is not there yet is still waiting in the queue.
     if (index < 0) {
-      waiting.add(text)
       return (
         <Box marginTop={1} marginRight={1} backgroundColor={PANEL}>
           <Box width={1} backgroundColor="gray" />
