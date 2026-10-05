@@ -7,8 +7,8 @@ Local semantic doc search and installed-package lookup for one repository, plus 
 ## Layout
 
 - `.mcp.json` — two servers:
-  - `repo-docs` (`runtime/`): `find_docs`, `list_docs`, `read_doc`, `find_libs`. Markdown conventions and installed packages.
-  - `codegraph`: the `codegraph serve --mcp` server from the globally installed CLI. One tool, `codegraph_explore` (`mcp__plugin_repo-docs_codegraph__codegraph_explore`): a symbol's verbatim source, its callers and callees, call paths, and blast radius in one call. Use it before renaming, moving, or changing the public API of anything. Shell equivalent: `codegraph explore "<query>"`.
+  - `repo-docs` (`runtime/`): `find_docs`, `list_docs`, `read_doc`, `find_libs`, `get_file_dependents`, `get_blast_radius`. Markdown conventions, installed packages, and which JS/TS files import a file (directly or transitively, resolving tsconfig `paths` aliases and workspace package names).
+  - `codegraph`: the `codegraph serve --mcp` server from the globally installed CLI. One tool, `codegraph_explore` (`mcp__plugin_repo-docs_codegraph__codegraph_explore`): a symbol's verbatim source, its callers and callees, call paths, and blast radius in one call. Use it to see how code works and who calls a symbol. Shell equivalent: `codegraph explore "<query>"`.
 - `hooks/` — dependency setup, index lifecycle.
 - `commands/` — `/reindex` and `/repo-docs-ignore`.
 
@@ -28,7 +28,7 @@ At the end of a turn that touched a Markdown file, the mod in `hooks/reindex.ts`
 
 ## Removed in 0.3.0
 
-The JS/TS-only dependency-graph tools (`get_file_dependencies`, `get_file_dependents`, `get_blast_radius`, `get_repository_index_status`) were replaced by CodeGraph, which covers the same question with call edges across 20+ languages. The proactive doc-pointer injection (UserPromptSubmit and PostToolBatch hooks) and the one-shot Grep/Glob reminder were removed after measuring 1,879 injections across 39 sessions with zero `read_doc` follow-ups.
+`get_file_dependents` and `get_blast_radius` came back in 0.5.0 after CodeGraph replaced them: on a measured impact task in a TypeScript monorepo, CodeGraph listed 9 of 16 affected files and `get_blast_radius` listed all 16. Use them for the file list before a move, rename, delete or API change. The proactive doc-pointer injection (UserPromptSubmit and PostToolBatch hooks) and the one-shot Grep/Glob reminder were removed after measuring 1,879 injections across 39 sessions with zero `read_doc` follow-ups.
 
 ## Reap on exit
 

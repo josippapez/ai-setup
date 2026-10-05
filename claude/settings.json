@@ -32,6 +32,8 @@
       "mcp__plugin_repo-docs_repo-docs__read_doc",
       "mcp__plugin_repo-docs_repo-docs__list_docs",
       "mcp__plugin_repo-docs_repo-docs__find_libs",
+      "mcp__plugin_repo-docs_repo-docs__get_file_dependents",
+      "mcp__plugin_repo-docs_repo-docs__get_blast_radius",
       "mcp__plugin_repo-docs_codegraph__codegraph_explore",
       "mcp__Framelink_Figma__get_figma_data",
       "mcp__figma__get_design_context",

@@ -10,7 +10,9 @@ This repo has a `.codegraph/` index: a pre-built graph of every symbol, call edg
 
 One call, `codegraph explore "<symbol names or question>"` in the shell (or the `codegraph_explore` MCP tool), returns the verbatim line-numbered source of the relevant symbols grouped by file, plus the call path among them and a blast-radius summary of what depends on them. It follows dynamic-dispatch hops that grep cannot: callbacks, re-renders, JSX children.
 
-Reach for it BEFORE Grep, Glob, and Read whenever the question is *where is X*, *how does X work*, *what calls X*, or *what breaks if I change X* — and before editing a shared symbol, so the blast radius is in view while you write. One call usually answers the whole thing; a grep-and-read loop repeats work the graph already did. Source it returns is a Read you already performed, so do not re-open those files.
+Reach for it BEFORE Grep, Glob, and Read whenever the question is *where is X*, *how does X work*, or *what calls X*, and before editing a shared symbol, so its callers are in view while you write. One call usually answers the whole thing; a grep-and-read loop repeats work the graph already did. Source it returns is a Read you already performed, so do not re-open those files.
+
+For *which files does a move, rename, delete, or API change affect*, use `get_blast_radius` from the repo-docs MCP server instead. It works per file and resolves tsconfig aliases and workspace packages, so its list is complete: on a measured TypeScript monorepo task CodeGraph listed 9 of 16 affected files and `get_blast_radius` listed all 16.
 
 Grep stays correct for a literal string sweep and for everything the graph does not index: Markdown, config, generated files.
 

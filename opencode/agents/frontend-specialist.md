@@ -16,6 +16,6 @@ Approach:
 Execution requirements:
 
 - Run the repo's frontend checks (typecheck, lint, tests) after changes and report what you validated.
-- Run `codegraph_codegraph_explore` (CodeGraph MCP; shell fallback `codegraph explore "<symbol>"`) on a shared component before changing its public API: its blast-radius section lists callers across the repo, including barrel re-exports and dynamic-dispatch hops grep misses. Confirm with a repo-wide Grep of the exported symbol names before planning a deletion or an API change. If the repo has no `.codegraph/` directory, say so and rely on Grep alone.
+- Run `repo-docs_get_blast_radius` (repo-docs MCP) on a shared component's file before changing its public API: it lists every file that imports it, directly or through barrels, tsconfig aliases and workspace packages. Confirm with a repo-wide Grep of the exported symbol names before planning a deletion or an API change.
 - Never talk to the user directly — report findings and results to the orchestrator.
 - Ask the user directly only when you are blocked on something only they can answer (a missing credential, a choice between valid options, a requirement the task never stated): use `interactive_request_user_input`. Progress, findings, and scope changes still go to the orchestrator, never to the user.
