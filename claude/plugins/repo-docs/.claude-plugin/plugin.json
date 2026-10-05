@@ -1,7 +1,7 @@
 {
   "name": "repo-docs",
-  "version": "0.5.0",
-  "description": "Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository, plus the CodeGraph code-graph MCP server (codegraph_explore). Shared by dev-core and orchestrate.",
+  "version": "0.6.0",
+  "description": "Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Shared by dev-core and orchestrate.",
   "author": {
     "name": "Personal AI Setup"
   }

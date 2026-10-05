@@ -14,8 +14,6 @@ DEST="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 # died as a bare "node: command not found" halfway through the install.
 ensure_node
 
-# codegraph backs the `codegraph` MCP server in opencode.json. Per repo: `codegraph init`.
-install_codegraph
 
 mkdir -p "$DEST" "$DEST/agents" "$DEST/commands" "$DEST/plugins" "$DEST/rules" "$DEST/skills"
 
@@ -91,4 +89,4 @@ echo "Installed OpenCode config to $DEST:"
 echo "  - base config, plugins, rules, skills, and agents"
 echo "  - background subagents enabled for new shell sessions"
 echo "  - Markdown orchestration skills, commands, and OpenCode-compatible agents"
-echo "  - Repository-docs and CodeGraph MCP servers plus the interactive question tool for subagents"
+echo "  - Repository-docs MCP server plus the interactive question tool for subagents"

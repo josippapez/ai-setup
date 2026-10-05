@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "repo-docs",
-      "description": "Local semantic doc search and installed-package lookup for one repository, plus the CodeGraph code-graph MCP server. Shared MCP servers; dev-core and orchestrate both require it.",
+      "description": "Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Shared MCP server; dev-core and orchestrate both require it.",
       "author": {
         "name": "Personal AI Setup"
       },

@@ -1,17 +1,11 @@
 {
   "repo-docs": {
     "command": "node",
-    "args": ["${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"],
+    "args": [
+      "${CLAUDE_PLUGIN_ROOT}/runtime/standalone-mcp.cjs"
+    ],
     "env": {
       "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
-    }
-  },
-  "codegraph": {
-    "type": "stdio",
-    "command": "codegraph",
-    "args": ["serve", "--mcp"],
-    "env": {
-      "CODEGRAPH_TELEMETRY": "0"
     }
   }
 }

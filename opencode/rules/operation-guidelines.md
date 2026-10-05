@@ -34,7 +34,6 @@ The agent MUST rely heavily on the `repo-docs` plugin tools to ground answers in
 - Repo docs: `repo-docs_find_docs`, `repo-docs_list_docs`, `repo-docs_read_doc`
 - Package versions: `repo-docs_find_libs`
 - File impact before a move, rename, delete, or API change: `repo-docs_get_blast_radius`, `repo-docs_get_file_dependents`
-- Code structure (callers, call paths): `codegraph_codegraph_explore` from the `codegraph` MCP server, or `codegraph explore` in the shell, in repos with a `.codegraph/` index
 - Subagent spawning: use the native `task` tool in a TUI session; the `repo-docs` plugin is for repo grounding tools only.
 - Persistent context: `repo-docs_manage_memories`
 

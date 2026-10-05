@@ -1,20 +1,14 @@
 # repo-docs
 
-Local semantic doc search and installed-package lookup for one repository, plus the [CodeGraph](https://github.com/colbymchenry/codegraph) code-graph MCP server. Split out of `dev-core` so `dev-core` and `orchestrate` share one set of MCP servers and one tool namespace instead of each bundling an identical copy.
+Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Split out of `dev-core` so `dev-core` and `orchestrate` share one MCP server and one tool namespace instead of each bundling an identical copy.
 
 **Any plugin that uses its tools must declare `repo-docs` as a dependency in its own README/skill and tell the user to install it if `mcp__plugin_repo-docs_repo-docs__*` is not callable.** `claude/install.sh` installs it automatically alongside `dev-core` and `orchestrate`.
 
 ## Layout
 
-- `.mcp.json` — two servers:
-  - `repo-docs` (`runtime/`): `find_docs`, `list_docs`, `read_doc`, `find_libs`, `get_file_dependents`, `get_blast_radius`. Markdown conventions, installed packages, and which JS/TS files import a file (directly or transitively, resolving tsconfig `paths` aliases and workspace package names).
-  - `codegraph`: the `codegraph serve --mcp` server from the globally installed CLI. One tool, `codegraph_explore` (`mcp__plugin_repo-docs_codegraph__codegraph_explore`): a symbol's verbatim source, its callers and callees, call paths, and blast radius in one call. Use it to see how code works and who calls a symbol. Shell equivalent: `codegraph explore "<query>"`.
+- `.mcp.json` — the `repo-docs` server (`runtime/`): `find_docs`, `list_docs`, `read_doc`, `find_libs`, `get_file_dependents`, `get_blast_radius`. Markdown conventions, installed packages, and which JS/TS files import a file (directly or transitively, resolving tsconfig `paths` aliases and workspace package names).
 - `hooks/` — dependency setup, index lifecycle.
 - `commands/` — `/reindex` and `/repo-docs-ignore`.
-
-## CodeGraph setup
-
-`claude/install.sh` installs the `codegraph` CLI (`npm i -g @colbymchenry/codegraph`). Each repo needs a one-time `codegraph init`; it writes a git-ignored `.codegraph/` directory and keeps it fresh with a file watcher. Repos without `.codegraph/` get clean "not indexed" guidance from the tool, nothing fails. CodeGraph's own `codegraph prompt-hook` is **not** wired up: measured over four firings it injected unrelated symbols every time (about 1.4k tokens for zero use), because its middle confidence tier matches ordinary prose words like "context" and "claude" against symbol-name segments. `claude/settings.json` sets `CODEGRAPH_NO_PROMPT_HOOK=1` so a stray `codegraph install` cannot revive it. Adoption is handled instead by the `codegraph` rule in `dev-core/rules/`, which that plugin injects at both `SessionStart` and `SubagentStart` so it reaches the main agent and every subagent from one source. Telemetry is off: `.mcp.json` and `claude/settings.json` set `CODEGRAPH_TELEMETRY=0`, and the installer runs `codegraph telemetry off`.
 
 ## Dependencies auto-install
 
@@ -28,7 +22,7 @@ At the end of a turn that touched a Markdown file, the mod in `hooks/reindex.ts`
 
 ## Removed in 0.3.0
 
-`get_file_dependents` and `get_blast_radius` came back in 0.5.0 after CodeGraph replaced them: on a measured impact task in a TypeScript monorepo, CodeGraph listed 9 of 16 affected files and `get_blast_radius` listed all 16. Use them for the file list before a move, rename, delete or API change. The proactive doc-pointer injection (UserPromptSubmit and PostToolBatch hooks) and the one-shot Grep/Glob reminder were removed after measuring 1,879 injections across 39 sessions with zero `read_doc` follow-ups.
+`get_file_dependents` and `get_blast_radius` came back in 0.5.0 after CodeGraph replaced them: on a measured impact task in a TypeScript monorepo, CodeGraph listed 9 of 16 affected files and `get_blast_radius` listed all 16. Use them for the file list before a move, rename, delete or API change. CodeGraph itself was dropped from the plugin in 0.6.0. The proactive doc-pointer injection (UserPromptSubmit and PostToolBatch hooks) and the one-shot Grep/Glob reminder were removed after measuring 1,879 injections across 39 sessions with zero `read_doc` follow-ups.
 
 ## Reap on exit
 

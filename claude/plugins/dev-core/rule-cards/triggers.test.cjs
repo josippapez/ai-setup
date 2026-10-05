@@ -28,10 +28,6 @@ test('the Bash triggers fire on real command shapes', () => {
     ['writing-code', `sed -i '' "s|'./utils.js'|'./helpers.js'|" src/index.js`, true],
     ['writing-code', 'git status --short', false],
     ['writing-code', 'node -e "x" > /dev/null', false],
-    ['searching', 'grep -rn "pricing" --include="*.js" .', true],
-    ['searching', 'find . -name "pricing*"', true],
-    ['searching', 'codegraph explore "where is discount"', true],
-    ['searching', 'cat -n src/pricing.js', false],
     ['reading-libraries', 'cat -n node_modules/tiny-dep/package.json', true],
     ['reading-libraries', 'find node_modules/tiny-dep -type f', true],
     ['reading-libraries', '/repo/node_modules/tiny-dep/index.js', true],
@@ -56,12 +52,6 @@ test('the Bash triggers fire on real command shapes', () => {
     ['reading-libraries', 'grep -rn x --exclude-dir=node_modules .', false],
     ['reading-libraries', 'cat -n node_modules/tiny-dep/package.json', true],
     ['reading-libraries', 'rg -n useState node_modules/react/', true],
-    ['searching', 'rg -c "digest|UserPromptSubmit" README.md', false],
-    ['searching', "rg -n TODO --glob '*.md' .", false],
-    ['searching', "find . -name '*.md'", false],
-    ['searching', 'rg -n useAuth src/', true],
-    ['searching', 'grep -rn handleSubmit src/app.ts', true],
-    ['searching', "rg -n foo -g '!tmp' .", true],
   ];
   for (const [card, cmd, want] of skipCases) {
     assert.equal(fires(card, cmd), want, `${card} should ${want ? 'fire' : 'skip'} on: ${cmd}`);

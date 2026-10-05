@@ -95,9 +95,8 @@ for uncommitted work; ask which base if it is not obvious):
 - **Touched files, whole** — each file the change touches, in full. This is where the
   pre-existing issues live. They are in scope for **reporting**, never for fixing unasked.
 - **Blast radius** — every caller of every changed symbol, whether or not that file is in
-  the diff. `get_blast_radius` on the changed JS/TS files gives every dependent file. In a repo
-  with `.codegraph/`, a `codegraph_explore` call over the changed symbol names adds
-  callers and callees. Then grep every changed exported name.
+  the diff. `get_blast_radius` on the changed JS/TS files gives every dependent file.
+  Then grep every changed exported name for its callers.
 
 Write each unit as one ledger row with a stable id, and record the count. Generated files,
 lockfiles, and vendored directories are excluded **by name in the ledger**, not silently.

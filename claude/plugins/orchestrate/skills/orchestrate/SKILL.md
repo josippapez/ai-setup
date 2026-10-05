@@ -16,7 +16,7 @@ Before Gate/Intake, check whether the outcome or approach itself is still undeci
 
 Tracking uses `<main-repo-root>/.orchestration/`. It requires no external tracker, account, or authentication. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos; do not pretend persistence exists.
 
-The `repo-docs` plugin must also be installed: repo-scout, impl-planner, council-member, design-lead, and solution-reuse-scout all use its `mcp__plugin_repo-docs_repo-docs__*` tools. `claude/install.sh` installs it automatically alongside this plugin. MCP tools are **deferred** in this harness: they appear as bare names and cannot be invoked until you load them by name with tool search. Load `mcp__plugin_repo-docs_repo-docs__find_docs` that way first, and tell the user to run `claude plugin install repo-docs@ai-setup` only if that load fails — a deferred tool is present, not absent. The Gate's `codegraph init` needs the `codegraph` CLI on PATH, which `claude/install.sh` also installs; if it is absent, say so and continue without an index rather than stopping.
+The `repo-docs` plugin must also be installed: repo-scout, impl-planner, council-member, design-lead, and solution-reuse-scout all use its `mcp__plugin_repo-docs_repo-docs__*` tools. `claude/install.sh` installs it automatically alongside this plugin. MCP tools are **deferred** in this harness: they appear as bare names and cannot be invoked until you load them by name with tool search. Load `mcp__plugin_repo-docs_repo-docs__find_docs` that way first, and tell the user to run `claude plugin install repo-docs@ai-setup` only if that load fails — a deferred tool is present, not absent.
 
 ## Mandatory progressive loading
 
@@ -39,7 +39,7 @@ Run phases in order. Persist the current state and every specialist predicate re
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph gives agents call paths and dynamic-dispatch hops that grep cannot; file-level impact comes from `get_blast_radius` either way. Init writes `.codegraph/.gitignore` holding `*` and `!.gitignore`; delete the `!.gitignore` line so the whole `.codegraph/` directory stays untracked. Keep the `*` line, so CodeGraph does not regenerate the file on a later init. If resuming, go directly to the Resume rule below before new intake or decomposition. For new work, when the outcome or approach itself is still undecided (not just scope/AC gaps), run the `brainstorm` skill first and carry its approved outcome/approach into Intake.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go directly to the Resume rule below before new intake or decomposition. For new work, when the outcome or approach itself is still undecided (not just scope/AC gaps), run the `brainstorm` skill first and carry its approved outcome/approach into Intake.
 
 ### 1. Intake
 

@@ -8,14 +8,6 @@
     ]
   },
   {
-    "card": "searching",
-    "tools": [
-      "Grep",
-      "Glob"
-    ],
-    "skip": "((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$))"
-  },
-  {
     "card": "reading-libraries",
     "tools": [
       "Read",
@@ -31,14 +23,6 @@
       "Bash"
     ],
     "fire": "(^|[\\s;&|])(sed\\s+-i|tee)\\b|>>?\\s*(?!/dev/|/tmp/)[^\\s&|>]+\\.[A-Za-z0-9]{1,6}(\\s|$)"
-  },
-  {
-    "card": "searching",
-    "tools": [
-      "Bash"
-    ],
-    "fire": "(^|[;&\\n]|&&)\\s*(sudo\\s+)?((grep|rg|ag|find)\\b|codegraph\\s+explore\\b)",
-    "skip": "((-g|--glob|--iglob|--include|--type|-t)[=\\s]+[\\\"\\x27]?\\*?\\.?(md|markdown|json|ya?ml|toml|txt)\\b|-name\\s+[\\\"\\x27]?\\*\\.(md|markdown|json|ya?ml|toml|txt)\\b|\\.(md|markdown|json|ya?ml|toml|txt)[\\\"\\x27]?(\\s|$)|/(private/)?tmp/claude-\\d+/)"
   },
   {
     "card": "reading-libraries",

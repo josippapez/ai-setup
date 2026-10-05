@@ -23,7 +23,7 @@ Goal to beat, per epic: less wall-clock than the stable workflow and no more tok
 
 Engage only on the explicit triggers in `when_to_use`. Tracking uses `<main-repo-root>/.orchestration/`, shared with the stable workflow. Record `workflow: nightly` in EPIC frontmatter so a resume picks the same workflow. If the filesystem is read-only and the store cannot be created, tell the user and use in-session todos.
 
-The stable `orchestrate` plugin must be installed: nightly uses its grilling, grill-with-docs, domain-modeling, and accessibility skills. The `repo-docs` plugin must also be installed for its MCP tools. `claude/install.sh` installs both automatically; if either is missing, tell the user to run it (or `claude plugin install repo-docs@ai-setup` / `orchestrate@ai-setup`) before Explore. MCP tools are **deferred** in this harness: they appear as bare names and cannot be invoked until you load them by name with tool search. Load `mcp__plugin_repo-docs_repo-docs__find_docs` that way first, and report the plugin missing only if that load fails — a deferred tool is present, not absent. The Gate's `codegraph init` needs the `codegraph` CLI on PATH, which `claude/install.sh` also installs; if it is absent, say so and continue without an index rather than stopping.
+The stable `orchestrate` plugin must be installed: nightly uses its grilling, grill-with-docs, domain-modeling, and accessibility skills. The `repo-docs` plugin must also be installed for its MCP tools. `claude/install.sh` installs both automatically; if either is missing, tell the user to run it (or `claude plugin install repo-docs@ai-setup` / `orchestrate@ai-setup`) before Explore. MCP tools are **deferred** in this harness: they appear as bare names and cannot be invoked until you load them by name with tool search. Load `mcp__plugin_repo-docs_repo-docs__find_docs` that way first, and report the plugin missing only if that load fails — a deferred tool is present, not absent.
 
 ## Mandatory progressive loading
 
@@ -44,7 +44,7 @@ Immediately define the absolute skill root:
 
 ### 0. Gate
 
-Decide tracked versus inline. Confirm repository root and repo-docs readiness. If the repo root has no `.codegraph/` directory, run `codegraph init` once before Explore — the graph gives agents call paths and dynamic-dispatch hops that grep cannot; file-level impact comes from `get_blast_radius` either way. Init writes `.codegraph/.gitignore` holding `*` and `!.gitignore`; delete the `!.gitignore` line so the whole `.codegraph/` directory stays untracked. Keep the `*` line, so CodeGraph does not regenerate the file on a later init. If resuming, go to the Resume rule.
+Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go to the Resume rule.
 
 ### 1. Intake
 
