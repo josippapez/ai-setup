@@ -56,5 +56,5 @@ test('reranker retries load after cooldown once a working stub appears', async (
   const result = JSON.parse(stdout.trim().split('\n').pop());
   assert.deepStrictEqual(result.first, [0, 1], 'must fall back to identity order while the model is unavailable');
   assert.deepStrictEqual(result.second, [1, 0], 'must recover and actually rerank once the stub becomes available');
-  assert.deepStrictEqual(result.sessionOptions, { intraOpNumThreads: 2, interOpNumThreads: 1 }, 'the reranker must load with the thread cap');
+  assert.deepStrictEqual(result.sessionOptions, { intraOpNumThreads: 1, interOpNumThreads: 1 }, 'the reranker must load with the thread cap');
 });

@@ -14,7 +14,7 @@ require.cache[rerankerPath] = {
 };
 
 const { warmUp, waitUntilReady, embedDocument, shutdown } = require('./semantic-index.cjs');
-const { createIndex, addChunks, saveIndex } = require('./doc-index.cjs');
+const { saveRecords } = require('./doc-index.cjs');
 const { rankDocs, fuseRankings } = require('./doc-search.cjs');
 const { skipWithoutRuntimeDeps } = require('./test-runtime-deps.cjs');
 const skip = skipWithoutRuntimeDeps();
@@ -22,13 +22,11 @@ const skip = skipWithoutRuntimeDeps();
 async function makeIndex(docs) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
   fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
-  const db = await createIndex();
   const records = [];
   for (const d of docs) {
     records.push({ ...d, startLine: 1, mtime: 1, embedding: await embedDocument(d.content), ctxEmbedding: await embedDocument(`${d.path} › ${d.heading}\n${d.content}`) });
   }
-  await addChunks(db, records);
-  await saveIndex(db, path.join(root, '.claude', 'repo-docs', 'repo-docs-index.json'));
+  await saveRecords(records, path.join(root, '.claude', 'repo-docs', 'repo-docs-index.json'));
   return { root, maxFileSizeBytes: 1e6 };
 }
 

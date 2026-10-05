@@ -3,7 +3,9 @@
 const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 const MODEL_ID = 'Xenova/bge-small-en-v1.5';
-const MODEL_DTYPE = 'fp32';
+// 8-bit weights: 87 ms a chunk on one thread, against 108 ms for fp32 on two, with
+// vectors at cosine 0.99+ of fp32's (measured on 64 README chunks).
+const MODEL_DTYPE = 'q8';
 // bge-small's context ceiling. It ships model_max_length as Infinity, so the
 // pipeline's hardcoded `truncation: true` never clips — see the worker below.
 const MODEL_MAX_TOKENS = 512;
@@ -11,9 +13,9 @@ const EMBED_DIM = 384;
 // bge-small wants the retrieval instruction on QUERIES only (not documents).
 const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 // onnxruntime spreads each run over every core by default: a doc-index build
-// measured 278% CPU on an 8-core Mac. Two threads measured 191% with a third less
-// total CPU work and no slower build. The reranker uses the same cap.
-const SESSION_OPTIONS = { intraOpNumThreads: 2, interOpNumThreads: 1 };
+// measured 278% CPU on an 8-core Mac, and two threads still held a core pair busy
+// for a whole rebuild. One thread keeps a build to one core. The reranker uses the same cap.
+const SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
 if (!isMainThread) {
   (async () => {

@@ -5,7 +5,7 @@ const { createContext } = require('../lib/context.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
 const { relativePath } = require('../lib/fs-utils.cjs');
 const { waitUntilReady, embedDocChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
-const { createIndex, addChunks, saveIndex } = require('../lib/doc-index.cjs');
+const { saveRecords, readRecords } = require('../lib/doc-index.cjs');
 
 const MAX_FILE_BYTES = 1_000_000;
 // Bumped 1 -> 2 for the mtime-cache field added to index records: a pre-v2
@@ -16,7 +16,9 @@ const MAX_FILE_BYTES = 1_000_000;
 // may hold chunks whose tail past 512 tokens never made it into their vector.
 // Bumped 4 -> 5 for the second, context-prefixed vector per chunk (ctxEmbedding).
 // Bumped 5 -> 6 so each chunk records the line its own text starts on.
-const SCHEMA_VERSION = 6;
+// Bumped 6 -> 7 when the index became one line per record with packed vectors,
+// and the embedder moved to 8-bit weights.
+const SCHEMA_VERSION = 7;
 
 function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
@@ -76,7 +78,7 @@ function recentlyBuilt(context) {
   try { return Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')) < BUILD_DEBOUNCE_MS; }
   catch { return false; }
 }
-// saveIndex writes `<index>.tmp.<pid>` and renames it over the index; a server killed
+// saveRecords writes `<index>.tmp.<pid>` and renames it over the index; a server killed
 // mid-write leaves that file behind. Only the lock holder writes, so any left now is dead.
 function removeAbandonedTempFiles(context) {
   const dir = path.dirname(indexPath(context));
@@ -87,12 +89,9 @@ function removeAbandonedTempFiles(context) {
 }
 function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
-// Groups the prior persisted index's records by path, keyed to their mtime, so
-// buildDocIndex can reuse cached chunks verbatim for files whose mtime hasn't
-// changed. Reads the index's own persisted JSON directly (our format, not a
-// public Orama API) rather than the loaded db object — see the json-vs-msgpack
-// comment in doc-index.cjs for why JSON is safe to parse this way.
-function loadPriorCache(context) {
+// Groups the prior index's records by path, keyed to their mtime, so buildDocIndex
+// can reuse cached chunks verbatim for files whose mtime hasn't changed.
+async function loadPriorCache(context) {
   const byPath = new Map();
   try {
     const meta = JSON.parse(fs.readFileSync(metaPath(context), 'utf8'));
@@ -100,15 +99,9 @@ function loadPriorCache(context) {
   } catch {
     return byPath;
   }
-  let raw;
-  try {
-    raw = JSON.parse(fs.readFileSync(indexPath(context), 'utf8'));
-  } catch {
-    return byPath;
-  }
-  const docs = raw && raw.docs && raw.docs.docs;
-  if (!docs) return byPath;
-  for (const rec of Object.values(docs)) {
+  const records = await readRecords(indexPath(context));
+  if (!records) return byPath;
+  for (const rec of records) {
     if (!rec || typeof rec.mtime !== 'number' || typeof rec.path !== 'string') continue;
     let group = byPath.get(rec.path);
     if (!group) { group = { mtime: rec.mtime, records: [] }; byPath.set(rec.path, group); }
@@ -143,8 +136,8 @@ async function buildDocIndex(context, { force = false } = {}) {
 }
 
 async function runBuild(context) {
-  const db = await createIndex();
-  const priorCache = loadPriorCache(context);
+  const all = [];
+  const priorCache = await loadPriorCache(context);
   let updated = 0, unchanged = 0, skipped = 0;
   const files = getDocFiles(context);
   let lastPercent = -1;
@@ -162,7 +155,7 @@ async function runBuild(context) {
     const rel = relativePath(context.root, filePath);
     const prior = priorCache.get(rel);
     if (prior && prior.mtime === stat.mtimeMs) {
-      await addChunks(db, prior.records);
+      all.push(...prior.records);
       unchanged++;
       continue;
     }
@@ -181,7 +174,7 @@ async function runBuild(context) {
       if (!ch.vector) continue;
       records.push({ path: rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, ctxEmbedding: ch.ctxVector, mtime: stat.mtimeMs });
     }
-    if (records.length) { await addChunks(db, records); updated++; }
+    if (records.length) { all.push(...records); updated++; }
   }
   const dir = path.dirname(indexPath(context));
   ensureGitignore(dir);
@@ -191,7 +184,7 @@ async function runBuild(context) {
   fs.rmSync(path.join(dir, 'repo-docs-index.msp'), { force: true });
   // Write the index (atomic rename) FIRST, then the meta. A reader that sees
   // schemaVersion===current in meta is then guaranteed a complete matching index.
-  await saveIndex(db, indexPath(context));
+  await saveRecords(all, indexPath(context));
   fs.writeFileSync(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }

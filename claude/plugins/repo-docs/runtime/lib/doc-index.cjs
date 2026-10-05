@@ -11,18 +11,11 @@ async function orama() {
   const { createRequire } = require('node:module');
   const { pathToFileURL } = require('node:url');
   const req = createRequire(__filename);
-  const core = await import(pathToFileURL(req.resolve('@orama/orama')).href);
-  const persist = await import(pathToFileURL(req.resolve('@orama/plugin-data-persistence/server')).href);
-  // The persistence package's server entry is CommonJS and its named exports are
-  // not statically detected by Node's ESM/CJS interop here, so they land only on
-  // `.default` (confirmed by inspection: import() yields
-  // { __esModule, default, 'module.exports' } instead of named bindings).
-  const persistExports = persist.persistToFile ? persist : persist.default;
-  _orama = { ...core, ...persistExports };
+  _orama = await import(pathToFileURL(req.resolve('@orama/orama')).href);
   return _orama;
 }
 
-// NOTE: Orama v3 create/insertMultiple/search are synchronous; persist is async.
+// NOTE: Orama v3 create/insertMultiple/search are synchronous.
 // Confirmed in Task 1 smoke test — adjust if the installed version differs.
 function createIndex(o) {
   return o.create({
@@ -56,30 +49,68 @@ function hybridSearch(o, db, { term, vector, property = 'embedding', limit = 30 
   }));
 }
 
+// The index file holds the chunk records, one JSON line each, with both vectors as
+// base64 Float32. Orama's own JSON export wrote every float as text plus its search
+// trees: a 4 MB doc set became a 697 MB file, past the ~512 MB string Node can read
+// back, so every load failed and every build re-embedded everything. Lines are read
+// one at a time, so no single string grows with the corpus; a load rebuilds the
+// search index from the records, which costs no embedding.
+const packVector = v => Buffer.from(Float32Array.from(v).buffer).toString('base64');
+function unpackVector(text) {
+  const bytes = Buffer.from(text, 'base64');
+  return Array.from(new Float32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4));
+}
+
+// Atomic write: write a per-process temp file, then rename it over the target.
+// rename() is atomic on the same filesystem, so a concurrent reader (another MCP
+// server's loadIndex, or the build's prior-record cache) never sees a half-written
+// index, which would read as "no cache" and trigger a full re-embed.
+function saveRecords(records, filePath) {
+  const fs = require('node:fs');
+  const tmp = `${filePath}.tmp.${process.pid}`;
+  const fd = fs.openSync(tmp, 'w');
+  try {
+    for (const { embedding, ctxEmbedding, ...rest } of records) {
+      fs.writeSync(fd, `${JSON.stringify({ ...rest, embedding: packVector(embedding), ctxEmbedding: packVector(ctxEmbedding) })}\n`);
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tmp, filePath);
+}
+
+// Resolves the records, or null when the file is missing or is not in this format.
+async function readRecords(filePath) {
+  const fs = require('node:fs');
+  const readline = require('node:readline');
+  if (!fs.existsSync(filePath)) return null;
+  const records = [];
+  try {
+    for await (const line of readline.createInterface({ input: fs.createReadStream(filePath), crlfDelay: Infinity })) {
+      if (!line) continue;
+      const rec = JSON.parse(line);
+      records.push({ ...rec, embedding: unpackVector(rec.embedding), ctxEmbedding: unpackVector(rec.ctxEmbedding) });
+    }
+  } catch {
+    return null;
+  }
+  return records;
+}
+
 // Public async wrappers that resolve the ESM module first.
 module.exports = {
   EMBED_DIM,
   createIndex: () => orama().then(createIndex),
   addChunks: (db, records) => orama().then(o => addChunks(o, db, records)),
   hybridSearch: (db, args) => orama().then(o => hybridSearch(o, db, args)),
-  // 'json' (not 'binary'): the binary format uses msgpack (maxDepth 100), which
-  // throws "Too deep objects in depth 101" when a doc contains a long unbroken
-  // token (e.g. a 400-char rule/hash) — Orama's text index is a radix tree that
-  // nests one level per character. JSON has no depth cap; the 1500-char chunk
-  // limit bounds token depth well within JSON's limits.
-  // Atomic write: persist to a per-process temp file then rename over the target.
-  // rename() is atomic on the same filesystem, so a concurrent reader (another
-  // MCP server's loadIndex, or loadPriorCache) never observes a half-written
-  // index — which would otherwise parse-fail, look like "no cache", and trigger a
-  // wasteful full re-embed. This is the core guard against the multi-server thrash.
-  saveIndex: (db, filePath) => orama().then(async o => {
-    const fs = require('node:fs');
-    const tmp = `${filePath}.tmp.${process.pid}`;
-    await o.persistToFile(db, 'json', tmp);
-    fs.renameSync(tmp, filePath);
-  }),
-  loadIndex: (filePath) => orama().then(async o => {
-    try { const fs = require('node:fs'); if (!fs.existsSync(filePath)) return null; return await o.restoreFromFile('json', filePath); }
-    catch { return null; }
-  }),
+  saveRecords: async (records, filePath) => saveRecords(records, filePath),
+  readRecords,
+  loadIndex: async (filePath) => {
+    const records = await readRecords(filePath);
+    if (!records) return null;
+    const o = await orama();
+    const db = createIndex(o);
+    addChunks(o, db, records);
+    return db;
+  },
 };

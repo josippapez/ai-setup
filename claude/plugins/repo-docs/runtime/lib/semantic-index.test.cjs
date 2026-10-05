@@ -64,7 +64,7 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
   assert.strictEqual(result.second, true, 'must recover after deps appear');
   assert.strictEqual(result.embedded, true, 'recovered worker must serve embeddings');
   const opts = JSON.parse(fs.readFileSync(path.join(root, 'pipeline-opts.json'), 'utf8'));
-  assert.deepStrictEqual(opts.session_options, { intraOpNumThreads: 2, interOpNumThreads: 1 }, 'the embedder must load with the thread cap');
+  assert.deepStrictEqual(opts.session_options, { intraOpNumThreads: 1, interOpNumThreads: 1 }, 'the embedder must load with the thread cap');
 });
 
 // A per-chunk embed failure (e.g. an ONNX runtime error) must cost only that
