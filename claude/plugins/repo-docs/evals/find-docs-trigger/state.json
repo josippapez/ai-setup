@@ -1,0 +1,33 @@
+{
+  "metrics": [
+    {
+      "id": "trigger",
+      "label": "trigger",
+      "kind": "binary"
+    },
+    {
+      "id": "called",
+      "label": "find_docs used",
+      "kind": "binary"
+    }
+  ],
+  "perf_fields": [
+    {
+      "id": "cost_usd",
+      "label": "cost",
+      "unit": "$"
+    },
+    {
+      "id": "tool_calls",
+      "label": "tool calls"
+    },
+    {
+      "id": "latency_s",
+      "label": "latency",
+      "unit": "s"
+    }
+  ],
+  "harness_paths": [
+    "claude/plugins/repo-docs/evals/find-docs-trigger/cases.json"
+  ]
+}

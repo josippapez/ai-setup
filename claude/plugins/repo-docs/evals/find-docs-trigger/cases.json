@@ -1,0 +1,226 @@
+[
+  {
+    "id": "p01",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/monetization.md",
+    "prompt": "What tiers are we planning to sell, and what does the Free tier get?"
+  },
+  {
+    "id": "p02",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/payments.md",
+    "prompt": "How are client deposits supposed to work?"
+  },
+  {
+    "id": "p03",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/analytics.md",
+    "prompt": "Which analytics tool did we pick, and do we need a cookie banner?"
+  },
+  {
+    "id": "p04",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/admin-console.md",
+    "prompt": "How do platform admins override a tenant's entitlements?"
+  },
+  {
+    "id": "p05",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/production-readiness.md",
+    "prompt": "How should we back up the database and restore it?"
+  },
+  {
+    "id": "p06",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/production-readiness.md",
+    "prompt": "What error monitoring are we using in production?"
+  },
+  {
+    "id": "p07",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/legal-gdpr.md",
+    "prompt": "Which GDPR data-subject rights do we have to build?"
+  },
+  {
+    "id": "p08",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/legal-gdpr.md",
+    "prompt": "Which legal pages does the site need before launch?"
+  },
+  {
+    "id": "p09",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/trust-deliverability.md",
+    "prompt": "What's the plan for stopping spam bookings on the public booking page?"
+  },
+  {
+    "id": "p10",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/trust-deliverability.md",
+    "prompt": "How do we keep booking emails out of spam folders?"
+  },
+  {
+    "id": "p11",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/client-self-service.md",
+    "prompt": "How should appointment reminders work, and which plan includes them?"
+  },
+  {
+    "id": "p12",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/client-self-service.md",
+    "prompt": "What cancellation policy do clients see?"
+  },
+  {
+    "id": "p13",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/marketing-seo.md",
+    "prompt": "What's the SEO plan for niche landing pages?"
+  },
+  {
+    "id": "p14",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/marketing-seo.md",
+    "prompt": "Which marketing channels should we try first on a small budget?"
+  },
+  {
+    "id": "p15",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/product-strategy.md",
+    "prompt": "What should onboarding feel like for a new business owner?"
+  },
+  {
+    "id": "p16",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/design-brief.md, docs/design/component-spec.md",
+    "prompt": "What colors and fonts does the design use?"
+  },
+  {
+    "id": "p17",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/design/component-spec.md",
+    "prompt": "Which variants and states does the Button need to support?"
+  },
+  {
+    "id": "p18",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/design-brief.md",
+    "prompt": "What's the brand voice?"
+  },
+  {
+    "id": "p19",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/features/auth.md",
+    "prompt": "How is the session cookie supposed to work?"
+  },
+  {
+    "id": "p20",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/features/data-model.md",
+    "prompt": "Which constraints and indexes should the database have?"
+  },
+  {
+    "id": "p21",
+    "kind": "positive",
+    "source": "real",
+    "expected": "docs/client-self-service.md",
+    "prompt": "How would you add a cancel-booking flow to this app?"
+  },
+  {
+    "id": "p22",
+    "kind": "positive",
+    "source": "real",
+    "expected": "docs/production-readiness.md",
+    "prompt": "How is this app deployed?"
+  },
+  {
+    "id": "p23",
+    "kind": "positive",
+    "source": "real",
+    "expected": "docs/design-brief.md",
+    "prompt": "Write the user-facing error message shown when someone tries to book a slot that another person just took."
+  },
+  {
+    "id": "p24",
+    "kind": "positive",
+    "source": "hand",
+    "expected": "docs/analytics.md, docs/product-strategy.md",
+    "prompt": "Which events do we track to measure delight?"
+  },
+  {
+    "id": "n01",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read src/lib/utils.ts)",
+    "prompt": "What does src/lib/utils.ts do?"
+  },
+  {
+    "id": "n02",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read src/server/tenant.ts)",
+    "prompt": "What does src/server/tenant.ts do?"
+  },
+  {
+    "id": "n03",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read src/db/client.ts)",
+    "prompt": "What does src/db/client.ts do?"
+  },
+  {
+    "id": "n04",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read src/server/password.ts)",
+    "prompt": "What does src/server/password.ts do?"
+  },
+  {
+    "id": "n05",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read Card.tsx, Badge.tsx)",
+    "prompt": "Compare how Card.tsx and Badge.tsx handle styling."
+  },
+  {
+    "id": "n06",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (scan src/lib)",
+    "prompt": "Is there any dead code in src/lib?"
+  },
+  {
+    "id": "n07",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (read the route tree)",
+    "prompt": "Which routes does the app define?"
+  },
+  {
+    "id": "n08",
+    "kind": "negative",
+    "source": "real",
+    "expected": "none (find test files)",
+    "prompt": "What test framework is used, and which files have tests?"
+  }
+]
