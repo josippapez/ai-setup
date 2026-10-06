@@ -104,6 +104,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/prompt-timeline"
+    },
+    {
+      "name": "tool-group-hints",
+      "description": "Shows a one-line hint per call under folded tool-group lines, so you can see which files, patterns and commands ran without expanding the group.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/tool-group-hints"
     }
   ]
 }

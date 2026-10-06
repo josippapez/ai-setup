@@ -1,0 +1,9 @@
+{
+  "name": "tool-group-hints",
+  "version": "0.2.1",
+  "description": "Shows a one-line hint per call under folded tool-group lines (Searched for 1 pattern, ran 2 shell commands), so you can see what ran without expanding it.",
+  "author": {
+    "name": "Personal AI Setup"
+  },
+  "license": "MIT"
+}
