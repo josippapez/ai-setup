@@ -4,7 +4,7 @@ const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
 const { relativePath } = require('../lib/fs-utils.cjs');
-const { waitUntilReady, embedDocChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
+const { waitUntilReady, embedDocsChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
 const { createIndex, addChunks, saveIndex } = require('../lib/doc-index.cjs');
 
 const MAX_FILE_BYTES = 1_000_000;
@@ -129,11 +129,20 @@ async function buildDocIndex(context, { force = false } = {}) {
   }
 }
 
+// Changed docs are embedded this many to a worker round, so their chunks fill
+// model batches together instead of each small doc running a part-empty batch.
+const DOCS_PER_ROUND = 32;
+
 async function runBuild(context) {
   const db = await createIndex();
   const priorCache = loadPriorCache(context);
   let updated = 0, unchanged = 0, skipped = 0;
-  for (const filePath of getDocFiles(context)) {
+  const files = getDocFiles(context);
+  // One slot per file, in file order, so the index keeps the same record order
+  // whichever files were re-embedded.
+  const slots = files.map(() => []);
+  const changed = [];
+  for (const [i, filePath] of files.entries()) {
     let stat;
     try {
       stat = fs.statSync(filePath);
@@ -142,7 +151,7 @@ async function runBuild(context) {
     const rel = relativePath(context.root, filePath);
     const prior = priorCache.get(rel);
     if (prior && prior.mtime === stat.mtimeMs) {
-      await addChunks(db, prior.records);
+      slots[i] = prior.records;
       unchanged++;
       continue;
     }
@@ -150,19 +159,26 @@ async function runBuild(context) {
     try {
       content = fs.readFileSync(filePath, 'utf8');
     } catch { skipped++; continue; }
-    const records = [];
-    const chunks = await embedDocChunks(content);
+    changed.push({ i, rel, content, mtime: stat.mtimeMs });
+  }
+  for (let start = 0; start < changed.length; start += DOCS_PER_ROUND) {
+    const round = changed.slice(start, start + DOCS_PER_ROUND);
+    const results = await embedDocsChunks(round.map(d => d.content));
     // A dead embedder means every remaining file would also come back null, so
     // abort instead of saving an index with those files missing but the build
     // looking complete — that partial state would never self-heal.
-    if (!chunks && !isReady()) throw new Error('embedder is no longer ready mid-build');
-    for (const ch of chunks || []) {
-      // A live worker skipping one bad chunk keeps today's behavior.
-      if (!ch.vector) continue;
-      records.push({ path: rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, mtime: stat.mtimeMs });
-    }
-    if (records.length) { await addChunks(db, records); updated++; }
+    if (!results && !isReady()) throw new Error('embedder is no longer ready mid-build');
+    round.forEach((doc, k) => {
+      const records = [];
+      for (const ch of (results && results[k]) || []) {
+        // A live worker skipping one bad chunk keeps today's behavior.
+        if (!ch.vector) continue;
+        records.push({ path: doc.rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, mtime: doc.mtime });
+      }
+      if (records.length) { slots[doc.i] = records; updated++; }
+    });
   }
+  for (const records of slots) if (records.length) await addChunks(db, records);
   const dir = path.dirname(indexPath(context));
   ensureGitignore(dir);
   // Orphan the legacy per-file embedding cache from the old OpenCode design

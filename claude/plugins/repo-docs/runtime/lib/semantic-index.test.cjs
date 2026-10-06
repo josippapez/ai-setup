@@ -31,7 +31,8 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
         "const f = async (t, o) => ({ data: new Array(384).fill(0) });",
         "f.tokenizer = { _tokenizerConfig: {} };",
         "exports.env = {};",
-        "exports.pipeline = async (task, id, opts) => { require('node:fs').writeFileSync(process.env.STUB_OPTS_FILE, JSON.stringify(opts)); return f; };",
+        // The GPU is unavailable here, so the engine must fall back to the CPU model.
+        "exports.pipeline = async (task, id, opts) => { require('node:fs').appendFileSync(process.env.STUB_OPTS_FILE, JSON.stringify(opts) + '\\\\n'); if (opts.device === 'webgpu') throw new Error('no gpu'); return f; };",
       ].join('\\n'));
       await new Promise((r) => setTimeout(r, 100)); // past the test cooldown
       const second = await engine.waitUntilReady(8000);
@@ -63,8 +64,9 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
   assert.strictEqual(result.first, false, 'must report not-ready while deps are missing');
   assert.strictEqual(result.second, true, 'must recover after deps appear');
   assert.strictEqual(result.embedded, true, 'recovered worker must serve embeddings');
-  const opts = JSON.parse(fs.readFileSync(path.join(root, 'pipeline-opts.json'), 'utf8'));
-  assert.deepStrictEqual(opts.session_options, { intraOpNumThreads: 1, interOpNumThreads: 1 }, 'the embedder must load with the thread cap');
+  const calls = fs.readFileSync(path.join(root, 'pipeline-opts.json'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+  assert.deepStrictEqual(calls.map(c => c.device || 'cpu'), ['webgpu', 'cpu'], 'the embedder must try the GPU first, then fall back to the CPU');
+  assert.deepStrictEqual(calls[1].session_options, { intraOpNumThreads: 1, interOpNumThreads: 1 }, 'the CPU fallback must load with the thread cap');
 });
 
 // A per-chunk embed failure (e.g. an ONNX runtime error) must cost only that

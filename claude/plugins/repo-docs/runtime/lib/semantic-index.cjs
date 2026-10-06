@@ -6,6 +6,9 @@ const MODEL_ID = 'Xenova/bge-small-en-v1.5';
 // 8-bit weights: 87 ms a chunk on one thread, against 108 ms for fp32 on two, with
 // vectors at cosine 0.99+ of fp32's (measured on 64 README chunks).
 const MODEL_DTYPE = 'q8';
+// The GPU runs full-precision weights; batches of 16 measured 42 ms a chunk, one at a time 58.
+const GPU_DTYPE = 'fp32';
+const EMBED_BATCH = 16;
 // bge-small's context ceiling. It ships model_max_length as Infinity, so the
 // pipeline's hardcoded `truncation: true` never clips — see the worker below.
 const MODEL_MAX_TOKENS = 512;
@@ -31,7 +34,17 @@ if (!isMainThread) {
     // with the REPO_DOCS_MODELS_DIR env var.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
       || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
-    const embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });
+    // The GPU first: a full rebuild of 2,287 chunks measured 133 s and 36 s of CPU,
+    // against 274 s and 274 s for the 8-bit model on one CPU thread, with the same
+    // top hits. onnxruntime-node marks WebGPU experimental, so a load or first-run
+    // failure falls back to the CPU model.
+    let embed;
+    try {
+      embed = await pipeline('feature-extraction', MODEL_ID, { device: 'webgpu', dtype: GPU_DTYPE });
+      await embed('warm up', { pooling: 'mean', normalize: true });
+    } catch {
+      embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });
+    }
     // Some model configs ship model_max_length as Infinity, so the pipeline's
     // hardcoded `truncation: true` never clips and docs over 512 tokens crash the
     // ONNX model (position-embedding broadcast mismatch). Pin the tokenizer's
@@ -45,27 +58,52 @@ if (!isMainThread) {
     // covers the context-prefixed text, the longer of the two a chunk is embedded as.
     const maxTokens = MODEL_MAX_TOKENS - 2;
     const vectorOf = async (text) => Array.from((await embed(text, { pooling: 'mean', normalize: true })).data);
+    // Vectors for texts in order, EMBED_BATCH per model run. A batch that throws is
+    // retried one text at a time, so a bad text costs only itself (null).
+    // Batches are cut from the texts sorted by length, so each pads to a near neighbour.
+    const vectorsOf = async (texts) => {
+      const out = new Array(texts.length).fill(null);
+      const order = texts.map((_, i) => i).sort((a, b) => texts[a].length - texts[b].length);
+      for (let i = 0; i < order.length; i += EMBED_BATCH) {
+        const idx = order.slice(i, i + EMBED_BATCH);
+        try {
+          const res = await embed(idx.map(j => texts[j]), { pooling: 'mean', normalize: true });
+          const dim = res.dims[res.dims.length - 1];
+          idx.forEach((j, k) => { out[j] = Array.from(res.data.slice(k * dim, (k + 1) * dim)); });
+        } catch {
+          for (const j of idx) out[j] = await vectorOf(texts[j]).catch(() => null);
+        }
+      }
+      return out;
+    };
 
     parentPort.on('message', async (msg) => {
       if (msg.type === 'chunks') {
-        const docName = String(msg.path || '').replace(/\.mdx?$/, '');
-        const context = (headingPath) => `${[docName, headingPath].filter(Boolean).join(' › ')}\n`;
-        const countTokens = (text, headingPath) =>
-          embed.tokenizer.encode(context(headingPath) + text, { add_special_tokens: false }).length;
-        let chunks;
-        try {
-          chunks = [];
-          for (const ch of chunkMarkdown(msg.text, { maxTokens, countTokens })) {
-            let vector = null, ctxVector = null;
-            try {
-              vector = await vectorOf(ch.text);
-              ctxVector = await vectorOf(context(ch.headingPath) + ch.text);
-            } catch { /* this chunk alone is skipped, as in the embed branch below */ }
-            chunks.push(vector && ctxVector ? { ...ch, vector, ctxVector } : { ...ch, vector: null, ctxVector: null });
+        // Every doc in the message is chunked first and all their texts are embedded
+        // together, so batches stay full across docs too small to fill one alone.
+        const splits = msg.docs.map(({ path: docPath, text }) => {
+          const docName = String(docPath || '').replace(/\.mdx?$/, '');
+          const context = (headingPath) => `${[docName, headingPath].filter(Boolean).join(' › ')}\n`;
+          const countTokens = (t, headingPath) =>
+            embed.tokenizer.encode(context(headingPath) + t, { add_special_tokens: false }).length;
+          try {
+            return chunkMarkdown(String(text || ''), { maxTokens, countTokens })
+              .map(ch => ({ ch, texts: [ch.text, context(ch.headingPath) + ch.text] }));
+          } catch {
+            return null; // this doc alone fails
           }
+        });
+        let vectors;
+        try {
+          vectors = await vectorsOf(splits.flatMap(split => (split || []).flatMap(c => c.texts)));
         } catch {
-          chunks = null;
+          vectors = null;
         }
+        let next = 0;
+        const chunks = splits.map(split => split && vectors && split.map(({ ch }) => {
+          const vector = vectors[next++], ctxVector = vectors[next++];
+          return vector && ctxVector ? { ...ch, vector, ctxVector } : { ...ch, vector: null, ctxVector: null };
+        }));
         parentPort.postMessage({ type: 'chunks', id: msg.id, chunks });
         return;
       }
@@ -210,8 +248,16 @@ function embedText(text) {
 // with the doc path and heading breadcrumb in front (ctxVector). Resolves
 // [{ headingPath, startLine, text, vector, ctxVector }] (both null for a chunk that
 // failed on its own), or null when the embedder is unavailable.
-function embedDocChunks(text, docPath) {
-  return request('chunks', String(text || ''), { path: docPath });
+async function embedDocChunks(text, docPath) {
+  const res = await embedDocsChunks([{ path: docPath, text }]);
+  return res && res[0];
+}
+
+// embedDocChunks for several docs in one worker round, so their chunks share
+// model batches. Resolves one entry per doc, in order (null for a doc that failed
+// alone), or null when the embedder is unavailable.
+function embedDocsChunks(docs) {
+  return request('chunks', '', { docs: docs.map(d => ({ path: d.path, text: String(d.text || '') })) });
 }
 
 async function embedQuery(text) {
@@ -230,6 +276,7 @@ module.exports = {
   embedQuery,
   embedDocument,
   embedDocChunks,
+  embedDocsChunks,
   MODEL_ID,
   MODEL_DTYPE,
   EMBED_DIM,
