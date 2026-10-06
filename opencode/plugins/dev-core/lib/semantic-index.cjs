@@ -4,6 +4,9 @@ const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 const MODEL_ID = 'Xenova/bge-small-en-v1.5';
 const MODEL_DTYPE = 'fp32';
+// Half precision on the GPU: a 4,574-text NX build embedded in 79 s against 112 s
+// for fp32, with vectors at cosine 0.9997+ of fp32's.
+const GPU_DTYPE = 'fp16';
 // Batches of 16 on the GPU measured 42 ms a chunk, one at a time 58.
 const EMBED_BATCH = 16;
 // bge-small's context ceiling. It ships model_max_length as Infinity, so the
@@ -14,7 +17,7 @@ const EMBED_DIM = 384;
 const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 // onnxruntime spreads each run over every core by default: a doc-index build
 // measured 278% CPU on an 8-core Mac. Two threads measured 191% with a third less
-// total CPU work and no slower build. The reranker uses the same cap.
+// total CPU work and no slower build.
 const SESSION_OPTIONS = { intraOpNumThreads: 2, interOpNumThreads: 1 };
 
 if (!isMainThread) {
@@ -39,7 +42,7 @@ if (!isMainThread) {
     // failure falls back to the CPU model.
     let embed;
     try {
-      embed = await pipeline('feature-extraction', MODEL_ID, { device: 'webgpu', dtype: MODEL_DTYPE });
+      embed = await pipeline('feature-extraction', MODEL_ID, { device: 'webgpu', dtype: GPU_DTYPE });
       await embed('warm up', { pooling: 'mean', normalize: true });
     } catch {
       embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });

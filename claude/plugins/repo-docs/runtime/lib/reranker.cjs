@@ -1,6 +1,9 @@
 'use strict';
 
-const { SESSION_OPTIONS } = require('./semantic-index.cjs');
+// Four threads: the vote on 10 candidates measured 643 ms against 1,755 ms on one,
+// with the same order on every query. It runs for a moment per query, unlike a
+// build, so it does not get the embedder's CPU cap. The GPU (690 ms) reordered results.
+const SESSION_OPTIONS = { intraOpNumThreads: 4, interOpNumThreads: 1 };
 
 const RERANKER_ID = 'Xenova/bge-reranker-base';
 let _mod = null, _lastFailedAt = 0;

@@ -6,8 +6,10 @@ const MODEL_ID = 'Xenova/bge-small-en-v1.5';
 // 8-bit weights: 87 ms a chunk on one thread, against 108 ms for fp32 on two, with
 // vectors at cosine 0.99+ of fp32's (measured on 64 README chunks).
 const MODEL_DTYPE = 'q8';
-// The GPU runs full-precision weights; batches of 16 measured 42 ms a chunk, one at a time 58.
-const GPU_DTYPE = 'fp32';
+// Half precision on the GPU: a 4,574-text NX build embedded in 79 s against 112 s
+// for fp32, with vectors at cosine 0.9997+ of fp32's. Batches of 8 and 16 tied;
+// 32 and 64 were slower.
+const GPU_DTYPE = 'fp16';
 const EMBED_BATCH = 16;
 // bge-small's context ceiling. It ships model_max_length as Infinity, so the
 // pipeline's hardcoded `truncation: true` never clips — see the worker below.
@@ -17,7 +19,7 @@ const EMBED_DIM = 384;
 const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 // onnxruntime spreads each run over every core by default: a doc-index build
 // measured 278% CPU on an 8-core Mac, and two threads still held a core pair busy
-// for a whole rebuild. One thread keeps a build to one core. The reranker uses the same cap.
+// for a whole rebuild. One thread keeps a CPU-fallback build to one core.
 const SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
 if (!isMainThread) {
