@@ -10,6 +10,10 @@ const { relativePath, walkDirectory } = require('./fs-utils.cjs');
 // `*` matches within a path segment, `**` across segments.
 const IGNORE_FILE = path.join('.claude', 'repo-docs-ignore');
 
+// Applied in every repo on top of the ignore file: CocoaPods vendor READMEs,
+// Expo caches, and local report output.
+const DEFAULT_IGNORES = ['Pods', '.expo', 'reports/**'];
+
 // Non-character sentinel used to fold `**` before the single-`*` pass so it
 // isn't re-processed. U+FFFF can't appear in a real path, so it never collides
 // with the pattern; written as an escape to keep this source pure ASCII.
@@ -27,13 +31,11 @@ function globToRegExp(pattern) {
 }
 
 function loadIgnoreMatchers(root) {
-  let lines;
+  let lines = [];
   try {
     lines = fs.readFileSync(path.join(root, IGNORE_FILE), 'utf8').split(/\r?\n/);
-  } catch {
-    return [];
-  }
-  return lines
+  } catch {}
+  return [...DEFAULT_IGNORES, ...lines]
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith('#'))
     .map(globToRegExp);
@@ -41,7 +43,7 @@ function loadIgnoreMatchers(root) {
 
 // Index every Markdown file in the repo. walkDirectory already prunes the
 // standard noise directories (node_modules, .git, dist, …) via SKIP_DIRS;
-// the optional repo-docs-ignore config drops anything else the repo opts out of.
+// DEFAULT_IGNORES and the optional repo-docs-ignore config drop the rest.
 function getDocFiles(context) {
   const ignore = loadIgnoreMatchers(context.root);
   const files = [];
@@ -55,4 +57,4 @@ function getDocFiles(context) {
   return Array.from(new Set(files));
 }
 
-module.exports = { getDocFiles };
+module.exports = { getDocFiles, DEFAULT_IGNORES };

@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
 
 # Configure repo-docs ignore
 
-Manage this repository's `.claude/repo-docs-ignore` — the gitignore-lite list of paths the bundled **repo-docs** MCP excludes from `find_docs` / `list_docs` indexing. Use it to keep auto-generated reports, fixtures, or vendored docs out of doc search.
+Manage this repository's `.claude/repo-docs-ignore` — the gitignore-lite list of paths the bundled **repo-docs** MCP excludes from `find_docs` / `list_docs` indexing. Use it to keep auto-generated reports, fixtures, or vendored docs out of doc search. These patterns are always excluded and don't need to be in the file: `Pods`, `.expo`, `reports/**` (`DEFAULT_IGNORES` in `runtime/lib/docs.cjs`).
 
 Do exactly these steps, then stop:
 
