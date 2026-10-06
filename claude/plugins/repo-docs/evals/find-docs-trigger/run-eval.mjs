@@ -146,10 +146,14 @@ const REF_EXTS = ['', '.html', '.txt', '.json'];
 //   node claude/plugins/repo-docs/evals/find-docs-trigger/run-eval.mjs \
 //     --flow .claude/hillclimb/find-docs-trigger --variant baseline --reps 2
 //
-// EVAL_CASES=p01,p21 limits the run to those ids, for a pilot.
+// EVAL_CASES=p01,p21 limits the run to those ids, for a pilot. The t* cases are
+// task prompts that point at code, where the spec sits in a doc: the shape of
+// the misses seen in real sessions after find_docs was pinned.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PLUGIN = resolve(HERE, '../..');
+// EVAL_SETTING_SOURCES=user,project loads the full personal setup instead of repo-docs alone.
+// EVAL_PLUGIN_DIR runs another copy of the plugin, e.g. a worktree of the base branch.
+const PLUGIN = process.env.EVAL_PLUGIN_DIR || resolve(HERE, '../..');
 const FIXTURE = resolve(HERE, '../../../../../tmp/find-docs-eval/repo');
 const DEFAULT_MODEL = 'claude-opus-5-5';
 const RD = 'mcp__plugin_repo-docs_repo-docs__';
@@ -172,7 +176,7 @@ function claudeP(prompt, model) {
   if (!existsSync(join(FIXTURE, 'docs'))) throw new Error(`fixture missing: ${FIXTURE} (see the clone command at the top)`);
   return new Promise((res, rej) => {
     const ch = spawn('claude', ['-p', prompt, '--model', model, '--plugin-dir', PLUGIN,
-      '--setting-sources', 'project', '--allowedTools', ...ALLOWED,
+      '--setting-sources', process.env.EVAL_SETTING_SOURCES || 'project', '--allowedTools', ...ALLOWED,
       '--output-format', 'stream-json', '--verbose', '--max-budget-usd', '1'],
       { cwd: FIXTURE, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';

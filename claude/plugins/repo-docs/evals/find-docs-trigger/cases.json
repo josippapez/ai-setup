@@ -222,5 +222,61 @@
     "source": "real",
     "expected": "none (find test files)",
     "prompt": "What test framework is used, and which files have tests?"
+  },
+  {
+    "id": "t01",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/trust-deliverability.md",
+    "prompt": "Add rate limiting to the public booking endpoint in src/server. Before changing anything, draft the plan: which limits, keyed on what, and where the check goes."
+  },
+  {
+    "id": "t02",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/client-self-service.md",
+    "prompt": "Implement reminder emails for upcoming bookings. Check src/server/availability.ts and src/db/schema.ts first, then draft a short plan before writing any code."
+  },
+  {
+    "id": "t03",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/client-self-service.md",
+    "prompt": "I need a cancel link in the booking confirmation email. Find where bookings are created in src/server and draft a small table of the changes before you start."
+  },
+  {
+    "id": "t04",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/monetization.md",
+    "prompt": "Gate the second service behind the paid plan. src/server/services.ts creates services. Draft the change, don't write code yet."
+  },
+  {
+    "id": "t05",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/payments.md",
+    "prompt": "Add a deposit step to the booking flow. Draft which tables in src/db/schema.ts change and what the new flow looks like. No code yet."
+  },
+  {
+    "id": "t06",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/legal-gdpr.md",
+    "prompt": "Add a delete-my-account action for tenants. Check src/db/schema.ts for everything that has to go and draft the plan for me to review."
+  },
+  {
+    "id": "t07",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/analytics.md",
+    "prompt": "Track a booking_completed event when a client finishes booking. Draft where it fires and which properties it sends, then wait for my go-ahead."
+  },
+  {
+    "id": "t08",
+    "kind": "positive",
+    "source": "task",
+    "expected": "docs/admin-console.md",
+    "prompt": "Let super admins sign in to an admin page. Look at src/server/auth.ts and draft how the guard should work before touching anything."
   }
 ]

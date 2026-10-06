@@ -1,10 +1,12 @@
 import type { Register } from 'claude-code'
 
+import { registerGrepNudge } from './grep-nudge'
 import { registerReindex } from './reindex'
 import { registerStatus } from './status'
 import { registerTranscript } from './transcript'
 
 export const register: Register = on => {
+  registerGrepNudge(on)
   registerReindex(on)
   registerStatus(on)
   registerTranscript(on)

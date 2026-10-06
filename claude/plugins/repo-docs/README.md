@@ -38,4 +38,5 @@ node --test claude/plugins/repo-docs/hooks/*.test.cjs claude/plugins/repo-docs/r
 
 `hooks/status.ts` shows "repo-docs: indexing docs…" with the build percentage while `.claude/repo-docs/index-build.lock` exists, and a toast when the build finishes.
 - `hooks/transcript.tsx` draws the `/repo-docs:reindex` Bash call as "Reindex repo docs" and its result as a one-line count of re-embedded, unchanged and skipped docs.
+- `hooks/grep-nudge.ts` adds a reminder to try `find_docs` after a Grep or Bash `rg`/`grep` aimed at `docs/` or Markdown, at most twice a session and never after `find_docs` has run. It skips `.orchestration`, `.claude/` and `node_modules`, which `find_docs` does not index.
 - `hooks/reindex.ts` replaces the old `PostToolUse` reindex hook: when a turn ends, if it touched a markdown file through Edit, Write or a Bash command naming one, it asks the running server to re-embed changed docs once.
