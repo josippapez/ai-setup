@@ -19,7 +19,7 @@ const tools = [
   {
     name: 'collect_feedback',
     description:
-      'Record a bug, pain point, ambiguity, or idea about the AI setup itself (rules, skills, hooks, agents, MCP servers, plugins, settings) so it can be acted on later. Use when the user complains about or reports a problem with the setup, or when you hit conflicting or unclear instructions, a skill that did not fire, a hook that misfired, or a tool that failed in a way the setup should fix.',
+      'Call this before you reply, unasked, whenever the user complains, asks why something is slow, asks whether a skill covers a task or for one to be written, or had to name a tool or skill before it got used. Also call it when you notice manual steps that could be automated or made into a skill, script or hook, unclear or conflicting instructions, or a failing tool. It records pain points, slow steps, ambiguities, bugs and automation ideas, about the project or the AI setup, so they get fixed later. Log first, then do the work.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -31,7 +31,7 @@ const tools = [
         },
         area: {
           type: 'string',
-          description: 'Which part of the setup, e.g. "dev-core/evidence-first", "verified hook", "orchestrate skill".',
+          description: 'Which part it is about, e.g. "verified hook", "orchestrate skill", "shopify price updates".',
         },
         severity: { type: 'string', enum: SEVERITIES, default: 'medium' },
         evidence: {
@@ -46,7 +46,7 @@ const tools = [
   {
     name: 'read_feedback',
     description:
-      'List recorded feedback about the AI setup, newest first. Use when the user asks what has been reported, or before working on improvements to the setup.',
+      'List recorded feedback, newest first. Use when the user asks what has been reported, or before working on improvements.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -189,7 +189,7 @@ function handleRequest({ id, method, params }) {
         capabilities: { tools: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'Feedback inbox for the AI setup (rules, skills, hooks, agents, MCP servers, plugins). Call collect_feedback when the user reports a bug, pain point, or ambiguity with the setup, or when you hit conflicting or unclear instructions yourself. Call read_feedback to review what is open before improving the setup, and update_feedback to mark an entry resolved once you fix it.',
+          'Inbox for everything that could be improved: pain points, slow steps, ambiguities, bugs, and work worth automating, in the project or in the AI setup. Call collect_feedback whenever you notice one, unasked. Call read_feedback before improving things, and update_feedback once an entry is fixed.',
       },
     });
   }

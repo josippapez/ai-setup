@@ -1,6 +1,6 @@
 # feedback
 
-A local feedback inbox for the AI setup, exposed as an MCP server with two tools.
+A local inbox for anything that could be better: pain points, slow steps, ambiguities, bugs, and work worth automating, in the project being worked on or in the AI setup. It is an MCP server with three tools.
 
 - `collect_feedback` records a `bug`, `pain_point`, `ambiguity`, or `idea` with a title,
   details, and optional `area`, `severity`, and `evidence`. The server also stores the time

@@ -224,3 +224,12 @@ test('the logged card counts down and goes away on its own', async ($, on) => {
   expect(await ui.find({ text: /Feedback logged/ })).toBeUndefined()
   await ui.unmount()
 })
+
+test('collect_feedback is listed in the prompt instead of behind ToolSearch', async ($, on) => {
+  on('tool.describe', (_, e) => ({ description: e.description, isDeferred: true }))
+  const provider = { plugin: 'mcp:feedback', tier: 'user' } as const
+  const describe = (tool: string) => $.tool.describe({ tool, description: 'Record feedback', isDeferred: true, provider })
+
+  expect(await describe(COLLECT)).toEqual({ description: 'Record feedback', isDeferred: false })
+  expect((await describe('mcp__plugin_feedback_feedback__read_feedback')).isDeferred).toBe(true)
+})

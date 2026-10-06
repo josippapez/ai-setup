@@ -55,10 +55,12 @@ async function reload($: EngineInterface) {
 
 export const register: Register = on => {
   registerTranscript(on)
+  // Deferred behind ToolSearch, the model saw only the name and logged nothing outside ai-setup.
+  on('tool.describe', { tool: COLLECT }, ($, e) => ({ description: e.description, isDeferred: false }))
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'feedback', description: 'Show reported AI-setup feedback in a pane' })
-    await $.command.register({ name: 'fb', description: 'Log AI-setup feedback without a model turn: /fb <what went wrong>' })
+    await $.command.register({ name: 'feedback', description: 'Show reported feedback in a pane' })
+    await $.command.register({ name: 'fb', description: 'Log feedback without a model turn: /fb <what could be better>' })
     await reload($)
     // Other sessions and scripts write the store too, so follow the file, not only this session's calls.
     let seen = (await $.fs.exists(storePath($))) ? (await $.fs.stat(storePath($))).mtimeMs : 0
