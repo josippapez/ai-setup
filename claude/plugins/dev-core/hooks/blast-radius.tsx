@@ -1,14 +1,10 @@
-import { atom, read, update } from 'claude-code'
 import type { On } from 'claude-code'
 
-import type { Held } from '../types'
 import { segments } from './mv-guard'
 
 // Blast radius: a Bash command that throws work away (rm -r, git reset --hard, git clean -f, a
-// force push, a migration) is held until the person allows it from a card above the prompt,
-// which lists what it would remove where a dry run can tell. Auto mode runs these unasked.
-
-const held = atom({ plugin: 'dev-core', key: 'blastRadius' } as const, null as Held | null)
+// force push, a migration) is held until the person allows it in a question that lists what it
+// would remove where a dry run can tell. Auto mode runs these unasked.
 
 const RISKY: { kind: string; re: RegExp }[] = [
   { kind: 'rm -r', re: /^rm\s+(?:-[a-zA-Z]*[rR][a-zA-Z]*\s+|--recursive\s+)/ },
@@ -30,9 +26,9 @@ export function riskyPart(command: string) {
 let isInteractive = false
 export const setInteractive = (value: boolean) => (isInteractive = value)
 
-// Answers for held calls, by id, filled by the card's buttons.
-const waiting = new Map<string, (allow: boolean) => void>()
 const LIMIT = 8
+const ALLOW = 'Allow'
+const BLOCK = 'Block'
 
 export function registerBlastRadius(on: On) {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -54,45 +50,14 @@ export function registerBlastRadius(on: On) {
     }
     if (risky.kind === 'force push') preview = (await lines(['git', 'log', '--oneline', 'HEAD..@{upstream}'])).map(line => `drop remote commit: ${line}`)
 
-    const id = e.tool_use_id
-    const answer = new Promise<boolean>(resolve => waiting.set(id, resolve))
-    await update($, held, () => ({ id, command: e.command, kind: risky.kind, preview }))
-    const allow = await answer
-    waiting.delete(id)
-    await update($, held, shown => (shown?.id === id ? null : shown))
-    if (!allow) return { deny: `The user blocked this ${risky.kind} after seeing what it would remove. Ask before trying it another way.` }
+    // The wait has to be a $ call: the hook's 10 s budget pauses only while one is in flight, and
+    // a hook past its budget is skipped, which ran the command unasked.
+    const listed = preview.length === 0 ? ['No dry run for this one; nothing listed.'] : preview.slice(0, LIMIT)
+    if (preview.length > LIMIT) listed.push(`...and ${preview.length - LIMIT} more`)
+    const question = [`Run this ${risky.kind}?`, `$ ${e.command.split('\n')[0]}`, ...listed.map(line => `  ${line}`)].join('\n')
+    const answer = await $.ui.ask(question, { header: 'Blast radius', options: [ALLOW, BLOCK] }).catch(() => BLOCK)
+    if (answer !== ALLOW) return { deny: `The user blocked this ${risky.kind} after seeing what it would remove. Ask before trying it another way.` }
 
     return next(e)
-  })
-
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const card = await read($, held)
-    const rest = await next(e)
-    if (!card) return rest
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const answer = (allow: boolean) => waiting.get(card.id)?.(allow)
-
-    return (
-      <Box flexDirection="column">
-        <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={1} marginRight={1}>
-          <Text color="red" bold>
-            ⚠ Blast radius · {card.kind}
-          </Text>
-          <Text wrap="truncate-end">$ {card.command.split('\n')[0]}</Text>
-          {card.preview.length === 0 && <Text dimColor>No dry run for this one; nothing listed.</Text>}
-          {card.preview.slice(0, LIMIT).map((line, i) => (
-            <Text key={`p${i}`} dimColor wrap="truncate-end">
-              {`  ${line}`}
-            </Text>
-          ))}
-          {card.preview.length > LIMIT && <Text dimColor>{`  …and ${card.preview.length - LIMIT} more`}</Text>}
-          <Box gap={3} marginTop={1}>
-            <Button key="blast-allow" hotkey="y" label="Allow" onPress={() => answer(true)} />
-            <Button key="blast-block" hotkey="n" label="Block" onPress={() => answer(false)} />
-          </Box>
-        </Box>
-        {rest}
-      </Box>
-    )
   })
 }

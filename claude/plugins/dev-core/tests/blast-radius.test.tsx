@@ -13,44 +13,48 @@ test('destructive commands are recognised, everyday ones are not', () => {
   expect(riskyPart('git clean -n')).toBeNull()
 })
 
-const BAND = {
-  plugin: 'dev-core',
-  surface: 'terminal',
-  component: 'AbovePrompt',
-  props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} },
-} as const
-const tick = () => Promise.resolve()
+const OK = { value: { exitCode: 0, stdout: ' M src/a.ts\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
 
 test('a held command runs on Allow and is refused on Block, after showing what it removes', async ($, on) => {
   const ran: string[] = []
+  const asked: string[] = []
+  let reply = 'Allow'
   on('session.start', () => ({ cwd: '/repo' }))
   on('fs.exists', () => ({ value: false }))
-  on('process.run', () => ({ value: { exitCode: 0, stdout: ' M src/a.ts\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('process.run', () => OK)
   on('tool.call', { tool: 'Bash' }, (_, e) => {
     ran.push(e.command)
     return { result: { stdout: '', stderr: '', interrupted: false }, text: '' }
   })
-  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text>engine band</Text>
+  on('tool.call', { tool: 'AskUserQuestion' }, (_, e) => {
+    asked.push(String(e.questions[0]?.question))
+    return { result: { questions: e.questions, answers: { [String(e.questions[0]?.question)]: reply } }, text: '' }
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
 
-  const allowed = $.tool.call({ tool: 'Bash', command: 'git reset --hard' })
-  for (let i = 0; i < 50; i += 1) await tick()
-  const band = await $.ui.mount(BAND)
-  expect(await band.find({ text: /Blast radius · git reset --hard/ })).toBeDefined()
-  expect(await band.find({ text: /lose changes: src\/a\.ts/ })).toBeDefined()
-  await band.press({ key: 'blast-allow' })
-  await allowed
+  await $.tool.call({ tool: 'Bash', command: 'git reset --hard' })
+  expect(asked[0]).toMatch(/Run this git reset --hard\?[\s\S]*lose changes: src\/a\.ts/)
   expect(ran).toEqual(['git reset --hard'])
-  await band.unmount()
 
-  const blocked = $.tool.call({ tool: 'Bash', command: 'rm -rf build' })
-  for (let i = 0; i < 50; i += 1) await tick()
-  const again = await $.ui.mount(BAND)
-  await again.press({ key: 'blast-block' })
-  expect((await blocked).deny).toMatch(/blocked this rm -r/)
+  reply = 'Block'
+  expect((await $.tool.call({ tool: 'Bash', command: 'rm -rf build' })).deny).toMatch(/blocked this rm -r/)
   expect(ran).toEqual(['git reset --hard'])
-  await again.unmount()
+})
+
+// A hook past its 10 s budget is skipped and the call runs on its behalf, so the wait must not count.
+test('a held command still waits after the 10 s hook budget', { timeoutMs: 20_000 }, async ($, on) => {
+  const ran: string[] = []
+  on('session.start', () => ({ cwd: '/repo' }))
+  on('fs.exists', () => ({ value: false }))
+  on('process.run', () => OK)
+  on('tool.call', { tool: 'Bash' }, (_, e) => {
+    ran.push(e.command)
+    return { result: { stdout: '', stderr: '', interrupted: false }, text: '' }
+  })
+  on('tool.call', { tool: 'AskUserQuestion' }, () => new Promise(() => {}))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+
+  void $.tool.call({ tool: 'Bash', command: 'git reset --hard' })
+  await new Promise(resolve => setTimeout(resolve, 11_000))
+  expect(ran).toEqual([])
 })
