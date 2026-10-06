@@ -44,31 +44,103 @@ function argsSummary(input: Record<string, unknown>): string {
   return [...action, ...args].slice(0, 3).join(' ')
 }
 
-export function hintFor(call: ToolGroupCall): string {
+// A row is a run of styled parts: the verb, the thing acted on, and quieter connectors.
+export type Part = { text: string; kind: 'verb' | 'path' | 'range' | 'pattern' | 'plain' | 'dim' }
+
+// The verb's color follows prompt-timeline's tool cards: reads blue, searches cyan.
+const VERB_COLOR: Record<string, string> = { Read: 'blue', Search: 'cyan', List: 'cyan', Fetch: 'cyan', Ran: 'magenta', Running: 'magenta', Skill: 'magenta', LSP: 'yellow', Load: 'gray' }
+
+const verb = (text: string): Part => ({ text, kind: 'verb' })
+const dim = (text: string): Part => ({ text, kind: 'dim' })
+const plain = (text: string): Part => ({ text, kind: 'plain' })
+
+// Partial reads name their line range (`a.ts:120-180`), as Pi does.
+function readParts(call: ToolGroupCall): Part[] {
+  const path = String((call.input as { file_path?: unknown } | undefined)?.file_path ?? '')
+  const file = (call.output as { file?: { startLine?: unknown; numLines?: unknown; totalLines?: unknown } } | undefined)?.file
+  const start = Number(file?.startLine)
+  const shown = Number(file?.numLines)
+  const isPartial = file && shown !== Number(file.totalLines) && start > 0 && shown > 0
+
+  return [{ text: path, kind: 'path' }, ...(isPartial ? [{ text: `:${start}-${start + shown - 1}`, kind: 'range' } as Part] : [])]
+}
+
+// One row per call, led by a verb as in Codex's Explored block: `Read a.ts`, `Search "foo" in src`, `Ran git status`.
+export function hintParts(call: ToolGroupCall): Part[] {
   const input = (call.input ?? {}) as Record<string, unknown>
   const str = (k: string) => (typeof input[k] === 'string' ? (input[k] as string) : '')
+  const where = (k: string): Part[] => (str(k) ? [dim(' in '), { text: str(k), kind: 'path' }] : [])
 
   switch (call.tool) {
     case 'Bash':
-      return `$ ${str('command').replace(/^\s*cd \S+\s*(&&|;)\s*/, '').split('\n')[0]}`
+      return [verb(call.isRunning ? 'Running' : 'Ran'), plain(` ${str('command').replace(/^\s*cd \S+\s*(&&|;)\s*/, '').split('\n')[0]}`)]
     case 'Grep':
-      return `/${str('pattern')}/${str('path') ? ` in ${str('path')}` : ''}${str('glob') ? ` (${str('glob')})` : ''}`
+      return [verb('Search'), plain(' '), { text: `"${str('pattern')}"`, kind: 'pattern' }, ...where('path'), ...(str('glob') ? [dim(` (${str('glob')})`)] : [])]
     case 'Glob':
-      return str('pattern') + (str('path') ? ` in ${str('path')}` : '')
+      return [verb('List'), plain(' '), { text: str('pattern'), kind: 'pattern' }, ...where('path')]
     case 'Read':
-      return str('file_path')
+      return [verb('Read'), plain(' '), ...readParts(call)]
     case 'WebFetch':
-      return str('url')
+      return [verb('Fetch'), plain(` ${str('url')}`)]
     case 'WebSearch':
+      return [verb('Search'), dim(' web '), { text: `"${str('query')}"`, kind: 'pattern' }]
     case 'ToolSearch':
-      return str('query')
+      return [verb('Load'), dim(' tools '), plain(str('query'))]
     case 'Skill':
-      return str('skill')
+      return [verb('Skill'), plain(` ${str('skill')}`)]
     case 'LSP':
-      return `${str('operation')} ${str('filePath')}:${String(input.line ?? '')}`
-    default:
-      return argsSummary(input)
+      return [verb('LSP'), plain(` ${str('operation')} `), { text: str('filePath'), kind: 'path' }, { text: `:${String(input.line ?? '')}`, kind: 'range' }]
+    default: {
+      const args = argsSummary(input)
+
+      return [verb(labelFor(call.tool)), ...(args ? [dim(` ${args}`)] : [])]
+    }
   }
+}
+
+export function hintFor(call: ToolGroupCall): string {
+  return hintParts(call).map(part => part.text).join('')
+}
+
+export type Row = { calls: ToolGroupCall[]; parts: Part[]; text: string }
+
+// Back-to-back successful reads share one row (`Read a.ts, b.ts`), as Codex merges them.
+export function rowsFor(calls: readonly ToolGroupCall[]): Row[] {
+  const rows: Row[] = []
+
+  for (const call of calls) {
+    const last = rows.at(-1)
+    const isPlainRead = call.tool === 'Read' && !call.isErrored && !call.isRunning
+
+    if (isPlainRead && last && last.calls.every(c => c.tool === 'Read' && !c.isErrored && !c.isRunning)) {
+      last.calls.push(call)
+      last.parts.push(dim(', '), ...readParts(call))
+    } else {
+      rows.push({ calls: [call], parts: hintParts(call), text: '' })
+    }
+  }
+
+  return rows.map(row => ({ ...row, text: row.parts.map(part => part.text).join('') }))
+}
+
+// Long previews keep their head and tail around a `… +N lines` marker.
+export function previewLines(lines: string[], budget: number): string[] {
+  if (lines.length <= budget) {
+    return lines
+  }
+
+  const head = Math.ceil((budget - 1) / 2)
+  const tail = budget - 1 - head
+
+  return [...lines.slice(0, head), `… +${lines.length - head - tail} lines`, ...(tail > 0 ? lines.slice(-tail) : [])]
+}
+
+function statusColor(calls: ToolGroupCall[]): string {
+  if (calls.some(c => c.isErrored)) return 'red'
+  if (calls.some(c => c.isInterrupted)) return 'yellow'
+  if (calls.some(c => c.isRunning)) return 'gray'
+
+  return 'green'
 }
 
 // What a read-like call brought back: its size, and its lines for the preview.
@@ -77,9 +149,7 @@ export function contentOf(call: ToolGroupCall): { size: string; lines: string[] 
   const file = output?.file as { content?: unknown; numLines?: unknown; totalLines?: unknown } | undefined
 
   if (call.tool === 'Read' && output?.type === 'text' && typeof file?.content === 'string') {
-    const total = file.totalLines !== file.numLines ? ` of ${String(file.totalLines)}` : ''
-
-    return { size: `${String(file.numLines)}${total} lines`, lines: file.content.split('\n') }
+    return { size: `${String(file.numLines)} lines`, lines: file.content.split('\n') }
   }
 
   if (call.tool === 'Bash' && typeof output?.stdout === 'string') {
@@ -113,33 +183,85 @@ export const register: Register = on => {
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const width = (e.viewport?.columns ?? 100) - 8
-    const calls = e.props.calls.slice(0, MAX_HINTS)
-    const rest = e.props.calls.length - calls.length
-    const perCall = Math.max(2, Math.floor(PREVIEW_LINES / calls.length))
+    const width = (e.viewport?.columns ?? 100) - 10
+    const rows = rowsFor(e.props.calls)
+    const shown = rows.slice(0, MAX_HINTS)
+    const rest = rows.length - shown.length
+    const perRow = Math.max(2, Math.floor(PREVIEW_LINES / shown.length))
+
+    // A path reads by its file name: the directory stays quiet, the name stands out.
+    const drawPart = (part: Part) => {
+      const text = part.text.replaceAll(cwd, '')
+
+      switch (part.kind) {
+        case 'verb':
+          return <Text bold color={VERB_COLOR[part.text] ?? 'blue'}>{text}</Text>
+        case 'path': {
+          const cut = text.lastIndexOf('/') + 1
+
+          return (
+            <Text>
+              <Text dimColor>{text.slice(0, cut)}</Text>
+              <Text bold>{text.slice(cut)}</Text>
+            </Text>
+          )
+        }
+        case 'range':
+          return <Text color="yellow">{text}</Text>
+        case 'pattern':
+          return <Text color="yellow">{text}</Text>
+        case 'dim':
+          return <Text dimColor>{text}</Text>
+        default:
+          return <Text>{text}</Text>
+      }
+    }
+
+    // Keep the row to one line: drop parts past the width, then cut the last one.
+    const fit = (parts: Part[], room: number): Part[] => {
+      const out: Part[] = []
+      let left = room
+
+      for (const part of parts) {
+        const text = part.text.replaceAll(cwd, '')
+        if (left <= 1) break
+        out.push({ ...part, text: text.length > left ? clip(text, left) : text })
+        left -= text.length
+      }
+
+      return out
+    }
 
     return (
       <Box flexDirection="column">
         {own}
-        {calls.map(call => {
-          const content = contentOf(call)
-          const size = content ? `  (${content.size})` : ''
-          const shown = content?.lines.slice(0, perCall) ?? []
+        <Box flexDirection="column" paddingLeft={2}>
+          {shown.map(row => {
+            const content = row.calls.length === 1 ? contentOf(row.calls[0]!) : undefined
+            const size = content ? `  · ${content.size}` : ''
 
-          return (
-            <Box flexDirection="column">
-              <Text dimColor wrap="truncate-end">
-                {'    '}
-                {call.isErrored ? '✗ ' : '· '}
-                {clip(`${labelFor(call.tool)} ${hintFor(call).replaceAll(cwd, '')}${size}`, width)}
-              </Text>
-              {shown.map(line => (
-                <Text dimColor wrap="truncate-end">{clip(`        │ ${line}`, width)}</Text>
-              ))}
-            </Box>
-          )
-        })}
-        {rest > 0 ? <Text dimColor>{`    … ${rest} more`}</Text> : null}
+            return (
+              <Box flexDirection="column">
+                <Text wrap="truncate-end">
+                  <Text color={statusColor(row.calls)}>{'• '}</Text>
+                  {fit(row.parts, width - size.length).map(drawPart)}
+                  <Text dimColor italic>{size}</Text>
+                </Text>
+                {previewLines(content?.lines ?? [], perRow).map(line =>
+                  /^… \+\d+ lines$/.test(line) ? (
+                    <Text dimColor italic>{`  ┆ ${line}`}</Text>
+                  ) : (
+                    <Text wrap="truncate-end">
+                      <Text color="gray">{'  │ '}</Text>
+                      <Text dimColor>{clip(line, width - 4)}</Text>
+                    </Text>
+                  ),
+                )}
+              </Box>
+            )
+          })}
+          {rest > 0 ? <Text dimColor italic>{`… ${rest} more`}</Text> : null}
+        </Box>
       </Box>
     )
   })
