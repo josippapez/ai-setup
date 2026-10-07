@@ -99,7 +99,7 @@ Prohibited transitions:
 
 ## Resume rule
 
-The store is authoritative. On resume, Read `${skillRoot}/references/store-protocol.md`, `${skillRoot}/references/execution.md`, `${skillRoot}/references/routing.md`, and `${skillRoot}/references/platform.md`, then read store `PROJECT.md`, `EPIC.md`, and every open issue. Reconstruct state from issue frontmatter. Append the current session ID if absent. Preserve existing waves. An issue left `In Review` with no batch-reviewer verdict joins the next batch. Continue at the earliest incomplete phase; never recreate a parallel epic for the same work. If `EPIC.md` lacks `workflow: nightly`, stop and tell the user the epic belongs to the stable workflow.
+The store is authoritative. On resume, Read `${skillRoot}/references/store-protocol.md`, `${skillRoot}/references/execution.md`, `${skillRoot}/references/routing.md`, and `${skillRoot}/references/platform.md`, then read store `PROJECT.md`, `EPIC.md`, and every open issue. Reconstruct state from issue frontmatter. Append the current session ID if absent. Preserve existing waves. An issue left `In Review` with no batch-reviewer verdict joins the next batch. Read every issue file, not only those `EPIC.md` lists as open: an issue added after close-out still counts. An issue left `In Progress` whose builder already appended findings is treated as `In Review`; one with no findings is rebuilt. An `EPIC.md` marked complete while any issue is neither Done nor Canceled is reopened. Continue at the earliest incomplete phase; never recreate a parallel epic for the same work. If `EPIC.md` lacks `workflow: nightly`, stop and tell the user the epic belongs to the stable workflow.
 
 ## Hard invariants
 

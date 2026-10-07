@@ -95,7 +95,7 @@ When evidence invalidates an earlier phase, move back to the earliest affected p
 
 ## Resume rule
 
-The store is authoritative. On resume, `read` `${skillRoot}/references/store-protocol.md`, `${skillRoot}/references/execution.md`, `${skillRoot}/references/routing.md`, and `${skillRoot}/references/platform.md`, then read store `PROJECT.md`, `EPIC.md`, and every open issue. Reconstruct state from issue frontmatter, not prose summaries. Append the current session ID if absent. Preserve existing authoritative waves; re-plan only when a Description or landed dependency materially changed. Re-scout only missing or stale context slices. Continue at the earliest incomplete phase; never recreate a parallel epic for the same work.
+The store is authoritative. On resume, `read` `${skillRoot}/references/store-protocol.md`, `${skillRoot}/references/execution.md`, `${skillRoot}/references/routing.md`, and `${skillRoot}/references/platform.md`, then read store `PROJECT.md`, `EPIC.md`, and every open issue. Reconstruct state from issue frontmatter, not prose summaries. Append the current session ID if absent. Read every issue file, not only those `EPIC.md` lists as open: an issue added after close-out still counts. An issue left `In Progress` whose builder already appended findings is treated as `In Review`; one with no findings is rebuilt. An `EPIC.md` marked complete while any issue is neither Done nor Canceled is reopened. Preserve existing authoritative waves; re-plan only when a Description or landed dependency materially changed. Re-scout only missing or stale context slices. Continue at the earliest incomplete phase; never recreate a parallel epic for the same work.
 
 ## Hard invariants
 
