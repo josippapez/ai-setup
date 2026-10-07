@@ -36,3 +36,8 @@ test('score is the bias plus the weighted sum', () => {
   const unit = MODEL.weights.map((_, i) => (i === 0 ? 1 : 0));
   assert.strictEqual(score(unit), MODEL.bias + MODEL.weights[0]);
 });
+
+test('lastTurn does not count resolving an old entry as logging', () => {
+  const lines = [prompt('a'), called('mcp__plugin_feedback_feedback__update_feedback'), toolResult, said('resolved it')];
+  assert.deepStrictEqual(lastTurn(lines), { text: 'resolved it', logged: false });
+});

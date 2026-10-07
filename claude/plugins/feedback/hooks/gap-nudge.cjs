@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const MODEL = require('./gap-model.json');
-const FEEDBACK_TOOLS = /^mcp__plugin_feedback_feedback__(collect|update)_feedback$/;
+const COLLECT = /^mcp__plugin_feedback_feedback__collect_feedback$/;
 
 const isPrompt = entry =>
   entry.type === 'user' &&
@@ -36,7 +36,7 @@ function lastTurn(lines) {
     if (entry.type === 'assistant' && !entry.isSidechain) {
       seenAssistant = true;
       for (const part of entry.message?.content ?? []) {
-        if (part.type === 'tool_use' && FEEDBACK_TOOLS.test(part.name)) logged = true;
+        if (part.type === 'tool_use' && COLLECT.test(part.name)) logged = true;
       }
       const parts = (entry.message?.content ?? []).filter(part => part.type === 'text');
       if (text === null && parts.length) text = parts.map(part => part.text).join('').trim() || null;
@@ -77,8 +77,9 @@ async function main() {
 }
 
 if (require.main === module) {
-  // Never block the user's prompt: before the first npm install, or on any failure, stay silent.
-  main().catch(() => {});
+  // --prefetch runs in the background at session start so the first prompt doesn't wait ~40 s for the
+  // model download. Never block the user's prompt: before the first npm install, or on any failure, stay silent.
+  (process.argv[2] === '--prefetch' ? embed('warm up') : main()).catch(() => {});
 }
 
 module.exports = { lastTurn, score };
