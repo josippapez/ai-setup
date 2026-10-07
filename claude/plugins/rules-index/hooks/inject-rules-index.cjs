@@ -93,7 +93,9 @@ const main = async () => {
       (e.scoped ? scoped : always).push(e.line);
     }
   }
-  if (always.length + scoped.length === 0) process.exit(0);
+  // Always-on rules are already in context, so a list of only those tells the model nothing:
+  // 40 of 62 real injections were that, about 1.4k characters each.
+  if (scoped.length === 0) process.exit(0);
 
   const header =
     '[rules-index] Rules Claude Code loads for this session, from .claude/rules and ~/.claude/rules. ' +
