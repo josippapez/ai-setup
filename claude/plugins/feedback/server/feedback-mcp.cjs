@@ -19,7 +19,7 @@ const tools = [
   {
     name: 'collect_feedback',
     description:
-      'Call this before you reply, unasked, whenever the user complains, asks why something is slow, asks whether a skill covers a task or for one to be written, or had to name a tool or skill before it got used. Also call it when you notice manual steps that could be automated or made into a skill, script or hook, unclear or conflicting instructions, or a failing tool. It records pain points, slow steps, ambiguities, bugs and automation ideas, about the project or the AI setup, so they get fixed later. Log first, then do the work.',
+      'Call this the moment you notice something that could work better, unasked, before you carry on. Nobody has to point it out: a skill, rule, doc or instruction that was wrong, stale, missing a step or did not fire; a gap you had to work around; a slow or manual step that could be a skill, script or hook; unclear or conflicting instructions; a failing tool. A user correction or complaint, a question about why something is slow, or having to name a tool before it got used also counts. Saving a memory or fixing it in place does not replace this: if you are about to save a lesson, log it too. It records pain points, slow steps, ambiguities, bugs and automation ideas, about the project or the AI setup, so they get fixed later. Log first, then do the work.',
     inputSchema: {
       type: 'object',
       properties: {
