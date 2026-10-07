@@ -332,12 +332,10 @@ const main = async () => {
   // A claim the model has failed to fix across repeated blocks is more likely a
   // false positive than a stubborn lie. Flag it and let the turn end rather than
   // spend the harness's 8-continuation cap arguing with a bad pattern.
-  const repeats = ledger.read()
-    .filter((n) => n.session === session && n.action === 'block')
-    .slice(-MAX_REPEAT_BLOCKS);
+  const repeats = ledger.recentBlocks(session).slice(-MAX_REPEAT_BLOCKS);
   const stuck =
     repeats.length >= MAX_REPEAT_BLOCKS &&
-    repeats.every((n) => (n.claims || []).some((c) => spans.has(c.span)));
+    repeats.every((blocked) => blocked.some((s) => spans.has(s)));
 
   const list = all.map((c) => `  - [${c.class}] "${c.span}" — needs ${c.needs}`).join('\n');
   // path-missing asks the local disk, so a path the session checked over SSH or

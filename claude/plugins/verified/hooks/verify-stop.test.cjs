@@ -342,6 +342,32 @@ test('the ledger records a node that replay can score', () => {
   assert.match(out, /--corpus/, 'points at the source that does have enough history');
 });
 
+test('a fixed block is resolved by an appended line, not a rewrite of the ledger', () => {
+  const fx = fixture();
+  assert.ok(blocked(run(fx, 'The config lives at src/nope.ts:42.', [], 'res', PM_BLOCKS)));
+  const file = path.join(fx.home, 'ledger.jsonl');
+  const first = fs.readFileSync(file, 'utf8').split('\n')[0];
+  assert.strictEqual(run(fx, 'The config is set in the database module.', [], 'res', PM_BLOCKS), null);
+  assert.strictEqual(fs.readFileSync(file, 'utf8').split('\n')[0], first, 'the block line is left as written');
+  const nodes = require('./ledger.cjs');
+  process.env.VERIFIED_HOME = fx.home;
+  try {
+    const read = nodes.read();
+    assert.strictEqual(read.length, 2, 'the resolve line is merged, not returned as a node');
+    assert.strictEqual(read[0].resolved, true);
+  } finally {
+    delete process.env.VERIFIED_HOME;
+  }
+});
+
+test('the same claim blocked three times is let through as unverified', () => {
+  const fx = fixture();
+  for (let i = 0; i < 3; i += 1) assert.ok(blocked(run(fx, 'The config lives at src/nope.ts:42.', [], 'stuck', PM_BLOCKS)));
+  const r = run(fx, 'The config lives at src/nope.ts:42.', [], 'stuck', PM_BLOCKS);
+  assert.ok(!blocked(r));
+  assert.match(r.hookSpecificOutput.additionalContext, /still unbacked after 3 attempts/);
+});
+
 test('replay rejects a candidate that scores worse', () => {
   const fx = fixture();
   // Enough nodes to be worth scoring, each a claim the session never went on to

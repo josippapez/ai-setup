@@ -117,11 +117,40 @@ function writeManifest(session, ev) {
 function append(node) {
   ensure();
   fs.appendFileSync(ledgerPath(), JSON.stringify(node) + '\n');
+  if (!node.session) return;
+  // The Stop hook needs only this session's last node and recent blocks. Reading them
+  // back from the ledger cost 1.2-1.8 s and 1.7 GB per Stop once it reached 386 MB.
+  const state = readState(node.session);
+  const spans = (node.claims || []).map((c) => c.span);
+  state.last = { ts: node.ts, action: node.action, spans };
+  if (node.action === 'block') state.blocks = [...(state.blocks || []), spans].slice(-5);
+  writeState(node.session, state);
 }
 
-function read() {
+const statePath = (session) =>
+  path.join(dir(), 'sessions', String(session).replace(/[^\w.-]/g, '_') + '.json');
+
+function readState(session) {
+  try { return JSON.parse(fs.readFileSync(statePath(session), 'utf8')); } catch { return {}; }
+}
+
+function writeState(session, state) {
   try {
-    return fs.readFileSync(ledgerPath(), 'utf8')
+    fs.mkdirSync(path.dirname(statePath(session)), { recursive: true });
+    fs.writeFileSync(statePath(session) + '.tmp', JSON.stringify(state));
+    fs.renameSync(statePath(session) + '.tmp', statePath(session));
+  } catch { /* costs one resolution or repeat count, never the turn */ }
+}
+
+// Spans of this session's most recent blocks, oldest first.
+const recentBlocks = (session) => readState(session).blocks || [];
+
+// Resolutions are appended as { op: 'resolve' } lines and merged here, so the Stop
+// hook never rewrites the ledger under another session's append.
+function read() {
+  let nodes;
+  try {
+    nodes = fs.readFileSync(ledgerPath(), 'utf8')
       .split('\n')
       .filter(Boolean)
       .map((l) => { try { return JSON.parse(l); } catch { return null; } })
@@ -129,24 +158,29 @@ function read() {
   } catch {
     return [];
   }
+  const resolved = new Map();
+  for (const n of nodes) if (n.op === 'resolve') resolved.set(`${n.session}\0${n.ts}`, n.resolved);
+  return nodes
+    .filter((n) => n.op !== 'resolve')
+    .map((n) => {
+      const r = resolved.get(`${n.session}\0${n.ts}`);
+      return typeof r === 'boolean' && typeof n.resolved !== 'boolean' ? { ...n, resolved: r } : n;
+    });
 }
 
 // Mark the previous node for this session with whether the block actually changed
 // anything. This is the field that separates a true catch from a false positive,
 // and it is the only reason the ledger is worth storing.
 function resolvePrevious(session, currentSpans) {
-  const all = read();
-  for (let i = all.length - 1; i >= 0; i -= 1) {
-    const n = all[i];
-    if (n.session !== session) continue;
-    if (n.action !== 'block' || typeof n.resolved === 'boolean') return;
-    const before = new Set((n.claims || []).map((c) => c.span));
-    n.resolved = ![...before].some((s) => currentSpans.has(s));
-    try {
-      fs.writeFileSync(ledgerPath(), all.map((x) => JSON.stringify(x)).join('\n') + '\n');
-    } catch { /* a lost resolution costs one replay data point, never the turn */ }
-    return;
-  }
+  const state = readState(session);
+  const last = state.last;
+  if (!last || last.action !== 'block' || typeof last.resolved === 'boolean') return;
+  last.resolved = !last.spans.some((s) => currentSpans.has(s));
+  try {
+    ensure();
+    fs.appendFileSync(ledgerPath(), JSON.stringify({ op: 'resolve', session, ts: last.ts, resolved: last.resolved }) + '\n');
+  } catch { /* a lost resolution costs one replay data point, never the turn */ }
+  writeState(session, state);
 }
 
-module.exports = { dir, ledgerPath, offsetsPath, getOffset, setOffset, readManifest, writeManifest, append, read, resolvePrevious };
+module.exports = { dir, ledgerPath, offsetsPath, getOffset, setOffset, readManifest, writeManifest, append, read, resolvePrevious, recentBlocks };

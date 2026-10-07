@@ -23,7 +23,7 @@ Guesses stay legal. The gate checks labelling, not certainty: "I'd use Postgres"
 
 ## Where the data is
 
-`~/.claude/verified/`, deliberately outside the plugin data dir so a reinstall never wipes it. It holds `ledger.jsonl` (one node per evaluated turn, with answer text, so it never goes in git), `manifests/`, `worlds.lock.json` (the pinned replay history), `replay-log.jsonl` and `offsets.json`.
+`~/.claude/verified/`, deliberately outside the plugin data dir so a reinstall never wipes it. It holds `ledger.jsonl` (one node per evaluated turn, with answer text, so it never goes in git), `manifests/`, `worlds.lock.json` (the pinned replay history), `replay-log.jsonl`, `offsets.json` and `sessions/` (each session's last verdict and recent blocks, so the Stop hook never reads the ledger). A block's resolution is appended to the ledger as an `{ "op": "resolve" }` line and merged on read.
 
 ## Changing it
 
