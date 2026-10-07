@@ -42,24 +42,63 @@ async function load() {
   return _mod;
 }
 
+// The model runs in a child process that exits after IDLE_MS without a query. Loaded in the
+// server it held ~750 MB for the rest of the session after one find_docs, and dispose() did
+// not give the memory back (RSS grew from +949 to +1,158 MB), so only an exit frees it.
+const IDLE_MS = Number(process.env.REPO_DOCS_RERANK_IDLE_MS) > 0 ? Number(process.env.REPO_DOCS_RERANK_IDLE_MS) : 5 * 60 * 1000;
+
+async function score(query, texts) {
+  const m = await load();
+  if (!m) return null;
+  const scored = [];
+  for (let i = 0; i < texts.length; i++) {
+    const inputs = m.tokenizer(query, { text_pair: texts[i], padding: true, truncation: true });
+    const { logits } = await m.model(inputs);
+    scored.push({ i, s: logits.data[0] });
+  }
+  scored.sort((a, b) => b.s - a.s);
+  return scored.map(x => x.i);
+}
+
+if (require.main === module) {
+  process.on('message', ({ id, query, texts }) => {
+    score(query, texts).catch(() => null).then(order => process.send({ id, order }));
+  });
+  process.on('disconnect', () => process.exit(0));
+}
+
+let child = null, idle = null, nextId = 0;
+const pending = new Map();
+
+function ensureChild() {
+  if (child) return child;
+  const { fork } = require('node:child_process');
+  child = fork(__filename, [], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  child.on('message', ({ id, order }) => { pending.get(id)?.(order); pending.delete(id); });
+  child.on('exit', () => {
+    child = null;
+    for (const done of pending.values()) done(null);
+    pending.clear();
+  });
+  return child;
+}
+
 // Reorder candidates best-first. The CALLER decides whether to rerank (via a
 // per-call flag or isRerankEnabled()); this function does not re-gate on the env
 // so a per-call `rerank:true` works even when RERANK_ENABLED is unset.
 async function rerank(query, candidates) {
   const identity = candidates.map((_, i) => i);
   if (candidates.length === 0) return identity;
-  const m = await load();
-  if (!m) return identity;
-  try {
-    const scored = [];
-    for (let i = 0; i < candidates.length; i++) {
-      const inputs = m.tokenizer(query, { text_pair: String(candidates[i].text).slice(0, 2000), padding: true, truncation: true });
-      const { logits } = await m.model(inputs);
-      scored.push({ i, s: logits.data[0] });
-    }
-    scored.sort((a, b) => b.s - a.s);
-    return scored.map(x => x.i);
-  } catch { return identity; }
+  const proc = ensureChild();
+  const id = ++nextId;
+  const order = await new Promise(done => {
+    pending.set(id, done);
+    proc.send({ id, query, texts: candidates.map(c => String(c.text).slice(0, 2000)) });
+  });
+  clearTimeout(idle);
+  idle = setTimeout(() => child?.kill(), IDLE_MS);
+  idle.unref();
+  return Array.isArray(order) && order.length === candidates.length ? order : identity;
 }
 
 module.exports = { isRerankEnabled, rerank, RERANKER_ID };
