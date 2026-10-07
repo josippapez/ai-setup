@@ -44,4 +44,6 @@ node --test claude/plugins/dev-core/hooks/*.test.cjs
 
 ## Mod
 
+`hooks/pin-tools.ts` lists WebFetch and Monitor in the prompt instead of behind ToolSearch, so a web fetch or a wait on a background job needs no extra round trip to load the tool.
+
 `hooks/screenshots.tsx` draws a chrome-devtools `take_screenshot` result as the picture itself in the terminal transcript (PNG only, inline or saved to a file). JPEG/WebP results and other surfaces keep the default row.
