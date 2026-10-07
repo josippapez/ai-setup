@@ -30,7 +30,7 @@ const path = require('node:path');
 const { classify, OUTCOME_RE, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts, printedNames } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
 const { markChecks } = require('./check-commands.cjs');
-const { TEST_PASS_RE, outputKind, pathsInOutput } = require('./corpus.cjs');
+const { TEST_PASS_RE, outputKind, pathsInOutput, writesProject } = require('./corpus.cjs');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
 const MAX_REPEAT_BLOCKS = 3; // then downgrade to a visible flag rather than burn the turn
@@ -120,6 +120,7 @@ function see(ev, p) {
 }
 
 function collect(rec, ev, errored, toolOf) {
+  if (typeof rec.cwd === 'string' && rec.cwd) ev.cwd = rec.cwd;
   for (const b of blocksOf(rec)) {
     if (b.type === 'tool_result' && !b.is_error) {
       const c = b.content;
@@ -138,7 +139,7 @@ function collect(rec, ev, errored, toolOf) {
     ev.seq += 1;
     // A write invalidates any earlier "the tests pass": the thing that passed is
     // no longer the thing on disk.
-    if (/^(Edit|Write|NotebookEdit)$/.test(name)) ev.lastWrite = ev.seq;
+    if (writesProject(name, inp, ev.cwd)) ev.lastWrite = ev.seq;
 
     if (inp.file_path) see(ev, inp.file_path);
     if (inp.notebook_path) see(ev, inp.notebook_path);
@@ -154,7 +155,6 @@ function collect(rec, ev, errored, toolOf) {
     if (name === 'Bash' && typeof inp.command === 'string') {
       const cmd = inp.command;
       ev.commands.push({ cmd, ok, seq: ev.seq });
-      if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
       if (SEARCH_CMD_RE.test(cmd)) ev.searches.push({ pattern: cmd, ok, seq: ev.seq });
       if (LIB_CMD_RE.test(cmd)) ev.libLookup = true;
       for (const h of fetchedHosts(cmd)) ev.urls.add(h);

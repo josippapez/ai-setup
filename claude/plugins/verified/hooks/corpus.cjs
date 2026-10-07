@@ -59,11 +59,34 @@ function transcripts(limit) {
     .map((x) => x.f);
 }
 
+// A write invalidates an earlier "tests pass" only when it can change the project. Memory files,
+// scratchpads and plugin data live outside it, and writing them made the gate demand a re-run.
+const OUTSIDE = [path.join(os.homedir(), '.claude') + '/', '/tmp/', '/private/tmp/', '/var/folders/', '/private/var/folders/'];
+// A project can itself live under /tmp, so anything inside the session's folder still counts.
+const outsideProject = (p, cwd) => {
+  const full = p.replace(/^~(?=\/)/, os.homedir());
+  if (!path.isAbsolute(full) || (cwd && (full === cwd || full.startsWith(`${cwd}/`)))) return false;
+  return OUTSIDE.some((dir) => full.startsWith(dir));
+};
+const WRITE_CMD_RE = /(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/;
+function writesProject(name, inp, cwd) {
+  if (/^(Edit|Write|NotebookEdit)$/.test(name)) {
+    const target = inp.file_path || inp.notebook_path;
+    return !(typeof target === 'string' && outsideProject(target, cwd));
+  }
+  if (name !== 'Bash' || typeof inp.command !== 'string' || !WRITE_CMD_RE.test(inp.command)) return false;
+  const cmd = inp.command;
+  // sed -i, tee, cp, mv and install.sh name their targets in ways a regex cannot read reliably.
+  if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b/.test(cmd)) return true;
+  const targets = [...cmd.matchAll(/>>?\s*([^\s&|>;)]+\.[A-Za-z0-9]{1,6})(?=\s|$)/g)].map((m) => m[1].replace(/^["']|["']$/g, ''));
+  return targets.some((t) => !outsideProject(t, cwd));
+}
+
 // Fold one tool call into a manifest. Mirrors verify-stop's collect closely
 // enough to score with; it reads the same fields off the same blocks.
 function fold(ev, name, inp, ok) {
   ev.seq += 1;
-  if (/^(Edit|Write|NotebookEdit)$/.test(name)) ev.lastWrite = ev.seq;
+  if (writesProject(name, inp, ev.cwd)) ev.lastWrite = ev.seq;
   const add = (p) => { if (typeof p === 'string' && p) ev.paths.add(p.replace(/^\.\//, '')); };
   add(inp.file_path); add(inp.notebook_path);
   if (typeof inp.path === 'string') add(inp.path);
@@ -75,7 +98,6 @@ function fold(ev, name, inp, ok) {
     if (/\b(?:rg|grep|ag|ack|find|codegraph)\b/.test(cmd)) ev.searches.push({ pattern: cmd, ok, seq: ev.seq });
     for (const h of fetchedHosts(cmd)) ev.urls.add(h);
     if (/\b(?:opensrc|npm\s+(?:ls|list|view|info)|pip\s+show|cargo\s+tree)\b/.test(cmd)) ev.libLookup = true;
-    if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv)\b|>>?\s*[^\s&|>]+\.[A-Za-z0-9]{1,6}(\s|$)/.test(cmd)) ev.lastWrite = ev.seq;
     for (const t of cmd.split(/[\s'"|;&()<>]+/)) if (t.includes('/') || /\.[A-Za-z]\w{0,9}$/.test(t)) add(t);
   }
   if (/WebFetch|WebSearch/i.test(name)) {
@@ -324,4 +346,4 @@ function seenInSession(session, wanted) {
   return seen;
 }
 
-module.exports = { build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex, seenInSession, TEST_PASS_RE, outputKind, pathsInOutput };
+module.exports = { writesProject, build, worldsFor, transcripts, EMPTY, pin, readLock, lockPath, outputIndex, seenInSession, TEST_PASS_RE, outputKind, pathsInOutput };

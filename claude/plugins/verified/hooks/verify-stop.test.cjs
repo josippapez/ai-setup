@@ -35,6 +35,7 @@ function fixture() {
         const id = `t${this.seq += 1}`;
         lines.push(JSON.stringify({
           type: 'assistant',
+          cwd: home,
           message: { content: [{ type: 'tool_use', id, name: c.name, input: c.input }] },
         }));
         // Some checks read what the tool printed, not just what it was asked.
@@ -822,4 +823,25 @@ test('an example marker on one use does not excuse an unmarked use', () => {
   const r = run(fx, 'Names like e.g. src/nope.ts are fine, but the bug is in src/nope.ts:12.', [], 's1', PM_BLOCKS);
   assert.ok(blocked(r));
   assert.match(reason(r), /\[path-missing\]/);
+});
+
+test('writing a memory file after the test run does not make "tests pass" stale', () => {
+  const memory = path.join(os.homedir(), '.claude', 'projects', 'x', 'memory', 'note.md');
+  const r = run(fixture(), 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+    { name: 'Write', input: { file_path: memory, content: 'x' } },
+    { name: 'Bash', input: { command: `cat >> ${memory} <<'EOF2'\nnote\nEOF2` } },
+    { name: 'Bash', input: { command: 'echo done > /tmp/claude-501/scratch/out.txt' } },
+  ]);
+  assert.strictEqual(r, null);
+});
+
+test('editing a project file after the test run still makes "tests pass" stale', () => {
+  const fx = fixture();
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+    { name: 'Edit', input: { file_path: fx.file('src/app.ts'), old_string: 'x', new_string: 'y' } },
+  ]);
+  assert.ok(blocked(r));
+  assert.match(reason(r), /before a file was written/);
 });
