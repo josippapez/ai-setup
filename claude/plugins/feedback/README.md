@@ -5,7 +5,8 @@ A local inbox for anything that could be better: pain points, slow steps, ambigu
 - `collect_feedback` records a `bug`, `pain_point`, `ambiguity`, or `idea` with a title,
   details, and optional `area`, `severity`, and `evidence`. The server also stores the time
   and the working directory it ran in.
-- `read_feedback` lists entries newest first, filtered by `status` (open by default),
+- `read_feedback` lists entries newest first, for the current project unless `project` is `all`,
+  filtered by `status` (open by default),
   `kind`, `area`, `severity`, or a text `query`.
 - `update_feedback` resolves an entry, closes it as `wontfix`, reopens it, or corrects its
   fields. Updates are appended as `{ "op": "update" }` lines and merged on read, so
@@ -13,7 +14,8 @@ A local inbox for anything that could be better: pain points, slow steps, ambigu
 
 A mod (`hooks/register.tsx`) adds the UI:
 
-- `/feedback` opens a pane listing entries newest first, with a filter button per kind.
+- `/feedback` opens a pane listing this project's entries newest first, with a filter button per
+  kind; `p` toggles to every project. The footer counts this project's open entries.
 - `/fb <text>` logs a `pain_point` through `collect_feedback` without a model turn.
 - Every successful `collect_feedback` call shows a toast and a card above the prompt; the
   footer counts open entries by severity.

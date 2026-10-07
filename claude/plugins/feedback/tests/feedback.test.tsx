@@ -11,6 +11,7 @@ const RUN = { origin: { kind: 'composer' }, presentation: { isFullscreen: false,
 const PANE = { title: 'Feedback', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} } as const
 
 test('/fb logs through the MCP tool and toasts the result', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const calls: unknown[] = []
   const toasts: string[] = []
   on('tool.call', { tool: COLLECT }, (_, e) => {
@@ -31,6 +32,7 @@ test('/fb logs through the MCP tool and toasts the result', async ($, on) => {
 })
 
 test('/fb with no text shows usage and logs nothing', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   let called = false
   on('tool.call', { tool: COLLECT }, () => {
     called = true
@@ -44,6 +46,7 @@ test('/fb with no text shows usage and logs nothing', async ($, on) => {
 })
 
 test('the pane lists entries newest first and filters by kind', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: STORE }))
   const closed: unknown[] = []
@@ -86,6 +89,7 @@ const BAND = {
 } as const
 
 test('logging shows a card above the prompt and updates the footer count', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   let store = ''
   const statuses: (string | undefined)[] = []
   on('fs.exists', () => ({ value: store !== '' }))
@@ -100,7 +104,7 @@ test('logging shows a card above the prompt and updates the footer count', async
     return <Text>engine band</Text>
   })
   on('tool.call', { tool: COLLECT }, () => {
-    store = `${STORE}\n${JSON.stringify({ id: 'cccc3333', createdAt: '2026-10-03T09:00:00.000Z', kind: 'bug', severity: 'high', title: 'just now', details: 'd', cwd: '/x' })}`
+    store = `${STORE}\n${JSON.stringify({ id: 'cccc3333', createdAt: '2026-10-03T09:00:00.000Z', kind: 'bug', severity: 'high', title: 'just now', details: 'd', cwd: '/x/ai-setup' })}`
     return { result: {}, text: 'Recorded feedback cccc3333: [bug/high] just now' }
   })
 
@@ -121,6 +125,7 @@ test('logging shows a card above the prompt and updates the footer count', async
 })
 
 test('the pane shows open entries by default and resolved ones with their resolution', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const resolved = JSON.stringify({ op: 'update', id: 'aaaa1111', status: 'resolved', resolution: 'fixed in 0.4.6', updatedAt: '2026-10-03T09:00:00.000Z' })
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: `${STORE}\n${resolved}` }))
@@ -143,6 +148,7 @@ test('the pane shows open entries by default and resolved ones with their resolu
 })
 
 test('feedback tool calls draw as compact transcript rows', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   on('ui.render', { component: 'ToolUse' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine row</Text>
@@ -176,6 +182,7 @@ test('feedback tool calls draw as compact transcript rows', async ($, on) => {
 })
 
 test('the footer follows writes made outside this session', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const clock = mock.clock(on)
   let store = STORE
   let mtimeMs = 1
@@ -200,6 +207,7 @@ test('the footer follows writes made outside this session', async ($, on) => {
 })
 
 test('the logged card counts down and goes away on its own', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const clock = mock.clock(on)
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: STORE }))
@@ -226,10 +234,28 @@ test('the logged card counts down and goes away on its own', async ($, on) => {
 })
 
 test('collect_feedback is listed in the prompt instead of behind ToolSearch', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
   on('tool.describe', (_, e) => ({ description: e.description, isDeferred: true }))
   const provider = { plugin: 'mcp:feedback', tier: 'user' } as const
   const describe = (tool: string) => $.tool.describe({ tool, description: 'Record feedback', isDeferred: true, provider })
 
   expect(await describe(COLLECT)).toEqual({ description: 'Record feedback', isDeferred: false })
   expect((await describe('mcp__plugin_feedback_feedback__read_feedback')).isDeferred).toBe(true)
+})
+
+test('the pane shows this project by default and toggles to all projects', async ($, on) => {
+  const store = [STORE, JSON.stringify({ id: 'cccc3333', createdAt: '2026-10-03T09:00:00.000Z', kind: 'bug', severity: 'low', title: 'other repo bug', details: 'd', cwd: '/x/other' })].join('\n')
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: store }))
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+
+  await $.command.run({ ...RUN, command: 'feedback', args: '' })
+  const ui = await $.ui.mount({ plugin: 'feedback', surface: 'terminal', component: 'Pane', requestId: 'feedback', props: PANE })
+  const titles = async () => (await ui.findAll({ type: 'Text', text: /old bug|new idea|other repo bug/ })).map(one => one.text)
+  expect(await titles()).toEqual(['new idea', 'old bug'])
+
+  await ui.press({ key: 'scope-toggle' })
+  expect(await titles()).toEqual(['other repo bug', 'new idea', 'old bug'])
+  await ui.unmount()
 })

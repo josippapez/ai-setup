@@ -46,7 +46,7 @@ const tools = [
   {
     name: 'read_feedback',
     description:
-      'List recorded feedback, newest first. Use when the user asks what has been reported, or before working on improvements.',
+      'List recorded feedback, newest first, for the current project unless `project` is "all". Use when the user asks what has been reported, or before working on improvements.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -56,6 +56,7 @@ const tools = [
         query: { type: 'string', description: 'Case-insensitive substring match on title and details.' },
         status: { type: 'string', enum: [...STATUSES, 'all'], default: 'open' },
         limit: { type: 'integer', minimum: 1, default: 50 },
+        project: { type: 'string', enum: ['current', 'all'], default: 'current', description: 'Only entries logged in this project, or all of them.' },
       },
       additionalProperties: false,
     },
@@ -152,6 +153,9 @@ function formatEntry(e) {
   return lines.join('\n');
 }
 
+// An entry belongs to this project when it was logged here or in a folder inside it.
+const inProject = (cwd, here) => cwd === here || cwd.startsWith(`${here}/`);
+
 function readFeedback(args) {
   if (args.kind !== undefined) requireEnum(args.kind, KINDS, 'kind');
   if (args.severity !== undefined) requireEnum(args.severity, SEVERITIES, 'severity');
@@ -160,7 +164,10 @@ function readFeedback(args) {
   const area = args.area?.toLowerCase();
   const query = args.query?.toLowerCase();
   const limit = Number.isInteger(args.limit) && args.limit > 0 ? args.limit : 50;
-  const all = loadEntries();
+  const project = args.project ?? 'current';
+  requireEnum(project, ['current', 'all'], 'project');
+  const everything = loadEntries();
+  const all = project === 'all' ? everything : everything.filter((e) => inProject(e.cwd, process.cwd()));
   const matches = all
     .filter((e) => status === 'all' || e.status === status)
     .filter((e) => !args.kind || e.kind === args.kind)
@@ -168,9 +175,11 @@ function readFeedback(args) {
     .filter((e) => !area || (e.area || '').toLowerCase().includes(area))
     .filter((e) => !query || `${e.title}\n${e.details}`.toLowerCase().includes(query))
     .reverse();
-  if (!matches.length) return `No feedback matches (${all.length} total in ${STORE}).`;
+  const elsewhere = everything.length - all.length;
+  const hint = project === 'current' && elsewhere ? ` ${elsewhere} more in other projects: pass project "all".` : '';
+  if (!matches.length) return `No feedback matches (${all.length} total for this project in ${STORE}).${hint}`;
   const shown = matches.slice(0, limit);
-  return [`${matches.length} of ${all.length} entries match, showing ${shown.length}. Store: ${STORE}`, ...shown.map(formatEntry)].join('\n\n');
+  return [`${matches.length} of ${all.length} entries match, showing ${shown.length}. Store: ${STORE}.${hint}`, ...shown.map(formatEntry)].join('\n\n');
 }
 
 const handlers = { collect_feedback: collectFeedback, read_feedback: readFeedback, update_feedback: updateFeedback };

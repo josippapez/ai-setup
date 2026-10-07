@@ -9,11 +9,11 @@ const { execFileSync } = require('node:child_process');
 const SERVER = path.join(__dirname, 'feedback-mcp.cjs');
 
 // Sends a batch of JSON-RPC requests over stdio and returns the responses by id.
-function rpc(dataDir, calls) {
+function rpc(dataDir, calls, cwd) {
   const input = calls
     .map((params, i) => JSON.stringify({ jsonrpc: '2.0', id: i + 1, method: 'tools/call', params }))
     .join('\n');
-  const out = execFileSync('node', [SERVER, dataDir], { input: `${input}\n` });
+  const out = execFileSync('node', [SERVER, dataDir], { input: `${input}\n`, cwd });
   return out.toString().trim().split('\n').map((l) => JSON.parse(l));
 }
 
@@ -91,4 +91,20 @@ test('update_feedback rejects an unknown id and an update with no fields', () =>
   ]);
   assert.strictEqual(unknown.result.isError, true);
   assert.strictEqual(empty.result.isError, true);
+});
+
+test('read_feedback shows only this project unless project is "all"', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feedback-'));
+  const here = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'project-')));
+  const entry = (id, cwd) => JSON.stringify({ id, createdAt: '2026-10-07T00:00:00.000Z', kind: 'bug', severity: 'low', title: `t-${id}`, details: 'd', cwd });
+  fs.writeFileSync(path.join(dir, 'feedback.jsonl'), [entry('here0001', here), entry('sub00001', `${here}/pkg`), entry('else0001', '/somewhere/else')].join('\n') + '\n');
+
+  const [current] = rpc(dir, [{ name: 'read_feedback', arguments: {} }], here);
+  assert.match(current.result.content[0].text, /2 of 2 entries match/);
+  assert.match(current.result.content[0].text, /1 more in other projects/);
+  assert.doesNotMatch(current.result.content[0].text, /t-else0001/);
+
+  const [all] = rpc(dir, [{ name: 'read_feedback', arguments: { project: 'all' } }], here);
+  assert.match(all.result.content[0].text, /3 of 3 entries match/);
+  assert.match(all.result.content[0].text, /t-else0001/);
 });

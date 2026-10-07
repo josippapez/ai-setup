@@ -22,6 +22,10 @@ const filter = atom({ plugin: 'feedback', key: 'filter' } as const, 'all' as Kin
 const justLogged = atom({ plugin: 'feedback', key: 'justLogged' } as const, null as Entry | null)
 const show = atom({ plugin: 'feedback', key: 'show' } as const, 'open' as Status | 'all')
 const secondsLeft = atom({ plugin: 'feedback', key: 'secondsLeft' } as const, 0)
+const scope = atom({ plugin: 'feedback', key: 'scope' } as const, 'here' as 'here' | 'all')
+const here = atom({ plugin: 'feedback', key: 'here' } as const, '')
+// Same rule as read_feedback: logged in this folder or one inside it.
+const inProject = (cwd: string, dir: string) => cwd === dir || cwd.startsWith(`${dir}/`)
 
 // The MCP server owns the store; the mod only reads it, so there is one writer. The store is
 // entry lines plus `{ op: 'update' }` lines merged into them, the same fold the server does.
@@ -41,7 +45,9 @@ async function reload($: EngineInterface) {
   }
   const list = [...byId.values()].reverse()
   await update($, entries, () => list)
-  const open = list.filter(one => one.status === 'open')
+  const dir = await $.session.cwd()
+  await update($, here, () => dir)
+  const open = list.filter(one => one.status === 'open' && inProject(one.cwd, dir))
   const count = (severity: Entry['severity']) => open.filter(one => one.severity === severity).length
   // The engine prefixes the plugin name, so this reads "feedback: 3 open · 1 high ...".
   $.ui.status(
@@ -168,7 +174,10 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const active = await read($, filter)
     const shown = await read($, show)
-    const everything = await read($, entries)
+    const scoped = await read($, scope)
+    const dir = await read($, here)
+    const stored = await read($, entries)
+    const everything = scoped === 'all' ? stored : stored.filter(one => inProject(one.cwd, dir))
     const all = everything.filter(one => shown === 'all' || one.status === shown)
     const list = all.filter(one => active === 'all' || one.kind === active)
     const width = Math.max(20, e.props.bodyColumns - 2)
@@ -178,6 +187,13 @@ export const register: Register = on => {
         <Box justifyContent="space-between">
           <Box gap={2}>
             <Text bold>Feedback</Text>
+            <Button
+              key="scope-toggle"
+              plain
+              hotkey="p"
+              label={scoped === 'all' ? `All projects ${stored.length}` : `This project ${everything.length} · ${stored.length - everything.length} elsewhere`}
+              onPress={() => update($, scope, now => (now === 'all' ? 'here' : 'all'))}
+            />
             <Button key="close-pane" plain hotkey="q" label="✕ Close" onPress={() => $.ui.close({ id: PANE })} />
           </Box>
           <Text dimColor>
