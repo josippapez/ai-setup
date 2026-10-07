@@ -19,6 +19,10 @@ A mod (`hooks/register.tsx`) adds the UI:
   footer counts open entries by severity.
 - Feedback tool calls draw as compact rows in the transcript.
 
+A Stop hook in `hooks/hooks.json` has Haiku read the final answer. If the answer points out a
+wrong, stale or missing doc, skill, rule, script or config, it sends the agent back to log it
+with `collect_feedback` before finishing.
+
 Entries go to `data/feedback.jsonl` inside this plugin, one JSON object per line. The
 folder is git-ignored. The server is plain Node with no dependencies.
 
