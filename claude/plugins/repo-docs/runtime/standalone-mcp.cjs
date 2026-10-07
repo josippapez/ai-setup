@@ -10,7 +10,6 @@ const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
 const { findLibsTool } = require('./tools/find-libs.cjs');
-const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
 const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
 
@@ -70,7 +69,6 @@ async function handleRequest(message) {
     // Host the mid-session reindex socket so the PostToolUse hook can re-embed
     // edited docs without a reconnect.
     startReindexServer(context).catch(() => {});
-    startDependencyIndex(context).catch(() => {});
     return;
   }
   if (method === 'shutdown') {
