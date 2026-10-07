@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -248,6 +248,24 @@ const run = (bin, args, cwd) => {
   if (result.error) log("skipped:", result.error.message);
 };
 
+// A project whose own settings already format after this tool would get each file formatted twice:
+// one repo measured 159 runs of this hook and 120 of its own in a week, 645 s and 413 s.
+const projectFormats = (workspaceRoot, toolName) => {
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(resolve(workspaceRoot, ".claude", "settings.json"), "utf8"));
+  } catch {
+    return false;
+  }
+  return (settings?.hooks?.PostToolUse ?? []).some((entry) => {
+    const matcher = !entry.matcher || entry.matcher === "*" ? ".*" : entry.matcher;
+    return (
+      new RegExp(`^(?:${matcher})$`, "i").test(toolName) &&
+      (entry.hooks ?? []).some((hook) => /format|prettier|eslint/i.test(hook.command ?? ""))
+    );
+  });
+};
+
 const main = async () => {
   const raw = await readStdin();
   const event = parseJson(raw);
@@ -258,6 +276,7 @@ const main = async () => {
   );
 
   const workspaceRoot = resolveWorkspaceRoot(event);
+  if (projectFormats(workspaceRoot, toolName)) process.exit(0);
   const editedFiles = Array.from(collectEditedFiles(event, toolName))
     .map((file) => toAbsolutePath(file, workspaceRoot))
     .filter((file) => existsSync(file));

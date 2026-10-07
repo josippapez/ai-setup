@@ -80,3 +80,21 @@ test("the Edit tool path still works", () => {
     [path.join(cwd, "src/d.ts")]
   );
 });
+
+test("edits a project formats with its own hook are left to it, shell writes are not", () => {
+  const cwd = withFiles(["src/a.ts"]);
+  fs.mkdirSync(path.join(cwd, ".claude"));
+  fs.writeFileSync(
+    path.join(cwd, ".claude", "settings.json"),
+    JSON.stringify({
+      hooks: {
+        PostToolUse: [
+          { matcher: "Edit|Write|NotebookEdit", hooks: [{ type: "command", command: "node .claude/hooks/format-lint-edited-files.mjs" }] },
+        ],
+      },
+    }),
+  );
+  const edit = { tool_name: "Edit", cwd, tool_input: { file_path: path.join(cwd, "src/a.ts") } };
+  assert.deepEqual(formattedFiles(edit), []);
+  assert.deepEqual(formattedFiles(bash(cwd, "echo x > src/a.ts")), [path.join(cwd, "src/a.ts")]);
+});
