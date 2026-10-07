@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const { loadIndex, hybridSearch } = require('./doc-index.cjs');
 const { isReady, embedQuery } = require('./semantic-index.cjs');
 const { rerank } = require('./reranker.cjs');
-const { indexPath } = require('../tools/build-semantic-index.cjs');
+const { indexPath, buildDocIndex, builtAtOtherHead } = require('../tools/build-semantic-index.cjs');
 
 // Chunk hits per vector search: deep enough that both file rankings reach well
 // past the candidates the cross-encoder votes on.
@@ -66,6 +66,8 @@ async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: wit
   const q = String(query || '').trim();
   if (!q) return [];
   if (!isReady()) return null;
+  // Rebuilt incrementally, so only docs the checkout changed are re-embedded.
+  if (builtAtOtherHead(context)) await buildDocIndex(context, { force: true });
   const db = await getCachedDb(indexPath(context));
   if (!db) return null;
   const vector = await embedQuery(q);

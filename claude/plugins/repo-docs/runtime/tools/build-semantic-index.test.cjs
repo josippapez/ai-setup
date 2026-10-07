@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { createContext } = require('../lib/context.cjs');
 const { shutdown } = require('../lib/semantic-index.cjs');
-const { buildDocIndex } = require('./build-semantic-index.cjs');
+const { buildDocIndex, builtAtOtherHead } = require('./build-semantic-index.cjs');
 const { skipWithoutRuntimeDeps } = require('../lib/test-runtime-deps.cjs');
 const skip = skipWithoutRuntimeDeps();
 
@@ -255,4 +255,18 @@ test('a worker that dies mid-build leaves the previous (cold, absent) index unto
   const result = JSON.parse(stdout.trim().split('\n').pop());
   assert.strictEqual(result.threw, true, 'the build must report failure, not silently save a partial index');
   assert.strictEqual(result.indexExists, false, 'no index should be written on a cold root once the worker dies mid-build');
+});
+
+test('an index built on one commit reads as stale after a branch switch', { skip }, async (t) => {
+  const root = makeRepo(1);
+  const git = (...args) => require('node:child_process').execFileSync('git', ['-C', root, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { stdio: 'ignore' });
+  git('init', '-q'); git('add', '.'); git('commit', '-qm', 'a');
+  const context = createContext(root);
+  t.after(() => shutdown());
+  await buildDocIndex(context, { force: true });
+  assert.strictEqual(builtAtOtherHead(context), false);
+  git('checkout', '-qb', 'feat');
+  fs.writeFileSync(path.join(root, 'new.md'), '# New\nquantum zebra migration\n');
+  git('add', '.'); git('commit', '-qm', 'b');
+  assert.strictEqual(builtAtOtherHead(context), true);
 });

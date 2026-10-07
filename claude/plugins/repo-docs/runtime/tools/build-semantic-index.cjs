@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
@@ -25,6 +26,7 @@ function metaPath(context) { return path.join(path.dirname(indexPath(context)), 
 function lockPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.lock'); }
 function stampPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.stamp'); }
 // "<done> <total>" while a build runs, for the status-line mod; removed with the lock.
+function headPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.head'); }
 function progressPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.progress'); }
 
 // A build shouldn't outlast this; a lock older than it is treated as a crashed
@@ -92,6 +94,18 @@ function removeAbandonedTempFiles(context) {
 }
 function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
+// The commit the docs were read at. A branch switch or pull changes the docs without
+// any edit this plugin sees, and find_docs kept answering from the old branch.
+function gitHead(context) {
+  try { return execFileSync('git', ['-C', context.root, 'rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
+  catch { return null; }
+}
+function builtAtOtherHead(context) {
+  const head = gitHead(context);
+  if (!head) return false;
+  try { return fs.readFileSync(headPath(context), 'utf8') !== head; } catch { return true; }
+}
+
 // Groups the prior index's records by path, keyed to their mtime, so buildDocIndex
 // can reuse cached chunks verbatim for files whose mtime hasn't changed.
 async function loadPriorCache(context) {
@@ -129,8 +143,11 @@ async function buildDocIndex(context, { force = false } = {}) {
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), locked: true };
   }
   removeAbandonedTempFiles(context);
+  const head = gitHead(context);
   try {
-    return await runBuild(context);
+    const result = await runBuild(context);
+    if (head) try { fs.writeFileSync(headPath(context), head); } catch {}
+    return result;
   } finally {
     markBuilt(context);
     try { fs.rmSync(progressPath(context), { force: true }); } catch {}
@@ -197,7 +214,7 @@ async function runBuild(context) {
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
-module.exports = { buildDocIndex, indexPath };
+module.exports = { buildDocIndex, indexPath, builtAtOtherHead };
 
 if (require.main === module) {
   (async () => {
