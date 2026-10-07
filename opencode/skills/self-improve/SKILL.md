@@ -1,7 +1,7 @@
 ---
 name: self-improve
 description: 'Turn a correction or a failure from this session into a skill: update the skill that should have caught it, or write a new one. Covers finding the owning file, writing the description so the skill actually triggers, and mirroring the change to the other adapters.'
-when_to_use: 'Triggers: "you keep doing X", "stop doing that", "remember this for next time", "make this stick", "add a skill for this", "update that skill", "why did you not follow the rule", "that skill did not fire", "this instruction is wrong", "close that loophole". Also on your own initiative when the user corrects the same behavior twice in a session, or when a skill that should have fired did not. Use the always-on rules for what must hold on every turn; use a skill for what applies to a kind of task.'
+when_to_use: 'Triggers: "you keep doing X", "stop doing that", "remember this for next time", "make this stick", "add a skill for this", "update that skill", "why did you not follow the rule", "that skill did not fire", "this instruction is wrong", "close that loophole". Also on your own initiative, unasked, the first time the user corrects something a skill or rule owns, or when a skill that should have fired did not or gave wrong guidance. A memory does not replace fixing the owning skill. Use the always-on rules for what must hold on every turn; use a skill for what applies to a kind of task.'
 ---
 
 # self-improve
