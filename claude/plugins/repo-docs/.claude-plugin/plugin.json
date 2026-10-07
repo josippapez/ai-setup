@@ -1,6 +1,6 @@
 {
   "name": "repo-docs",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Shared by dev-core and orchestrate.",
   "author": {
     "name": "Personal AI Setup"
