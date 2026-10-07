@@ -285,7 +285,7 @@ const main = async () => {
   evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
   pruneStale(evidence);
   // Load the command classifier only when there is an outcome claim to check; without it the regex decides.
-  if (answer.match(OUTCOME_RE)) await markChecks(evidence.commands).catch(() => {});
+  if (answer.match(OUTCOME_RE)) await markChecks(evidence.commands, evidence.lastWrite || 0).catch(() => {});
   const { unbacked, notes, residualText } = classify(answer, evidence);
 
   const all = unbacked.concat(judge(residualText, evidence));

@@ -23,8 +23,10 @@ async function embedder() {
 
 const score = vector => vector.reduce((sum, value, i) => sum + value * MODEL.weights[i], MODEL.bias);
 
-async function markChecks(commands) {
-  const unknown = commands.filter(c => c.ok && !TEST_CMD_RE.test(c.cmd));
+// Only runs at or after `since` (the last write) can back an outcome claim. Embedding the whole
+// session's commands cost one model run per command on every Stop: 224 a Stop on average.
+async function markChecks(commands, since = 0) {
+  const unknown = commands.filter(c => c.ok && (c.seq || 0) >= since && !TEST_CMD_RE.test(c.cmd));
   if (!unknown.length) return;
   const embed = await embedder();
   for (const c of unknown) {

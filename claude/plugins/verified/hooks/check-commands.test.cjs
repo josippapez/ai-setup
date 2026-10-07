@@ -18,6 +18,13 @@ test('the same run without the mark is still unbacked', () => {
   assert.strictEqual(outcome(classify('All tests pass.', ev)).length, 1);
 });
 
+test('markChecks skips runs from before the last write without loading the model', async () => {
+  const commands = [{ cmd: 'pnpm nx affected -t test', ok: true, seq: 2 }];
+  // Rejects when it tries to load the model, which this test process cannot resolve.
+  await markChecks(commands, 3);
+  assert.strictEqual(commands[0].check, undefined);
+});
+
 // Needs the model: run with CLAUDE_PLUGIN_DATA and NODE_PATH pointing at an installed data dir.
 test('markChecks marks nx check runs and leaves other commands alone', { skip: !process.env.CLAUDE_PLUGIN_DATA }, async () => {
   const commands = [
