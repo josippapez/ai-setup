@@ -27,8 +27,9 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { classify, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts, printedNames } = require('./claim-patterns.cjs');
+const { classify, OUTCOME_RE, norm, BACKED_BY, MANIFEST_RE, SEARCH_CMD_RE, LIB_CMD_RE, fetchedHosts, printedNames } = require('./claim-patterns.cjs');
 const ledger = require('./ledger.cjs');
+const { markChecks } = require('./check-commands.cjs');
 const { TEST_PASS_RE, outputKind, pathsInOutput } = require('./corpus.cjs');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
@@ -283,6 +284,8 @@ const main = async () => {
     : buildEvidence(ev0.transcript_path, session);
   evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
   pruneStale(evidence);
+  // Load the command classifier only when there is an outcome claim to check; without it the regex decides.
+  if (answer.match(OUTCOME_RE)) await markChecks(evidence.commands).catch(() => {});
   const { unbacked, notes, residualText } = classify(answer, evidence);
 
   const all = unbacked.concat(judge(residualText, evidence));

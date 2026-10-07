@@ -270,10 +270,12 @@ function classify(answer, ev, cfg) {
     // exists, which is the failure session-scoped evidence would otherwise let
     // through and the one worth catching on its own merits.
     const lastWrite = ev.lastWrite || 0;
-    const ran = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok && (c.seq || 0) >= lastWrite)
+    // c.check is set by check-commands.cjs for runs the regex does not know, like nx affected.
+    const isCheck = (c) => c.check === true || TEST_CMD_RE.test(c.cmd);
+    const ran = ev.commands.some((c) => isCheck(c) && c.ok && (c.seq || 0) >= lastWrite)
       || ((ev.testOut || 0) > 0 && (ev.testOut || 0) >= lastWrite);
     if (!ran) {
-      const stale = ev.commands.some((c) => TEST_CMD_RE.test(c.cmd) && c.ok);
+      const stale = ev.commands.some((c) => isCheck(c) && c.ok);
       unbacked.push({
         class: 'command-outcome',
         span: m[0].trim(),
@@ -350,4 +352,4 @@ const BACKED_BY = {
   state: (ev) => ev.commands.length > 0 || ev.paths.size > 0,
 };
 
-module.exports = { classify, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE, fetchedHosts, printedNames };
+module.exports = { classify, OUTCOME_RE, CONFIG, BACKED_BY, pathSeen, stripFences, norm, isMention, isPlaceholderPath, MANIFEST_RE, SEARCH_TOOLS, SEARCH_CMD_RE, LIB_CMD_RE, TEST_CMD_RE, fetchedHosts, printedNames };
