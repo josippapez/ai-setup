@@ -27,7 +27,8 @@ weights in `hooks/gap-model.json`. When the answer looks like it named a wrong, 
 skill, rule, script or config, it adds a suggestion to log it with `collect_feedback`. It nudges
 about 40% of turns and catches about 60% of gaps on projects it was not trained on; a false alarm
 costs one ignored line. The SessionStart hook installs `@huggingface/transformers` into the plugin
-data dir and downloads the model in the background, so the first prompt does not wait for it. While it downloads, the footer shows a progress bar
+data dir and downloads the model in the background into `~/.claude/models`, shared with the verified
+plugin, so the first prompt does not wait for it. While it downloads, the footer shows a progress bar
 (`nudge model ██████░░░░░░ 50% · 59/118 MB`), read from `data/warmup.json`.
 
 Entries go to `data/feedback.jsonl` inside this plugin, one JSON object per line. The

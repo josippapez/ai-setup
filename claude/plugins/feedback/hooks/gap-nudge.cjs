@@ -74,7 +74,8 @@ async function embed(text, onProgress) {
   // NODE_PATH points at the plugin data dir; ESM import() ignores it, so resolve through require.
   const entry = require.resolve('@huggingface/transformers');
   const { pipeline, env } = await import(require('node:url').pathToFileURL(entry).href);
-  env.cacheDir = path.join(process.env.CLAUDE_PLUGIN_DATA, 'models');
+  // Shared by the feedback and verified plugins, so the model is downloaded and stored once.
+  env.cacheDir = path.join(require('node:os').homedir(), '.claude', 'models');
   const extract = await pipeline('feature-extraction', MODEL.model, { dtype: MODEL.dtype, progress_callback: onProgress });
   const output = await extract(MODEL.prefix + text.slice(0, MODEL.maxChars), { pooling: 'mean', normalize: true });
   return Array.from(output.data);
