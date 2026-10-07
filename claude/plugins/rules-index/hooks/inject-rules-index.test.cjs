@@ -29,12 +29,6 @@ test('silent when neither the project nor the user has a rules directory', () =>
   assert.strictEqual(run(cwd, home), null);
 });
 
-test('silent when every rule is always on, since those are already in context', () => {
-  const cwd = tmp(), home = tmp();
-  write(cwd, '.claude/rules/code-comments.md', '---\ndescription: Comment why, never what.\n---\n');
-  assert.strictEqual(run(cwd, home), null);
-});
-
 test('always-on rule shows its description; path-scoped rule shows name, description, and globs', () => {
   const cwd = tmp(), home = tmp();
   write(cwd, '.claude/rules/code-comments.md', '---\nname: code-comments\ndescription: Comment why, never what.\n---\n# Code comments\n');
@@ -63,14 +57,12 @@ test('falls back to the filename when there is no frontmatter, reads inline path
 test('user-level rules under ~/.claude/rules are listed with a ~ path', () => {
   const cwd = tmp(), home = tmp();
   write(home, '.claude/rules/preferences.md', '---\ndescription: Personal preferences.\n---\n');
-  write(cwd, '.claude/rules/web.md', '---\npaths: ["apps/**"]\n---\n');
   const ctx = run(cwd, home).additionalContext;
   assert.match(ctx, /~\/\.claude\/rules\/preferences\.md — Personal preferences\./);
 });
 
 test('stays under the 10,000-character hook output cap and says how many rules were left out', () => {
   const cwd = tmp(), home = tmp();
-  write(cwd, '.claude/rules/web.md', '---\npaths: ["apps/**"]\n---\n');
   for (let i = 0; i < 300; i++) {
     write(cwd, `.claude/rules/rule-${String(i).padStart(3, '0')}.md`, `---\ndescription: ${'x'.repeat(60)} ${i}\n---\n`);
   }
