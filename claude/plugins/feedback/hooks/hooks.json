@@ -1,14 +1,22 @@
 {
   "hooks": {
-    "Stop": [
+    "SessionStart": [
       {
         "hooks": [
           {
-            "type": "prompt",
-            "model": "claude-haiku-4-5-20251001",
-            "timeout": 30,
-            "statusMessage": "Checking for unlogged gaps",
-            "prompt": "You check one thing about an AI coding agent's final answer. Hook input: $ARGUMENTS\n\nIf stop_hook_active is true, return {\"ok\": true}.\n\nRead last_assistant_message, in whatever language it is written. Return {\"ok\": false, \"reason\": \"...\"} only if the answer points out a concrete problem in the project or the agent's setup that someone should fix later: a doc, README, CLAUDE.md, skill, rule, script, config or tool that is wrong, stale, missing something, contradicts another, or had to be worked around. The reason must name that problem and say: \"If you have not logged this with collect_feedback in this turn, log it now, then finish. If you already did, just finish.\" Everything else returns {\"ok\": true}: answers that only explain code, report results, ask a question, or mention a problem the user asked to fix and that was fixed as the task itself."
+            "type": "command",
+            "command": "diff -q \"${CLAUDE_PLUGIN_ROOT}/package.json\" \"${CLAUDE_PLUGIN_DATA}/package.json\" >/dev/null 2>&1 || (cd \"${CLAUDE_PLUGIN_DATA}\" && cp \"${CLAUDE_PLUGIN_ROOT}/package.json\" . && npm install --no-fund --no-audit) || rm -f \"${CLAUDE_PLUGIN_DATA}/package.json\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_DATA=\"${CLAUDE_PLUGIN_DATA}\" NODE_PATH=\"${CLAUDE_PLUGIN_DATA}/node_modules\" node \"${CLAUDE_PLUGIN_ROOT}/hooks/gap-nudge.cjs\"",
+            "timeout": 60
           }
         ]
       }

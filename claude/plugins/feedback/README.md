@@ -19,12 +19,16 @@ A mod (`hooks/register.tsx`) adds the UI:
   footer counts open entries by severity.
 - Feedback tool calls draw as compact rows in the transcript.
 
-A Stop hook in `hooks/hooks.json` has Haiku read the final answer. If the answer points out a
-wrong, stale or missing doc, skill, rule, script or config, it sends the agent back to log it
-with `collect_feedback` before finishing.
+A UserPromptSubmit hook (`hooks/gap-nudge.cjs`) scores the agent's previous answer with a local
+classifier: multilingual-e5-small embeddings (transformers.js, downloaded on first use) plus logistic
+weights in `hooks/gap-model.json`. When the answer looks like it named a wrong, stale or missing doc,
+skill, rule, script or config, it adds a suggestion to log it with `collect_feedback`. It nudges
+about 40% of turns and catches about 60% of gaps on projects it was not trained on; a false alarm
+costs one ignored line. The SessionStart hook installs `@huggingface/transformers` into the plugin
+data dir.
 
 Entries go to `data/feedback.jsonl` inside this plugin, one JSON object per line. The
 folder is git-ignored. The server is plain Node with no dependencies.
 
-Test: `node --test claude/plugins/feedback/server/feedback-mcp.test.cjs` and
+Test: `node --test claude/plugins/feedback/server/feedback-mcp.test.cjs claude/plugins/feedback/hooks/gap-nudge.test.cjs` and
 `claude plugin test claude/plugins/feedback`.
