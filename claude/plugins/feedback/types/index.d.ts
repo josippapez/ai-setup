@@ -1,5 +1,6 @@
 export type Status = 'open' | 'resolved' | 'wontfix'
 export type Kind = 'bug' | 'pain_point' | 'ambiguity' | 'idea'
+export type Warmup = { state: 'installing' | 'loading' | 'downloading' | 'ready' | 'failed'; loaded?: number; total?: number; at: number }
 export type Entry = {
   id: string
   createdAt: string
@@ -16,6 +17,6 @@ export type Entry = {
 
 declare module 'claude-code' {
   interface PluginState {
-    feedback: { entries: Entry[]; filter: Kind | 'all'; justLogged: Entry | null; show: Status | 'all'; secondsLeft: number; scope: 'here' | 'all'; here: string }
+    feedback: { entries: Entry[]; filter: Kind | 'all'; justLogged: Entry | null; show: Status | 'all'; secondsLeft: number; scope: 'here' | 'all'; here: string; warmup: Warmup | null }
   }
 }

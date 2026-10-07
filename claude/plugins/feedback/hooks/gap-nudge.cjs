@@ -49,12 +49,33 @@ function lastTurn(lines) {
 
 const score = vector => vector.reduce((sum, value, i) => sum + value * MODEL.weights[i], MODEL.bias);
 
-async function embed(text) {
+// The mod reads this to draw a progress bar while the model downloads at session start.
+const WARMUP = path.join(__dirname, '..', 'data', 'warmup.json');
+const writeWarmup = state => {
+  fs.mkdirSync(path.dirname(WARMUP), { recursive: true });
+  // Write then rename, so the mod never reads a half-written file.
+  fs.writeFileSync(`${WARMUP}.tmp`, JSON.stringify({ ...state, at: Date.now() }));
+  fs.renameSync(`${WARMUP}.tmp`, WARMUP);
+};
+
+async function prefetch() {
+  let last = 0;
+  writeWarmup({ state: 'loading' });
+  // pipeline() sizes every file up front, so progress_total carries the real total from the start.
+  await embed('warm up', event => {
+    if (event.status !== 'progress_total' || !event.total || Date.now() - last < 250) return;
+    last = Date.now();
+    writeWarmup({ state: 'downloading', loaded: event.loaded, total: event.total });
+  });
+  writeWarmup({ state: 'ready' });
+}
+
+async function embed(text, onProgress) {
   // NODE_PATH points at the plugin data dir; ESM import() ignores it, so resolve through require.
   const entry = require.resolve('@huggingface/transformers');
   const { pipeline, env } = await import(require('node:url').pathToFileURL(entry).href);
   env.cacheDir = path.join(process.env.CLAUDE_PLUGIN_DATA, 'models');
-  const extract = await pipeline('feature-extraction', MODEL.model, { dtype: MODEL.dtype });
+  const extract = await pipeline('feature-extraction', MODEL.model, { dtype: MODEL.dtype, progress_callback: onProgress });
   const output = await extract(MODEL.prefix + text.slice(0, MODEL.maxChars), { pooling: 'mean', normalize: true });
   return Array.from(output.data);
 }
@@ -79,7 +100,8 @@ async function main() {
 if (require.main === module) {
   // --prefetch runs in the background at session start so the first prompt doesn't wait ~40 s for the
   // model download. Never block the user's prompt: before the first npm install, or on any failure, stay silent.
-  (process.argv[2] === '--prefetch' ? embed('warm up') : main()).catch(() => {});
+  if (process.argv[2] === '--prefetch') prefetch().catch(() => writeWarmup({ state: 'failed' }));
+  else main().catch(() => {});
 }
 
 module.exports = { lastTurn, score };

@@ -22,7 +22,7 @@ test('/fb logs through the MCP tool and toasts the result', async ($, on) => {
     toasts.push(e.text)
     return { value: undefined }
   })
-  on('fs.exists', () => ({ value: false }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (false) }))
 
   const ran = await $.command.run({ ...RUN, command: 'fb', args: 'hooks are slow' })
 
@@ -47,7 +47,7 @@ test('/fb with no text shows usage and logs nothing', async ($, on) => {
 
 test('the pane lists entries newest first and filters by kind', async ($, on) => {
   on('session.cwd', () => ({ value: '/x/ai-setup' }))
-  on('fs.exists', () => ({ value: true }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (true) }))
   on('fs.read', () => ({ value: STORE }))
   const closed: unknown[] = []
   on('ui.close', (_, e) => {
@@ -92,7 +92,7 @@ test('logging shows a card above the prompt and updates the footer count', async
   on('session.cwd', () => ({ value: '/x/ai-setup' }))
   let store = ''
   const statuses: (string | undefined)[] = []
-  on('fs.exists', () => ({ value: store !== '' }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (store !== '') }))
   on('fs.read', () => ({ value: store }))
   on('ui.status', (_, e) => {
     statuses.push(e.text)
@@ -127,7 +127,7 @@ test('logging shows a card above the prompt and updates the footer count', async
 test('the pane shows open entries by default and resolved ones with their resolution', async ($, on) => {
   on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const resolved = JSON.stringify({ op: 'update', id: 'aaaa1111', status: 'resolved', resolution: 'fixed in 0.4.6', updatedAt: '2026-10-03T09:00:00.000Z' })
-  on('fs.exists', () => ({ value: true }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (true) }))
   on('fs.read', () => ({ value: `${STORE}\n${resolved}` }))
   on('ui.status', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -187,7 +187,7 @@ test('the footer follows writes made outside this session', async ($, on) => {
   let store = STORE
   let mtimeMs = 1
   const statuses: (string | undefined)[] = []
-  on('fs.exists', () => ({ value: true }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (true) }))
   on('fs.read', () => ({ value: store }))
   on('fs.stat', () => ({ value: { kind: 'file', size: store.length, mtimeMs, isLink: false } }))
   on('ui.status', (_, e) => {
@@ -209,7 +209,7 @@ test('the footer follows writes made outside this session', async ($, on) => {
 test('the logged card counts down and goes away on its own', async ($, on) => {
   on('session.cwd', () => ({ value: '/x/ai-setup' }))
   const clock = mock.clock(on)
-  on('fs.exists', () => ({ value: true }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (true) }))
   on('fs.read', () => ({ value: STORE }))
   on('ui.status', () => ({ value: undefined }))
   on('ui.toast', () => ({ value: undefined }))
@@ -245,7 +245,7 @@ test('collect_feedback is listed in the prompt instead of behind ToolSearch', as
 
 test('the pane shows this project by default and toggles to all projects', async ($, on) => {
   const store = [STORE, JSON.stringify({ id: 'cccc3333', createdAt: '2026-10-03T09:00:00.000Z', kind: 'bug', severity: 'low', title: 'other repo bug', details: 'd', cwd: '/x/other' })].join('\n')
-  on('fs.exists', () => ({ value: true }))
+  on('fs.exists', (_, e) => ({ value: !e.path.endsWith('warmup.json') && (true) }))
   on('fs.read', () => ({ value: store }))
   on('session.cwd', () => ({ value: '/x/ai-setup' }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -258,4 +258,28 @@ test('the pane shows this project by default and toggles to all projects', async
   await ui.press({ key: 'scope-toggle' })
   expect(await titles()).toEqual(['other repo bug', 'new idea', 'old bug'])
   await ui.unmount()
+})
+
+test('the footer shows a download bar while the nudge model warms up', async ($, on) => {
+  on('session.cwd', () => ({ value: '/x/ai-setup' }))
+  const clock = mock.clock(on)
+  let warm = JSON.stringify({ state: 'downloading', loaded: 59e6, total: 118e6, at: Date.now() })
+  const statuses: (string | undefined)[] = []
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', (_, e) => ({ value: e.path.endsWith('warmup.json') ? warm : STORE }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: STORE.length, mtimeMs: 1, isLink: false } }))
+  on('ui.status', (_, e) => {
+    statuses.push(e.text)
+    return { value: undefined }
+  })
+  on('session.start', () => ({ cwd: '/x/ai-setup' }))
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+
+  await $.session.start({ cwd: '/x/ai-setup', surface: null, isInteractive: true })
+  await clock.advance(1000)
+  expect(statuses.at(-1)).toBe('nudge model ██████░░░░░░ 50% · 59/118 MB')
+
+  warm = JSON.stringify({ state: 'ready', at: Date.now() })
+  await clock.advance(1000)
+  expect(statuses.at(-1)).toBe('2 open · 1 high · 0 medium · 1 low · /feedback to view')
 })

@@ -6,7 +6,7 @@
           {
             "type": "command",
             "async": true,
-            "command": "diff -q \"${CLAUDE_PLUGIN_ROOT}/package.json\" \"${CLAUDE_PLUGIN_DATA}/package.json\" >/dev/null 2>&1 || (cd \"${CLAUDE_PLUGIN_DATA}\" && cp \"${CLAUDE_PLUGIN_ROOT}/package.json\" . && npm install --no-fund --no-audit) || rm -f \"${CLAUDE_PLUGIN_DATA}/package.json\"; CLAUDE_PLUGIN_DATA=\"${CLAUDE_PLUGIN_DATA}\" NODE_PATH=\"${CLAUDE_PLUGIN_DATA}/node_modules\" node \"${CLAUDE_PLUGIN_ROOT}/hooks/gap-nudge.cjs\" --prefetch"
+            "command": "diff -q \"${CLAUDE_PLUGIN_ROOT}/package.json\" \"${CLAUDE_PLUGIN_DATA}/package.json\" >/dev/null 2>&1 || (mkdir -p \"${CLAUDE_PLUGIN_ROOT}/data\" && printf '{\"state\":\"installing\",\"at\":%s000}' \"$(date +%s)\" > \"${CLAUDE_PLUGIN_ROOT}/data/warmup.json\"; cd \"${CLAUDE_PLUGIN_DATA}\" && cp \"${CLAUDE_PLUGIN_ROOT}/package.json\" . && npm install --no-fund --no-audit) || rm -f \"${CLAUDE_PLUGIN_DATA}/package.json\"; CLAUDE_PLUGIN_DATA=\"${CLAUDE_PLUGIN_DATA}\" NODE_PATH=\"${CLAUDE_PLUGIN_DATA}/node_modules\" node \"${CLAUDE_PLUGIN_ROOT}/hooks/gap-nudge.cjs\" --prefetch"
           }
         ]
       }

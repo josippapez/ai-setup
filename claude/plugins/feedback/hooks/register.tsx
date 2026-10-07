@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Entry, Kind, Status } from '../types'
+import type { Entry, Kind, Status, Warmup } from '../types'
 import { registerTranscript } from './transcript'
 
 const PANE = 'feedback'
@@ -26,6 +26,19 @@ const scope = atom({ plugin: 'feedback', key: 'scope' } as const, 'here' as 'her
 const here = atom({ plugin: 'feedback', key: 'here' } as const, '')
 // Same rule as read_feedback: logged in this folder or one inside it.
 const inProject = (cwd: string, dir: string) => cwd === dir || cwd.startsWith(`${dir}/`)
+const warmup = atom({ plugin: 'feedback', key: 'warmup' } as const, null as Warmup | null)
+// A warm-up the prefetch stopped writing (killed, crashed) is not shown forever.
+const WARMUP_STALE_MS = 2 * 60 * 1000
+const warmupPath = ($: EngineInterface) => `${$.plugin.root}/data/warmup.json`
+
+const megabytes = (bytes: number) => Math.round(bytes / 1e6)
+function warmupText(w: Warmup) {
+  if (w.state === 'installing') return 'nudge model: installing…'
+  if (w.state !== 'downloading' || !w.total) return 'nudge model: warming up…'
+  const share = Math.min(1, w.loaded / w.total)
+  const filled = Math.round(share * 12)
+  return `nudge model ${'█'.repeat(filled)}${'░'.repeat(12 - filled)} ${Math.round(share * 100)}% · ${megabytes(w.loaded)}/${megabytes(w.total)} MB`
+}
 
 // The MCP server owns the store; the mod only reads it, so there is one writer. The store is
 // entry lines plus `{ op: 'update' }` lines merged into them, the same fold the server does.
@@ -47,7 +60,16 @@ async function reload($: EngineInterface) {
   await update($, entries, () => list)
   const dir = await $.session.cwd()
   await update($, here, () => dir)
-  const open = list.filter(one => one.status === 'open' && inProject(one.cwd, dir))
+  await showStatus($)
+
+  return list
+}
+
+async function showStatus($: EngineInterface) {
+  const w = await read($, warmup)
+  if (w && w.state !== 'ready' && w.state !== 'failed') return $.ui.status(warmupText(w))
+  const dir = await read($, here)
+  const open = (await read($, entries)).filter(one => one.status === 'open' && inProject(one.cwd, dir))
   const count = (severity: Entry['severity']) => open.filter(one => one.severity === severity).length
   // The engine prefixes the plugin name, so this reads "feedback: 3 open · 1 high ...".
   $.ui.status(
@@ -55,8 +77,13 @@ async function reload($: EngineInterface) {
       ? undefined
       : `${open.length} open · ${count('high')} high · ${count('medium')} medium · ${count('low')} low · /feedback to view`,
   )
+}
 
-  return list
+async function readWarmup($: EngineInterface) {
+  const path = warmupPath($)
+  if (!(await $.fs.exists(path))) return null
+  const w = JSON.parse(await $.fs.read(path)) as Warmup
+  return Date.now() - w.at > WARMUP_STALE_MS ? null : w
 }
 
 export const register: Register = on => {
@@ -78,6 +105,16 @@ export const register: Register = on => {
         await reload($)
       })()
     })
+    // The background prefetch writes its progress here; follow it until the model is ready.
+    const warmupTick = $.clock.every(1000, () => {
+      void (async () => {
+        const w = await readWarmup($)
+        await update($, warmup, () => w)
+        await showStatus($)
+        if (w?.state === 'ready' || w?.state === 'failed') warmupTick.cancel()
+      })()
+    })
+    $.clock.after(10 * 60 * 1000, () => warmupTick.cancel())
 
     return next(e)
   })
