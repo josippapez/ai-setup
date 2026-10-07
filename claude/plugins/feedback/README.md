@@ -21,10 +21,12 @@ A mod (`hooks/register.tsx`) adds the UI:
   footer counts open entries by severity.
 - Feedback tool calls draw as compact rows in the transcript.
 
-A UserPromptSubmit hook (`hooks/gap-nudge.cjs`) scores the agent's previous answer with a local
+An async Stop hook (`hooks/gap-nudge.cjs`) scores each finished answer with a local
 classifier: multilingual-e5-small embeddings (transformers.js, downloaded on first use) plus logistic
 weights in `hooks/gap-model.json`. When the answer looks like it named a wrong, stale or missing doc,
-skill, rule, script or config, it adds a suggestion to log it with `collect_feedback`. It nudges
+skill, rule, script or config, Claude Code gives the agent a suggestion to log it with
+`collect_feedback` on the next turn. Running in the background at Stop keeps the model load (~0.8 s)
+off the next prompt. It nudges
 about 40% of turns and catches about 60% of gaps on projects it was not trained on; a false alarm
 costs one ignored line. The SessionStart hook installs `@huggingface/transformers` into the plugin
 data dir and downloads the model in the background into `~/.claude/models`, shared with the verified

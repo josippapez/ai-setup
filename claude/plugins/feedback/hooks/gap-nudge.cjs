@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-// UserPromptSubmit hook. Scores the agent's previous answer with a local classifier and, when it
-// looks like the answer named a gap (wrong or stale doc, skill, rule, script or config), adds a
-// suggestion to log it. False alarms are cheap by design: the agent just ignores the note.
+// Async Stop hook. Scores the answer that just ended with a local classifier and, when it looks like
+// the answer named a gap (wrong or stale doc, skill, rule, script or config), Claude Code hands the
+// suggestion to log it to the agent on the next turn. Running at Stop in the background keeps the
+// ~0.8 s model load off the user's next prompt. False alarms are cheap: the agent ignores the note.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -83,14 +84,16 @@ async function embed(text, onProgress) {
 
 async function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+  // The transcript can lag the turn's last message, so the text comes from the hook input.
+  const text = String(input.last_assistant_message || '').trim();
+  if (!text) return;
   const lines = fs.readFileSync(input.transcript_path, 'utf8').split('\n').filter(Boolean);
-  const { text, logged } = lastTurn(lines);
-  if (!text || logged) return;
+  if (lastTurn(lines).logged) return;
   if (score(await embed(text)) < MODEL.cutoff) return;
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
-        hookEventName: 'UserPromptSubmit',
+        hookEventName: 'Stop',
         additionalContext:
           '[feedback] Your previous answer may have pointed out a gap: a doc, skill, rule, script or config that was wrong, stale or missing something, or that you had to work around. If it did and you have not logged it, call collect_feedback for it. If it did not, ignore this note.',
       },
@@ -100,7 +103,7 @@ async function main() {
 
 if (require.main === module) {
   // --prefetch runs in the background at session start so the first prompt doesn't wait ~40 s for the
-  // model download. Never block the user's prompt: before the first npm install, or on any failure, stay silent.
+  // model download. Before the first npm install, or on any failure, stay silent.
   if (process.argv[2] === '--prefetch') prefetch().catch(() => writeWarmup({ state: 'failed' }));
   else main().catch(() => {});
 }

@@ -11,13 +11,13 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
+    "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "CLAUDE_PLUGIN_DATA=\"${CLAUDE_PLUGIN_DATA}\" NODE_PATH=\"${CLAUDE_PLUGIN_DATA}/node_modules\" node \"${CLAUDE_PLUGIN_ROOT}/hooks/gap-nudge.cjs\"",
-            "timeout": 60
+            "async": true
           }
         ]
       }
