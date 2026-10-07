@@ -46,6 +46,8 @@ Immediately define the absolute skill root:
 
 Decide tracked versus inline. Confirm repository root and repo-docs readiness. If resuming, go to the Resume rule.
 
+Pick the mode from the request. **Full** is the default. **Draft** ("prepare the epic", "draft it so I can pick it up") runs Intake through Plan and stops with every issue `Todo`; the main agent does the exploring and planning itself and dispatches no subagent. **Solo** ("without subagents") runs every phase, but the main agent builds and reviews each chunk itself in wave order and writes the same findings, verdicts and statuses to the store. Record the mode in `EPIC.md`. In draft and solo, a routing row that names a subagent is done by the main agent or recorded as skipped, never dispatched.
+
 ### 1. Intake
 
 Pin objective, scope, constraints, acceptance criteria, terminology, validation expectations, and genuine user decisions. The main agent alone prompts the user. Never decompose an incomplete spec.

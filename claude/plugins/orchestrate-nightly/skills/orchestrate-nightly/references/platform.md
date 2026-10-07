@@ -21,7 +21,7 @@ Measured on 23 past workers (Sept 2026 transcripts, first-party API prices): a s
 | `low` | haiku | Mechanical and fully specified: rename, move, config edit, add a field, apply a stated pattern to more call sites, docs edit. No judgement left. |
 | `medium` | sonnet | Ordinary feature or fix. Known approach, some structural judgement. |
 | `high` | sonnet | Cross-cutting or many files, but no risk tag. Size alone never buys opus in nightly; the batch reviewer catches what a sonnet builder misses and the fixer is cheap. |
-| `high` + risk tag | opus | Touches security/auth, data migration, concurrency, money, or a public interface. |
+| `high` + risk tag | opus for `security`, `auth`, `migration`, `money`; sonnet for `concurrency`, `public-api` | Touches one of those. Opus builders averaged $13.01 a chunk against $3.91 for sonnet, and the batch reviewer already runs on opus for any risk-tagged chunk, so the two tags that are reviewable after the fact build on sonnet. |
 | `max` | opus | Hard-to-reverse, expensive-to-get-wrong decisions. Fable only on explicit user request. |
 
 Risk tags are set at Decompose in the issue frontmatter `risk:` list (`security`, `auth`, `migration`, `concurrency`, `money`, `public-api`). An empty list means no tag.

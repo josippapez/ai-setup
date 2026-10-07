@@ -55,7 +55,7 @@ test('no nightly agent spawns agents; the builder runs commands itself', () => {
 test('platform reference carries the nightly model policy and no nested dispatch', () => {
   const platform = read(skill, 'references/platform.md');
   assert.ok(platform.includes('| `high` | sonnet |'), 'high without risk builds on sonnet');
-  assert.ok(platform.includes('| `high` + risk tag | opus |'), 'risk-tagged high builds on opus');
+  assert.ok(platform.includes('| `high` + risk tag | opus for `security`, `auth`, `migration`, `money`; sonnet for `concurrency`, `public-api` |'), 'risk-tagged high builds on opus except concurrency and public-api');
   assert.ok(platform.includes('## No nested dispatch'));
   assert.ok(platform.includes('Never review on haiku'));
 });

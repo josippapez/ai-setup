@@ -43,7 +43,7 @@ cat >> "$issuePath" <<EOF
 EOF
 ```
 
-At convergence append to `EPIC.md` instead. Never move status. If an append is denied, record it in `relay`.
+At convergence append to `EPIC.md` instead. Never move status. If an append is denied, record it in `relay`. `relay` is only for a denied append: a non-blocking note goes in your verdict section, where the orchestrator never has to copy it.
 
 ## Return to the orchestrator
 
