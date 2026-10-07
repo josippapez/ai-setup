@@ -37,6 +37,6 @@
     "tools": [
       "Bash"
     ],
-    "fire": "(^|[\\s;&|])git\\s+commit\\b"
+    "fire": "(^|[\\s;&|])git\\s+(commit|worktree\\s+add|checkout\\s+-b|switch\\s+-c)\\b"
   }
 ]
