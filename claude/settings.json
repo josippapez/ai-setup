@@ -74,14 +74,14 @@
     "dev-core@ai-setup": true,
     "concise-output@ai-setup": true,
     "rules-index@ai-setup": true,
-    "orchestrate@ai-setup": true,
+    "orchestrate@ai-setup": false,
     "frontend-design@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-hud@claude-hud": true,
-    "orchestrate-nightly@ai-setup": true,
-    "better-design@ai-setup": true,
+    "orchestrate-nightly@ai-setup": false,
+    "better-design@ai-setup": false,
     "fundamentals@ai-setup": true,
     "verified@ai-setup": true,
     "feedback@ai-setup": true,
@@ -133,5 +133,20 @@
         ]
       }
     ]
+  },
+  "skillOverrides": {
+    "anthropic-skills:pptx": "user-invocable-only",
+    "anthropic-skills:pdf": "user-invocable-only",
+    "anthropic-skills:xlsx": "user-invocable-only",
+    "anthropic-skills:google-workspace": "user-invocable-only",
+    "anthropic-skills:docx": "user-invocable-only",
+    "anthropic-skills:docs": "user-invocable-only",
+    "anthropic-skills:chrome-browser": "user-invocable-only",
+    "anthropic-skills:built-in-browser": "user-invocable-only",
+    "anthropic-skills:skill-creator": "user-invocable-only",
+    "anthropic-skills:deep-research": "user-invocable-only",
+    "anthropic-skills:computer-use": "user-invocable-only",
+    "anthropic-skills:morning": "user-invocable-only",
+    "anthropic-skills:import-memory": "user-invocable-only"
   }
 }

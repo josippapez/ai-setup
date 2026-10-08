@@ -105,6 +105,12 @@ if have claude; then
       claude plugin install "$plugin@ai-setup" --scope user
     fi
   done
+
+  # Re-adding the marketplace re-enables every plugin it installs, so turn the
+  # ones settings.json ships as false back off.
+  for plugin in $(node -e 'const p=require(process.argv[1]).enabledPlugins;for(const k in p)if(p[k]===false&&k.endsWith("@ai-setup"))console.log(k)' "$SRC/settings.json"); do
+    claude plugin disable "$plugin" --scope user >/dev/null
+  done
 else
   warn "the 'claude' CLI is not on PATH; skipped marketplace + plugin install. Install Claude Code, then re-run this script."
 fi
