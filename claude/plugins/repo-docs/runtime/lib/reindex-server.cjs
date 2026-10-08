@@ -4,9 +4,10 @@ const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
+const { CONFIG_DIR } = require('./platform.cjs');
 
 function reindexSocketPath(root) {
-  return path.join(root, '.claude', 'repo-docs', 'inject.sock');
+  return path.join(root, CONFIG_DIR, 'repo-docs', 'inject.sock');
 }
 
 // Probe whether a socket path is a live listener (vs. a file orphaned by a

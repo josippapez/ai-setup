@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
+const { CONFIG_DIR } = require('../lib/platform.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
 const { relativePath } = require('../lib/fs-utils.cjs');
 const { waitUntilReady, embedDocsChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
@@ -21,7 +22,7 @@ const MAX_FILE_BYTES = 1_000_000;
 // and the embedder moved to 8-bit weights.
 const SCHEMA_VERSION = 7;
 
-function indexPath(context) { return path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json'); }
+function indexPath(context) { return path.join(context.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
 function lockPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.lock'); }
 function stampPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.stamp'); }

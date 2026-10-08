@@ -12,6 +12,8 @@ Local semantic doc search, installed-package lookup and JS/TS file-impact tools 
 
 ## Dependencies auto-install
 
+`opencode/plugins/dev-core` runs a copy of `runtime/`. Only `lib/platform.cjs` (the `.claude`/`.opencode` folder and the model cache), `lib/context.cjs` and `standalone-mcp.cjs` differ; `opencode/plugins/dev-core/repo-docs-sync.test.cjs` fails when any other file drifts, so copy changed runtime files across.
+
 No manual `npm install`. A `SessionStart` hook (`hooks/hooks.json`) runs `npm install` into the plugin's persistent data dir (`${CLAUDE_PLUGIN_DATA}/node_modules`) on first session and again whenever `package.json` changes; the MCP server resolves them via `NODE_PATH`. The first session may take a moment while `@huggingface/transformers` installs (the `bge-small` model is ~128 MB); later sessions are instant (deps persist across plugin updates). Embedding/reranker **models are cached in a shared dir** — `~/.claude/repo-docs-models` by default, override with the `REPO_DOCS_MODELS_DIR` env var.
 
 ## Docs index warms on connect

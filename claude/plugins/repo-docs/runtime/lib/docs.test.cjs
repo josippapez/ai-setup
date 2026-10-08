@@ -4,6 +4,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { CONFIG_DIR } = require('./platform.cjs');
 const { getDocFiles } = require('./docs.cjs');
 
 function makeRepo(files) {
@@ -32,7 +33,7 @@ test('default ignores drop CocoaPods vendor dirs, Expo caches and reports withou
 
 test('the ignore file adds to the defaults', () => {
   const root = makeRepo(['docs/guide.md', 'evidence/report.md', 'reports/a.md']);
-  fs.mkdirSync(path.join(root, '.claude'));
-  fs.writeFileSync(path.join(root, '.claude', 'repo-docs-ignore'), '# generated\nevidence\n');
+  fs.mkdirSync(path.join(root, CONFIG_DIR));
+  fs.writeFileSync(path.join(root, CONFIG_DIR, 'repo-docs-ignore'), '# generated\nevidence\n');
   assert.deepStrictEqual(listed(root), ['docs/guide.md']);
 });

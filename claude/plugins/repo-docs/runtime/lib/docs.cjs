@@ -3,12 +3,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { relativePath, walkDirectory } = require('./fs-utils.cjs');
+const { CONFIG_DIR } = require('./platform.cjs');
 
-// Optional per-repo ignore config: <repo>/.claude/repo-docs-ignore
+// Optional per-repo ignore config: <repo>/<CONFIG_DIR>/repo-docs-ignore
 // gitignore-lite, one pattern per line (# comments). A pattern without a slash
 // matches at any depth; a trailing slash / bare dir name excludes the subtree;
 // `*` matches within a path segment, `**` across segments.
-const IGNORE_FILE = path.join('.claude', 'repo-docs-ignore');
+const IGNORE_FILE = path.join(CONFIG_DIR, 'repo-docs-ignore');
 
 // Applied in every repo on top of the ignore file: CocoaPods vendor READMEs,
 // Expo caches, and local report output.

@@ -31,11 +31,10 @@ if (!isMainThread) {
     // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
     const { pipeline, env } = await import(pathToFileURL(entry).href);
-    // Shared model cache across both plugins so each model is downloaded once,
-    // not per plugin data dir. Defaults to ~/.claude/repo-docs-models; override
-    // with the REPO_DOCS_MODELS_DIR env var.
+    // One model cache for every plugin data dir, so each model downloads once;
+    // REPO_DOCS_MODELS_DIR overrides it.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
-      || require('node:path').join(require('node:os').homedir(), '.claude', 'repo-docs-models');
+      || require('./platform.cjs').MODELS_DIR;
     // The GPU first: a full rebuild of 2,287 chunks measured 133 s and 36 s of CPU,
     // against 274 s and 274 s for the 8-bit model on one CPU thread, with the same
     // top hits. onnxruntime-node marks WebGPU experimental, so a load or first-run

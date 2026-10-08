@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const os = require('node:os');
 const path = require('node:path');
+const { CONFIG_DIR } = require('../lib/platform.cjs');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { createContext } = require('../lib/context.cjs');
@@ -46,7 +47,7 @@ test('a build removes temp files a killed writer left behind', { skip }, async (
   const root = makeRepo(1);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.mkdirSync(dir, { recursive: true });
   const leftover = path.join(dir, 'repo-docs-index.json.tmp.999999');
   fs.writeFileSync(leftover, '');
@@ -65,7 +66,7 @@ test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', 
   const first = await buildDocIndex(context, { force: true });
   assert.strictEqual(first.updated, 2);
 
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.writeFileSync(path.join(dir, 'repo-docs-index.meta.json'), JSON.stringify({ schemaVersion: 1 }));
 
   const second = await buildDocIndex(context, { force: true });
@@ -95,7 +96,7 @@ test('a held build lock makes a concurrent build back off (single-writer guard)'
 
   // Simulate another process mid-build: a fresh lock file owned by THIS process
   // (alive), so it must not be taken over by the age rule alone.
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index-build.lock'), String(process.pid));
 
@@ -112,7 +113,7 @@ test('a lock owned by a dead pid is stale and gets taken over', { skip }, async 
   const context = createContext(root);
 
   // A fresh but dead-owner lock: above macOS's pid_max, so guaranteed unused.
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index-build.lock'), '999999');
 
@@ -126,7 +127,7 @@ test('a stale lock another server claims mid-takeover is not overwritten', { ski
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
   const context = createContext(root);
 
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   const lock = path.join(dir, 'index-build.lock');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(lock, '999999');
@@ -223,7 +224,7 @@ test('a worker that dies mid-build leaves the previous (cold, absent) index unto
     "exports.pipeline = async () => f;",
   ].join('\n'));
 
-  const indexFile = path.join(repoRoot, '.claude', 'repo-docs', 'repo-docs-index.json');
+  const indexFile = path.join(repoRoot, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json');
   const driver = path.join(root, 'driver.cjs');
   fs.writeFileSync(driver, `
     'use strict';

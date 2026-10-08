@@ -4,6 +4,7 @@ const assert = require('node:assert');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
+const { CONFIG_DIR } = require('./platform.cjs');
 
 // Stub the cross-encoder so these tests never load it; record how it is called.
 const rerankCalls = [];
@@ -21,12 +22,12 @@ const skip = skipWithoutRuntimeDeps();
 
 async function makeIndex(docs) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
-  fs.mkdirSync(path.join(root, '.claude', 'repo-docs'), { recursive: true });
+  fs.mkdirSync(path.join(root, CONFIG_DIR, 'repo-docs'), { recursive: true });
   const records = [];
   for (const d of docs) {
     records.push({ ...d, startLine: 1, mtime: 1, embedding: await embedDocument(d.content), ctxEmbedding: await embedDocument(`${d.path} › ${d.heading}\n${d.content}`) });
   }
-  await saveRecords(records, path.join(root, '.claude', 'repo-docs', 'repo-docs-index.json'));
+  await saveRecords(records, path.join(root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'));
   return { root, maxFileSizeBytes: 1e6 };
 }
 
@@ -78,8 +79,8 @@ test('rankDocs picks up a rebuilt index without a restart', { skip }, async (t) 
   assert.strictEqual((await rankDocs(context, { query: 'widget configuration', rerank: false }))[0].path, 'docs/widgets.md');
 
   const rebuilt = await makeIndex([{ path: 'docs/gadgets.md', heading: 'Gadgets', content: '# Gadgets\nEverything about gadget configuration.' }]);
-  const file = path.join(context.root, '.claude', 'repo-docs', 'repo-docs-index.json');
-  fs.copyFileSync(path.join(rebuilt.root, '.claude', 'repo-docs', 'repo-docs-index.json'), file);
+  const file = path.join(context.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json');
+  fs.copyFileSync(path.join(rebuilt.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'), file);
   // A strictly newer mtime than the cached one, whatever the filesystem's resolution.
   const bumped = new Date(fs.statSync(file).mtimeMs + 2000);
   fs.utimesSync(file, bumped, bumped);
@@ -106,7 +107,7 @@ test('unavailableReason says when a retry gets semantic results', { skip }, asyn
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
   const context = { root, maxFileSizeBytes: 1e6 };
   assert.match(unavailableReason(context), /not built yet; run \/repo-docs:reindex, then retry find_docs/);
-  const dir = path.join(root, '.claude', 'repo-docs');
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index-build.lock'), String(process.pid));
   fs.writeFileSync(path.join(dir, 'index-build.progress'), '0 40');
