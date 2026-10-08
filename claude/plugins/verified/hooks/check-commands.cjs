@@ -30,8 +30,12 @@ async function markChecks(commands, since = 0) {
   if (!unknown.length) return;
   const embed = await embedder();
   for (const c of unknown) {
-    const output = await embed(MODEL.prefix + c.cmd.slice(0, MODEL.maxChars), { pooling: 'mean', normalize: true });
-    if (score(Array.from(output.data)) >= MODEL.cutoff) c.check = true;
+    // Scored whole, `git diff && nx run-many -t lint,typecheck ... ; git commit` fell under the cutoff
+    // (1.72) while its nx part alone scored 4.52, so each chained part is scored on its own.
+    for (const part of c.cmd.split(/&&|\|\||;|\n/).map(p => p.trim()).filter(Boolean)) {
+      const output = await embed(MODEL.prefix + part.slice(0, MODEL.maxChars), { pooling: 'mean', normalize: true });
+      if (score(Array.from(output.data)) >= MODEL.cutoff) { c.check = true; break; }
+    }
   }
 }
 

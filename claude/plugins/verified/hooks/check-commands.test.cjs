@@ -32,7 +32,9 @@ test('markChecks marks nx check runs and leaves other commands alone', { skip: !
     { cmd: 'pnpm exec nx run-many -t lint,typecheck,test -p @sciensus/connect-portal', ok: true },
     { cmd: 'git status --short', ok: true },
     { cmd: "sed -i '' 's/\"version\": \"0.9.1\"/\"version\": \"0.9.2\"/' package.json", ok: true },
+    // Chained with git steps, the whole line scored under the cutoff while its nx part scored well over it.
+    { cmd: "git diff --stat && NX_DAEMON=false pnpm exec nx run-many -t lint,typecheck -p @sciensus/connect-portal-patient-management --outputStyle=static 2>&1 | grep -E \"Successfully|failed|error\" ; git add libs/web/features/connect-portal/patient-management/src/components/PatientSearchPanel.tsx && git commit -q -m \"refactor(patient-management):[#166127] drop the search inputs' padding and text overrides that match the filled Input defaults\" && git log --oneline -1", ok: true },
   ];
   await markChecks(commands);
-  assert.deepStrictEqual(commands.map(c => c.check === true), [true, true, false, false]);
+  assert.deepStrictEqual(commands.map(c => c.check === true), [true, true, false, false, true]);
 });
