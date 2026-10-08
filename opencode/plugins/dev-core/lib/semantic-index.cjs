@@ -3,11 +3,13 @@
 const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 const MODEL_ID = 'Xenova/bge-small-en-v1.5';
-const MODEL_DTYPE = 'fp32';
+// 8-bit weights: 87 ms a chunk on one thread, against 108 ms for fp32 on two, with
+// vectors at cosine 0.99+ of fp32's (measured on 64 README chunks).
+const MODEL_DTYPE = 'q8';
 // Half precision on the GPU: a 4,574-text NX build embedded in 79 s against 112 s
-// for fp32, with vectors at cosine 0.9997+ of fp32's.
+// for fp32, with vectors at cosine 0.9997+ of fp32's. Batches of 8 and 16 tied;
+// 32 and 64 were slower.
 const GPU_DTYPE = 'fp16';
-// Batches of 16 on the GPU measured 42 ms a chunk, one at a time 58.
 const EMBED_BATCH = 16;
 // bge-small's context ceiling. It ships model_max_length as Infinity, so the
 // pipeline's hardcoded `truncation: true` never clips — see the worker below.
@@ -16,9 +18,9 @@ const EMBED_DIM = 384;
 // bge-small wants the retrieval instruction on QUERIES only (not documents).
 const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 // onnxruntime spreads each run over every core by default: a doc-index build
-// measured 278% CPU on an 8-core Mac. Two threads measured 191% with a third less
-// total CPU work and no slower build.
-const SESSION_OPTIONS = { intraOpNumThreads: 2, interOpNumThreads: 1 };
+// measured 278% CPU on an 8-core Mac, and two threads still held a core pair busy
+// for a whole rebuild. One thread keeps a CPU-fallback build to one core.
+const SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
 if (!isMainThread) {
   (async () => {
@@ -29,13 +31,10 @@ if (!isMainThread) {
     // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
     const { pipeline, env } = await import(pathToFileURL(entry).href);
-    // Shared OpenCode model cache so each model is downloaded once.
+    // One model cache for every plugin data dir, so each model downloads once;
+    // REPO_DOCS_MODELS_DIR overrides it.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
-      || require('node:path').join(
-        process.env.XDG_CONFIG_HOME || require('node:path').join(require('node:os').homedir(), '.config'),
-        'opencode',
-        'repo-docs-models',
-      );
+      || require('./platform.cjs').MODELS_DIR;
     // The GPU first: a full rebuild of 2,287 chunks measured 133 s and 36 s of CPU,
     // against 274 s and 274 s for the 8-bit model on one CPU thread, with the same
     // top hits. onnxruntime-node marks WebGPU experimental, so a load or first-run
@@ -56,9 +55,9 @@ if (!isMainThread) {
 
     const { chunkMarkdown } = require('./chunker.cjs');
     // Chunks are sized with the model's own tokenizer, leaving room for [CLS] and
-    // [SEP], so none is cut at the context limit and loses its tail.
+    // [SEP], so none is cut at the context limit and loses its tail. The budget
+    // covers the context-prefixed text, the longer of the two a chunk is embedded as.
     const maxTokens = MODEL_MAX_TOKENS - 2;
-    const countTokens = (text) => embed.tokenizer.encode(text, { add_special_tokens: false }).length;
     const vectorOf = async (text) => Array.from((await embed(text, { pooling: 'mean', normalize: true })).data);
     // Vectors for texts in order, EMBED_BATCH per model run. A batch that throws is
     // retried one text at a time, so a bad text costs only itself (null).
@@ -83,18 +82,29 @@ if (!isMainThread) {
       if (msg.type === 'chunks') {
         // Every doc in the message is chunked first and all their texts are embedded
         // together, so batches stay full across docs too small to fill one alone.
-        const splits = msg.docs.map((text) => {
-          try { return chunkMarkdown(text, { maxTokens, countTokens }); }
-          catch { return null; } // this doc alone fails
+        const splits = msg.docs.map(({ path: docPath, text }) => {
+          const docName = String(docPath || '').replace(/\.mdx?$/, '');
+          const context = (headingPath) => `${[docName, headingPath].filter(Boolean).join(' › ')}\n`;
+          const countTokens = (t, headingPath) =>
+            embed.tokenizer.encode(context(headingPath) + t, { add_special_tokens: false }).length;
+          try {
+            return chunkMarkdown(String(text || ''), { maxTokens, countTokens })
+              .map(ch => ({ ch, texts: [ch.text, context(ch.headingPath) + ch.text] }));
+          } catch {
+            return null; // this doc alone fails
+          }
         });
         let vectors;
         try {
-          vectors = await vectorsOf(splits.flatMap(split => (split || []).map(ch => ch.text)));
+          vectors = await vectorsOf(splits.flatMap(split => (split || []).flatMap(c => c.texts)));
         } catch {
           vectors = null;
         }
         let next = 0;
-        const chunks = splits.map(split => split && vectors && split.map(ch => ({ ...ch, vector: vectors[next++] })));
+        const chunks = splits.map(split => split && vectors && split.map(({ ch }) => {
+          const vector = vectors[next++], ctxVector = vectors[next++];
+          return vector && ctxVector ? { ...ch, vector, ctxVector } : { ...ch, vector: null, ctxVector: null };
+        }));
         parentPort.postMessage({ type: 'chunks', id: msg.id, chunks });
         return;
       }
@@ -248,19 +258,20 @@ function embedText(text) {
   return request('embed', text);
 }
 
-// Chunks a whole doc and embeds every chunk. Resolves
-// [{ headingPath, startLine, text, vector }] (vector null for a chunk that failed
-// on its own), or null when the embedder is unavailable.
-async function embedDocChunks(text) {
-  const res = await embedDocsChunks([text]);
+// Chunks a whole doc and embeds every chunk twice: its text alone (vector) and
+// with the doc path and heading breadcrumb in front (ctxVector). Resolves
+// [{ headingPath, startLine, text, vector, ctxVector }] (both null for a chunk that
+// failed on its own), or null when the embedder is unavailable.
+async function embedDocChunks(text, docPath) {
+  const res = await embedDocsChunks([{ path: docPath, text }]);
   return res && res[0];
 }
 
 // embedDocChunks for several docs in one worker round, so their chunks share
 // model batches. Resolves one entry per doc, in order (null for a doc that failed
 // alone), or null when the embedder is unavailable.
-function embedDocsChunks(texts) {
-  return request('chunks', '', { docs: texts.map(t => String(t || '')) });
+function embedDocsChunks(docs) {
+  return request('chunks', '', { docs: docs.map(d => ({ path: d.path, text: String(d.text || '') })) });
 }
 
 async function embedQuery(text) {

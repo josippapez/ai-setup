@@ -23,6 +23,7 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
     const engine = require(${JSON.stringify(path.join(__dirname, 'semantic-index.cjs'))});
     (async () => {
       const first = await engine.waitUntilReady(4000);
+      const failed = engine.embedderStatus();
       // Deps "finish installing" only now: write a minimal transformers stub.
       fs.mkdirSync(${JSON.stringify(modDir)}, { recursive: true });
       fs.writeFileSync(path.join(${JSON.stringify(modDir)}, 'package.json'),
@@ -31,14 +32,17 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
         "const f = async (t, o) => ({ data: new Array(384).fill(0) });",
         "f.tokenizer = { _tokenizerConfig: {} };",
         "exports.env = {};",
-        "exports.pipeline = async () => f;",
+        // The GPU is unavailable here, so the engine must fall back to the CPU model.
+        "exports.pipeline = async (task, id, opts) => { require('node:fs').appendFileSync(process.env.STUB_OPTS_FILE, JSON.stringify(opts) + '\\\\n'); if (opts.device === 'webgpu') throw new Error('no gpu'); return f; };",
       ].join('\\n'));
       await new Promise((r) => setTimeout(r, 100)); // past the test cooldown
       const second = await engine.waitUntilReady(8000);
       const vector = second ? await engine.embedQuery('hello') : null;
       console.log(JSON.stringify({
         first,
+        failed,
         second,
+        ready: engine.embedderStatus(),
         embedded: Array.isArray(vector) && vector.length === 384,
       }));
       await engine.shutdown();
@@ -53,6 +57,7 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
         NODE_PATH: path.join(root, 'node_modules'),
         REPO_DOCS_EMBED_RETRY_MS: '50',
         REPO_DOCS_MODELS_DIR: path.join(root, 'models'),
+        STUB_OPTS_FILE: path.join(root, 'pipeline-opts.json'),
       },
       timeout: 30000,
     }, (err, out, stderr) => (err ? reject(new Error(`${err.message}\n${stderr}`)) : resolve(out)));
@@ -60,8 +65,15 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
 
   const result = JSON.parse(stdout.trim().split('\n').pop());
   assert.strictEqual(result.first, false, 'must report not-ready while deps are missing');
+  assert.strictEqual(result.failed.state, 'failed', 'a failed load must say so');
+  assert.match(result.failed.error, /@huggingface\/transformers/, 'with the reason it failed');
+  assert.ok(result.failed.retryInMs >= 0 && result.failed.retryInMs <= 50, 'and when the next load is allowed');
   assert.strictEqual(result.second, true, 'must recover after deps appear');
+  assert.deepStrictEqual(result.ready, { state: 'ready' });
   assert.strictEqual(result.embedded, true, 'recovered worker must serve embeddings');
+  const calls = fs.readFileSync(path.join(root, 'pipeline-opts.json'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+  assert.deepStrictEqual(calls.map(c => c.device || 'cpu'), ['webgpu', 'cpu'], 'the embedder must try the GPU first, then fall back to the CPU');
+  assert.deepStrictEqual(calls[1].session_options, { intraOpNumThreads: 1, interOpNumThreads: 1 }, 'the CPU fallback must load with the thread cap');
 });
 
 // A per-chunk embed failure (e.g. an ONNX runtime error) must cost only that
@@ -117,4 +129,28 @@ test('a chunk that throws resolves null while the worker stays alive for the nex
   assert.strictEqual(result.ready, true);
   assert.strictEqual(result.bad, null, 'a throwing chunk must resolve null, not hang or crash the worker');
   assert.strictEqual(result.goodIsVector, true, 'the worker must still serve the next embed');
+});
+
+// Real model: token-dense text packs far more than 510 tokens into 1,500
+// characters, so character-only windows would run past the context and lose
+// their tails. embedDocChunks must cut those windows shorter and still cover
+// every word, while prose that fits keeps exactly its character-only chunks.
+test('embedDocChunks sizes chunks by the model tokenizer and keeps the whole doc', { skip: require('./test-runtime-deps.cjs').skipWithoutRuntimeDeps() }, async (t) => {
+  const { chunkMarkdown } = require('./chunker.cjs');
+  const engine = require('./semantic-index.cjs');
+  t.after(() => engine.shutdown());
+  assert.ok(await engine.waitUntilReady(), 'embedder must warm up');
+
+  const words = Array.from({ length: 400 }, (_, i) => `x${i}q7z`);
+  const dense = `# Dense\n${words.join(' ')}`;
+  const chunks = await engine.embedDocChunks(dense, 'docs/dense.md');
+  assert.ok(chunks.length > chunkMarkdown(dense).length, 'the token cap must cut windows shorter than characters alone would');
+  assert.ok(chunks.every(c => c.vector.length === 384 && c.ctxVector.length === 384), 'each chunk gets a plain and a context vector');
+  assert.notDeepStrictEqual(chunks[0].vector, chunks[0].ctxVector, 'the context vector embeds the doc path and breadcrumb too');
+  const seen = new Set(chunks.flatMap(c => c.text.split(/\s+/)));
+  assert.ok(words.every(w => seen.has(w)), 'every word is in some chunk');
+
+  const prose = `# Prose\n${'The build pipeline publishes images nightly. '.repeat(60)}`;
+  const proseChunks = await engine.embedDocChunks(prose, 'docs/prose.md');
+  assert.deepStrictEqual(proseChunks.map(({ vector, ctxVector, ...rest }) => rest), chunkMarkdown(prose));
 });

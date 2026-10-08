@@ -1,11 +1,13 @@
 'use strict';
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
+const { CONFIG_DIR } = require('../lib/platform.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
 const { relativePath } = require('../lib/fs-utils.cjs');
 const { waitUntilReady, embedDocsChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
-const { createIndex, addChunks, saveIndex } = require('../lib/doc-index.cjs');
+const { saveRecords, readRecords } = require('../lib/doc-index.cjs');
 
 const MAX_FILE_BYTES = 1_000_000;
 // Bumped 1 -> 2 for the mtime-cache field added to index records: a pre-v2
@@ -14,14 +16,19 @@ const MAX_FILE_BYTES = 1_000_000;
 // may hold chunks split on a `#` comment inside a fence, so it's rebuilt too.
 // Bumped 3 -> 4 when chunks started being sized by model tokens: a pre-v4 index
 // may hold chunks whose tail past 512 tokens never made it into their vector.
-// Bumped 4 -> 5 so each chunk records the line its own text starts on.
-const SCHEMA_VERSION = 5;
+// Bumped 4 -> 5 for the second, context-prefixed vector per chunk (ctxEmbedding).
+// Bumped 5 -> 6 so each chunk records the line its own text starts on.
+// Bumped 6 -> 7 when the index became one line per record with packed vectors,
+// and the embedder moved to 8-bit weights.
+const SCHEMA_VERSION = 7;
 
-// OpenCode-namespaced index location (claude uses .claude/repo-docs/).
-function indexPath(context) { return path.join(context.root, '.opencode', 'repo-docs', 'repo-docs-index.json'); }
+function indexPath(context) { return path.join(context.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
 function lockPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.lock'); }
 function stampPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.stamp'); }
+// "<done> <total>" while a build runs, for the status-line mod; removed with the lock.
+function headPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.head'); }
+function progressPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.progress'); }
 
 // A build shouldn't outlast this; a lock older than it is treated as a crashed
 // build and taken over. Comfortably above a full cold rebuild of this corpus.
@@ -29,6 +36,9 @@ const BUILD_LOCK_STALE_MS = 15 * 60 * 1000;
 // Coalesce bursts of rebuild triggers (e.g. many reindex ops from rapid .md
 // edits, or several sessions connecting at once) into at most one build per window.
 const BUILD_DEBOUNCE_MS = 5000;
+// Changed docs are embedded this many to a worker round, so their chunks fill
+// model batches together instead of each small doc running a part-empty batch.
+const DOCS_PER_ROUND = 32;
 
 function ensureGitignore(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -46,10 +56,10 @@ function isLockOwnerAlive(pid) {
   catch (err) { return err.code === 'EPERM'; }
 }
 
-// Single-writer guard: only one process builds the shared index at a time. Two
-// byte-identical MCP servers (dev-core + orchestrate), times N
-// sessions, otherwise write the same repo-docs-index.json concurrently. Exclusive
-// create wins the lock; a stale lock (crashed build) is taken over.
+// Single-writer guard: only one process builds the shared index at a time. Each
+// concurrent Claude Code session in this repo spawns its own repo-docs MCP server,
+// so N sessions would otherwise write the same repo-docs-index.json concurrently.
+// Exclusive create wins the lock; a stale lock (crashed build) is taken over.
 function acquireBuildLock(context) {
   const lock = lockPath(context);
   fs.mkdirSync(path.dirname(lock), { recursive: true });
@@ -74,14 +84,41 @@ function recentlyBuilt(context) {
   try { return Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')) < BUILD_DEBOUNCE_MS; }
   catch { return false; }
 }
+// saveRecords writes `<index>.tmp.<pid>` and renames it over the index; a server killed
+// mid-write leaves that file behind. Only the lock holder writes, so any left now is dead.
+function removeAbandonedTempFiles(context) {
+  const dir = path.dirname(indexPath(context));
+  const prefix = `${path.basename(indexPath(context))}.tmp.`;
+  try {
+    for (const name of fs.readdirSync(dir)) if (name.startsWith(prefix)) fs.rmSync(path.join(dir, name), { force: true });
+  } catch {}
+}
+// The running build's progress, with the time left at the pace so far (null before the
+// first round lands). The lock is written when the build starts.
+function buildProgress(context) {
+  try {
+    const [done, total] = fs.readFileSync(progressPath(context), 'utf8').split(' ').map(Number);
+    const elapsed = Date.now() - fs.statSync(lockPath(context)).mtimeMs;
+    return { done, total, etaMs: done > 0 ? (elapsed / done) * (total - done) : null };
+  } catch { return null; }
+}
 function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
-// Groups the prior persisted index's records by path, keyed to their mtime, so
-// buildDocIndex can reuse cached chunks verbatim for files whose mtime hasn't
-// changed. Reads the index's own persisted JSON directly (our format, not a
-// public Orama API) rather than the loaded db object — see the json-vs-msgpack
-// comment in doc-index.cjs for why JSON is safe to parse this way.
-function loadPriorCache(context) {
+// The commit the docs were read at. A branch switch or pull changes the docs without
+// any edit this plugin sees, and find_docs kept answering from the old branch.
+function gitHead(context) {
+  try { return execFileSync('git', ['-C', context.root, 'rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
+  catch { return null; }
+}
+function builtAtOtherHead(context) {
+  const head = gitHead(context);
+  if (!head) return false;
+  try { return fs.readFileSync(headPath(context), 'utf8') !== head; } catch { return true; }
+}
+
+// Groups the prior index's records by path, keyed to their mtime, so buildDocIndex
+// can reuse cached chunks verbatim for files whose mtime hasn't changed.
+async function loadPriorCache(context) {
   const byPath = new Map();
   try {
     const meta = JSON.parse(fs.readFileSync(metaPath(context), 'utf8'));
@@ -89,15 +126,9 @@ function loadPriorCache(context) {
   } catch {
     return byPath;
   }
-  let raw;
-  try {
-    raw = JSON.parse(fs.readFileSync(indexPath(context), 'utf8'));
-  } catch {
-    return byPath;
-  }
-  const docs = raw && raw.docs && raw.docs.docs;
-  if (!docs) return byPath;
-  for (const rec of Object.values(docs)) {
+  const records = await readRecords(indexPath(context));
+  if (!records) return byPath;
+  for (const rec of records) {
     if (!rec || typeof rec.mtime !== 'number' || typeof rec.path !== 'string') continue;
     let group = byPath.get(rec.path);
     if (!group) { group = { mtime: rec.mtime, records: [] }; byPath.set(rec.path, group); }
@@ -121,21 +152,21 @@ async function buildDocIndex(context, { force = false } = {}) {
   if (!acquireBuildLock(context)) {
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), locked: true };
   }
+  removeAbandonedTempFiles(context);
+  const head = gitHead(context);
   try {
-    return await runBuild(context);
+    const result = await runBuild(context);
+    if (head) try { fs.writeFileSync(headPath(context), head); } catch {}
+    return result;
   } finally {
     markBuilt(context);
+    try { fs.rmSync(progressPath(context), { force: true }); } catch {}
     releaseBuildLock(context);
   }
 }
 
-// Changed docs are embedded this many to a worker round, so their chunks fill
-// model batches together instead of each small doc running a part-empty batch.
-const DOCS_PER_ROUND = 32;
-
 async function runBuild(context) {
-  const db = await createIndex();
-  const priorCache = loadPriorCache(context);
+  const priorCache = await loadPriorCache(context);
   let updated = 0, unchanged = 0, skipped = 0;
   const files = getDocFiles(context);
   // One slot per file, in file order, so the index keeps the same record order
@@ -162,8 +193,9 @@ async function runBuild(context) {
     changed.push({ i, rel, content, mtime: stat.mtimeMs });
   }
   for (let start = 0; start < changed.length; start += DOCS_PER_ROUND) {
+    try { fs.writeFileSync(progressPath(context), `${start} ${changed.length}`); } catch {}
     const round = changed.slice(start, start + DOCS_PER_ROUND);
-    const results = await embedDocsChunks(round.map(d => d.content));
+    const results = await embedDocsChunks(round.map(d => ({ path: d.rel, text: d.content })));
     // A dead embedder means every remaining file would also come back null, so
     // abort instead of saving an index with those files missing but the build
     // looking complete — that partial state would never self-heal.
@@ -173,27 +205,26 @@ async function runBuild(context) {
       for (const ch of (results && results[k]) || []) {
         // A live worker skipping one bad chunk keeps today's behavior.
         if (!ch.vector) continue;
-        records.push({ path: doc.rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, mtime: doc.mtime });
+        records.push({ path: doc.rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, ctxEmbedding: ch.ctxVector, mtime: doc.mtime });
       }
       if (records.length) { slots[doc.i] = records; updated++; }
     });
   }
-  for (const records of slots) if (records.length) await addChunks(db, records);
+  const all = slots.flat();
   const dir = path.dirname(indexPath(context));
   ensureGitignore(dir);
-  // Orphan the legacy per-file embedding cache from the old OpenCode design
-  // (it lived at .opencode/interactive-mcp-doc-embeddings.json, not under repo-docs/).
-  fs.rmSync(path.join(context.root, '.opencode', 'interactive-mcp-doc-embeddings.json'), { force: true });
+  // Orphan the legacy per-file embedding cache from the old design.
+  fs.rmSync(path.join(dir, 'interactive-mcp-doc-embeddings.json'), { force: true });
   // Drop the stale binary index from before the json-persist fix.
   fs.rmSync(path.join(dir, 'repo-docs-index.msp'), { force: true });
   // Write the index (atomic rename) FIRST, then the meta. A reader that sees
   // schemaVersion===current in meta is then guaranteed a complete matching index.
-  await saveIndex(db, indexPath(context));
+  await saveRecords(all, indexPath(context));
   fs.writeFileSync(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
-module.exports = { buildDocIndex, indexPath };
+module.exports = { buildDocIndex, indexPath, builtAtOtherHead, buildProgress };
 
 if (require.main === module) {
   (async () => {

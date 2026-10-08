@@ -9,7 +9,6 @@ const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
 const { findLibsTool } = require('./tools/find-libs.cjs');
-const { startDependencyIndex } = require('./lib/dependency-index.cjs');
 const { fileDependentsTool } = require('./tools/get-file-dependents.cjs');
 const { blastRadiusTool } = require('./tools/get-blast-radius.cjs');
 const {
@@ -19,7 +18,7 @@ const {
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
 const { startReindexServer } = require('./lib/reindex-server.cjs');
 
-const SERVER_INFO = { name: 'repo-docs', version: '0.4.0' };
+const SERVER_INFO = { name: 'repo-docs', version: '0.5.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
 const context = createContext(process.argv[2], process.argv[3]);
 const registeredTools = [
@@ -96,7 +95,6 @@ async function handleRequest(message) {
     startReindexServer(context)
       .then((server) => { reindexServer = server; })
       .catch(() => {});
-    startDependencyIndex(context).catch(() => {});
     return;
   }
   if (method === 'shutdown') {

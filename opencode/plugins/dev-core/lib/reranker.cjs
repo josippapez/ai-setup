@@ -15,7 +15,8 @@ const RETRY_COOLDOWN_MS = Number(process.env.REPO_DOCS_EMBED_RETRY_MS) > 0
   ? Number(process.env.REPO_DOCS_EMBED_RETRY_MS)
   : 30000;
 
-function isRerankEnabled() { return process.env.RERANK_ENABLED === '1'; }
+// On by default; RERANK_ENABLED=0 turns the cross-encoder vote off for every call.
+function isRerankEnabled() { return process.env.RERANK_ENABLED !== '0'; }
 
 function inFailureCooldown() { return _lastFailedAt !== 0 && Date.now() - _lastFailedAt < RETRY_COOLDOWN_MS; }
 
@@ -27,13 +28,10 @@ async function load() {
     const { pathToFileURL } = require('node:url');
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
     const { AutoTokenizer, AutoModelForSequenceClassification, env } = await import(pathToFileURL(entry).href);
-    // Shared OpenCode model cache so the reranker downloads once.
+    // One model cache for every plugin data dir, so each model downloads once;
+    // REPO_DOCS_MODELS_DIR overrides it.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
-      || require('node:path').join(
-        process.env.XDG_CONFIG_HOME || require('node:path').join(require('node:os').homedir(), '.config'),
-        'opencode',
-        'repo-docs-models',
-      );
+      || require('./platform.cjs').MODELS_DIR;
     const tokenizer = await AutoTokenizer.from_pretrained(RERANKER_ID);
     // q8: measured identical ranking to fp32 on 27/27 verbatim rerank queries
     // (both 100% hit@1 / 1.000 MRR) while ~4x smaller (~300MB vs 1.1GB).

@@ -1,26 +1,39 @@
 'use strict';
-
+const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { test } = require('node:test');
+const { CONFIG_DIR } = require('./platform.cjs');
 const { getDocFiles } = require('./docs.cjs');
 
-function write(root, relativePath, content = '# Test\n') {
-  const file = path.join(root, relativePath);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content);
+function makeRepo(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-docs-docs-'));
+  for (const rel of files) {
+    fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), '# doc\n');
+  }
+  return root;
 }
+const listed = (root) => getDocFiles({ root }).map((f) => path.relative(root, f).split(path.sep).join('/')).sort();
 
-test('indexes Markdown across the repository and honors repo-docs-ignore', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-docs-'));
-  write(root, 'README.md');
-  write(root, 'notes/decision.mdx');
-  write(root, 'generated/report.md');
-  write(root, 'src/code.js', 'export {}\n');
-  write(root, '.opencode/repo-docs-ignore', 'generated\n');
+test('default ignores drop CocoaPods vendor dirs, Expo caches and reports without an ignore file', () => {
+  const root = makeRepo([
+    'README.md',
+    'apps/intouch/README.md',
+    'apps/intouch/ios/Pods/Foo/README.md',
+    'ios/Pods/Bar/README.md',
+    'apps/intouch/ios/README.md',
+    'apps/intouch/.expo/README.md',
+    'reports/guidance-audit.md',
+    'docs/guide.md',
+  ]);
+  assert.deepStrictEqual(listed(root), ['README.md', 'apps/intouch/README.md', 'apps/intouch/ios/README.md', 'docs/guide.md']);
+});
 
-  const files = getDocFiles({ root }).map((file) => path.relative(root, file)).sort();
-  assert.deepStrictEqual(files, ['README.md', 'notes/decision.mdx']);
+test('the ignore file adds to the defaults', () => {
+  const root = makeRepo(['docs/guide.md', 'evidence/report.md', 'reports/a.md']);
+  fs.mkdirSync(path.join(root, CONFIG_DIR));
+  fs.writeFileSync(path.join(root, CONFIG_DIR, 'repo-docs-ignore'), '# generated\nevidence\n');
+  assert.deepStrictEqual(listed(root), ['docs/guide.md']);
 });

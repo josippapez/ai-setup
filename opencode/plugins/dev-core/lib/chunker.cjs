@@ -23,8 +23,8 @@ function countNewlines(text, from, to) {
 
 // Split markdown into heading-aware, overlapping chunks. Each chunk keeps the
 // breadcrumb of ancestor headings and the 1-based line where it starts. With
-// countTokens, a window that would exceed maxTokens is cut shorter, so no chunk
-// runs past the embedding model's context and loses its tail.
+// countTokens(text, headingPath), a window that would exceed maxTokens is cut
+// shorter, so no chunk runs past the embedding model's context and loses its tail.
 function chunkMarkdown(text, opts = {}) {
   const { maxChars, overlap, maxTokens, countTokens } = { ...DEFAULTS, ...opts };
   if (!text || !text.trim()) return [];
@@ -63,11 +63,12 @@ function chunkMarkdown(text, opts = {}) {
   const chunks = [];
   for (const sec of sections) {
     const body = sec.body.join('\n');
+    const count = countTokens && (s => countTokens(s, sec.headingPath));
     let start = 0;
     let startLine = sec.startLine;
     while (start < body.length) {
       let end = Math.min(start + maxChars, body.length);
-      if (countTokens && countTokens(body.slice(start, end)) > maxTokens) end = fitEnd(body, start, end, maxTokens, countTokens);
+      if (count && count(body.slice(start, end)) > maxTokens) end = fitEnd(body, start, end, maxTokens, count);
       chunks.push({ headingPath: sec.headingPath, startLine, text: body.slice(start, end) });
       if (end >= body.length) break;
       const nextStart = Math.max(start + 1, end - overlap);

@@ -21,7 +21,7 @@ function compactText(input) {
 const definition = {
   name: 'read_doc',
   description:
-    'Open one repository file by its repo-relative path, returned minified (markdown syntax, images, and URLs stripped; whitespace collapsed) to save tokens. USE right after find_docs/list_docs to read a result, or whenever you already know the path — prefer this over answering from memory about this repo or reading a file blind. Not limited to docs — any text file inside the repo root works, but files over 512 KiB are rejected and paths escaping the root are blocked. Returns the minified contents or a clear not-found/too-large error string.',
+    'Open one repository file by its repo-relative path. USE right after find_docs/list_docs to read a result, or whenever you already know the path — prefer this over answering from memory about this repo or reading a file blind. Not limited to docs — any text file inside the repo root works, but files over 512 KiB are rejected and paths escaping the root are blocked. Returns the raw contents by default, so the line numbers find_docs gives stay valid; pass compact:true for a minified read (markdown syntax, images, and URLs stripped; whitespace collapsed) that costs fewer tokens.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -29,6 +29,12 @@ const definition = {
         type: 'string',
         description:
           'Repo-root-relative path of the file to read (POSIX style, e.g. docs/guide.md). Required.',
+      },
+      compact: {
+        type: 'boolean',
+        default: false,
+        description:
+          'true returns a minified rendering (markdown syntax, images, and URLs stripped; whitespace collapsed) for fewer tokens. Default false returns the raw file.',
       },
     },
     required: ['path'],
@@ -52,7 +58,7 @@ function execute(args, context) {
     return `File too large (${stat.size} bytes, max ${context.maxFileSizeBytes}): ${relPath}`;
   try {
     const content = fs.readFileSync(absPath, 'utf8');
-    return compactText(content);
+    return args.compact === true ? compactText(content) : content;
   } catch (err) {
     return `Read error: ${err.message}`;
   }

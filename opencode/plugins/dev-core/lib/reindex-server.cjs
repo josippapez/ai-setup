@@ -1,62 +1,63 @@
 'use strict';
 
-const fs = require('node:fs');
 const net = require('node:net');
+const fs = require('node:fs');
 const path = require('node:path');
 const { buildDocIndex } = require('../tools/build-semantic-index.cjs');
+const { CONFIG_DIR } = require('./platform.cjs');
 
 function reindexSocketPath(root) {
-  return path.join(root, '.opencode', 'repo-docs', 'inject.sock');
+  return path.join(root, CONFIG_DIR, 'repo-docs', 'inject.sock');
 }
 
-function socketIsActive(socketPath, timeoutMs = 200) {
+// Probe whether a socket path is a live listener (vs. a file orphaned by a
+// crashed server): a successful connect means someone is on the other end.
+function socketIsActive(sockPath, timeoutMs = 200) {
   return new Promise((resolve) => {
-    const connection = net.connect(socketPath);
-    const timer = setTimeout(() => {
-      connection.destroy();
-      resolve(false);
-    }, timeoutMs);
-    connection.once('connect', () => {
-      clearTimeout(timer);
-      connection.end();
-      resolve(true);
-    });
-    connection.once('error', () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
+    const conn = net.connect(sockPath);
+    const timer = setTimeout(() => { conn.destroy(); resolve(false); }, timeoutMs);
+    conn.once('connect', () => { clearTimeout(timer); conn.end(); resolve(true); });
+    conn.once('error', () => { clearTimeout(timer); resolve(false); });
   });
 }
 
-// Host the mid-session reindex socket: the OpenCode plugin asks this server
-// (which holds the warm embedder) to re-embed changed docs after a Markdown
-// edit. A live sibling already owning the socket wins; we resolve null.
+function attemptListen(server, sockPath) {
+  return new Promise((resolve) => {
+    server.once('error', () => resolve(false));
+    server.listen(sockPath, () => resolve(true));
+  });
+}
+
+// Host the mid-session reindex socket: the PostToolUse hook asks the running
+// server (which holds the warm embedder) to re-embed changed docs after a
+// Markdown edit. First server to bind wins; a second (another runtime on the
+// same repo) sees EADDRINUSE and resolves null.
 async function startReindexServer(context, { build = buildDocIndex } = {}) {
-  const socketPath = reindexSocketPath(context.root);
-  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
-  if (fs.existsSync(socketPath) && await socketIsActive(socketPath)) return null;
+  const sockPath = reindexSocketPath(context.root);
+  fs.mkdirSync(path.dirname(sockPath), { recursive: true });
 
-  const server = net.createServer((connection) => {
-    let buffer = '';
-    connection.on('data', async (chunk) => {
-      buffer += chunk;
-      const newline = buffer.indexOf('\n');
-      if (newline === -1) return;
-      let request;
-      try { request = JSON.parse(buffer.slice(0, newline)); } catch { connection.end(); return; }
-      if (request.op !== 'reindex') { connection.end(`${JSON.stringify({ error: 'unknown op' })}\n`); return; }
+  const server = net.createServer((conn) => {
+    let buf = '';
+    conn.on('data', async (chunk) => {
+      buf += chunk;
+      const nl = buf.indexOf('\n');
+      if (nl === -1) return;
+      let req;
+      try { req = JSON.parse(buf.slice(0, nl)); } catch { conn.end(); return; }
+      if (req.op !== 'reindex') { conn.end(JSON.stringify({ error: 'unknown op' }) + '\n'); return; }
       // Incremental via mtime cache, so typically just the one edited file.
-      try { await build(context); connection.end(`${JSON.stringify({ reindexed: true })}\n`); }
-      catch { connection.end(`${JSON.stringify({ reindexed: false })}\n`); }
+      try { await build(context); conn.end(JSON.stringify({ reindexed: true }) + '\n'); }
+      catch { conn.end(JSON.stringify({ reindexed: false }) + '\n'); }
     });
-    connection.on('error', () => {});
+    conn.on('error', () => {});
   });
 
-  return await new Promise((resolve) => {
-    server.once('error', () => resolve(null));
-    try { fs.rmSync(socketPath, { force: true }); } catch {}
-    server.listen(socketPath, () => resolve(server));
-  });
+  if (await attemptListen(server, sockPath)) return server;
+  // listen() fails whenever the path already exists, live or not — probe before
+  // taking it over so a live sibling's socket is never unlinked out from under it.
+  if (await socketIsActive(sockPath)) return null;
+  try { fs.rmSync(sockPath, { force: true }); } catch {}
+  return (await attemptListen(server, sockPath)) ? server : null;
 }
 
 module.exports = { startReindexServer, reindexSocketPath };
