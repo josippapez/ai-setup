@@ -92,6 +92,15 @@ function removeAbandonedTempFiles(context) {
     for (const name of fs.readdirSync(dir)) if (name.startsWith(prefix)) fs.rmSync(path.join(dir, name), { force: true });
   } catch {}
 }
+// The running build's progress, with the time left at the pace so far (null before the
+// first round lands). The lock is written when the build starts.
+function buildProgress(context) {
+  try {
+    const [done, total] = fs.readFileSync(progressPath(context), 'utf8').split(' ').map(Number);
+    const elapsed = Date.now() - fs.statSync(lockPath(context)).mtimeMs;
+    return { done, total, etaMs: done > 0 ? (elapsed / done) * (total - done) : null };
+  } catch { return null; }
+}
 function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
 
 // The commit the docs were read at. A branch switch or pull changes the docs without
@@ -214,7 +223,7 @@ async function runBuild(context) {
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
-module.exports = { buildDocIndex, indexPath, builtAtOtherHead };
+module.exports = { buildDocIndex, indexPath, builtAtOtherHead, buildProgress };
 
 if (require.main === module) {
   (async () => {

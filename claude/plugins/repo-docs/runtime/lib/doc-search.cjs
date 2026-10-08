@@ -2,15 +2,19 @@
 
 const fs = require('node:fs');
 const { loadIndex, hybridSearch } = require('./doc-index.cjs');
-const { isReady, embedQuery } = require('./semantic-index.cjs');
+const { waitUntilReady, embedderStatus, embedQuery } = require('./semantic-index.cjs');
 const { rerank } = require('./reranker.cjs');
-const { indexPath, buildDocIndex, builtAtOtherHead } = require('../tools/build-semantic-index.cjs');
+const { indexPath, buildDocIndex, builtAtOtherHead, buildProgress } = require('../tools/build-semantic-index.cjs');
 
 // Chunk hits per vector search: deep enough that both file rankings reach well
 // past the candidates the cross-encoder votes on.
 const CAND = 200;
 const RERANK_TOP = 10;
 const RRF_K = 60;
+// The embedder loads in 252-504 ms once its model is on disk, so a query that finds it
+// not loaded yet (a fresh server, or a retry after a failed load) waits for it instead
+// of answering with keyword search. Past this, find_docs falls back and says when to retry.
+const QUERY_WAIT_MS = 5000;
 
 // Loaded index cache, keyed by index path and its mtime: a query only reloads the
 // index from disk when a build has actually changed it, instead of parsing it
@@ -65,7 +69,7 @@ function fuseRankings(lists) {
 async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: withRerank = true } = {}) {
   const q = String(query || '').trim();
   if (!q) return [];
-  if (!isReady()) return null;
+  if (!(await waitUntilReady(QUERY_WAIT_MS))) return null;
   // Rebuilt incrementally, so only docs the checkout changed are re-embedded.
   if (builtAtOtherHead(context)) await buildDocIndex(context, { force: true });
   const db = await getCachedDb(indexPath(context));
@@ -87,4 +91,19 @@ async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: wit
   return files.slice(0, limit);
 }
 
-module.exports = { rankDocs, fuseRankings };
+const secs = ms => Math.max(1, Math.ceil(ms / 1000));
+
+// Why rankDocs resolved null (or threw `err`), and when find_docs should be called
+// again to get semantic results.
+function unavailableReason(context, err) {
+  if (err) return `semantic search failed to start (${String(err.message).split('\n')[0]}); retry find_docs in 30s, runtime deps may still be installing`;
+  const status = embedderStatus();
+  if (status.state === 'failed') return `embedding model failed to load (${status.error}); retry find_docs in ${secs(status.retryInMs)}s`;
+  if (status.state === 'loading') return `embedding model still loading after ${secs(status.forMs)}s; retry find_docs in 30s`;
+  const build = buildProgress(context);
+  if (!build) return 'semantic index not built yet; run /repo-docs:reindex, then retry find_docs';
+  const eta = build.etaMs === null ? '' : `, about ${secs(build.etaMs)}s left`;
+  return `semantic index building (${build.done} of ${build.total} docs embedded${eta}); retry find_docs when it finishes`;
+}
+
+module.exports = { rankDocs, fuseRankings, unavailableReason };

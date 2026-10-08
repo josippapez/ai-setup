@@ -2,7 +2,7 @@
 
 const { clampInteger } = require("../lib/fs-utils.cjs");
 const { isRerankEnabled } = require("../lib/reranker.cjs");
-const { rankDocs } = require("../lib/doc-search.cjs");
+const { rankDocs, unavailableReason } = require("../lib/doc-search.cjs");
 const { keywordSearch } = require("../lib/keyword-search.cjs");
 
 const MAX_SNIPPET_CHARS = 180;
@@ -25,7 +25,7 @@ function compactText(input) {
 const definition = {
   name: "find_docs",
   description:
-    "PRIMARY way to find anything in THIS repository's documentation — reach for it BEFORE answering any question about how this project works, its conventions, setup, architecture, features, or where a topic is documented, and prefer it over guessing or web search for repo-specific questions. Ranked hybrid search (semantic embeddings + BM25 keyword) over every Markdown file (*.md/*.mdx, excluding vendor/build dirs like node_modules and dist). Typical triggers: 'how does X work here', 'where are the routing/auth/testing docs', \"what's our convention for Y\", 'find the setup guide', or any repo-specific how/where/why. Returns ranked file:line results, each with its nearest section heading (anchor) and a short matching snippet, one result per file (best-matching chunk). Each chunk is matched on its own text and again with its doc path and heading breadcrumb, and a cross-encoder then votes on the top 10 (about half a second); pass rerank:false for a faster ranking without that vote. While the model is still loading or the index is not built yet, it answers with a keyword scorer instead and says so in its header. limit defaults to 12 (max 30). Then open a result with read_doc, whose raw output keeps these line numbers valid.",
+    "PRIMARY way to find anything in THIS repository's documentation — reach for it BEFORE answering any question about how this project works, its conventions, setup, architecture, features, or where a topic is documented, and prefer it over guessing or web search for repo-specific questions. Ranked hybrid search (semantic embeddings + BM25 keyword) over every Markdown file (*.md/*.mdx, excluding vendor/build dirs like node_modules and dist). Typical triggers: 'how does X work here', 'where are the routing/auth/testing docs', \"what's our convention for Y\", 'find the setup guide', or any repo-specific how/where/why. Returns ranked file:line results, each with its nearest section heading (anchor) and a short matching snippet, one result per file (best-matching chunk). Each chunk is matched on its own text and again with its doc path and heading breadcrumb, and a cross-encoder then votes on the top 10 (about half a second); pass rerank:false for a faster ranking without that vote. While the model is still loading or the index is not built yet, it answers with a keyword scorer instead, and its header says why and when to call find_docs again for semantic results. limit defaults to 12 (max 30). Then open a result with read_doc, whose raw output keeps these line numbers valid.",
   inputSchema: {
     type: "object",
     properties: {
@@ -59,18 +59,21 @@ async function execute(args, context) {
   if (!query) return "Please provide a non-empty query.";
 
   let files;
+  let failure;
   try {
     files = await rankDocs(context, { query, limit, threshold: 0, rerank: args.rerank !== false && isRerankEnabled() });
-  } catch {
+  } catch (err) {
     // Runtime deps missing (e.g. still installing after a plugin reinstall).
     files = null;
+    failure = err;
   }
   if (files === null) {
+    const reason = unavailableReason(context, failure);
     const hits = keywordSearch(context, query, limit);
-    if (hits.length === 0) return `No docs for "${query}".`;
-    const parts = [`docs "${query}" (keyword fallback, semantic index not ready)`];
+    if (hits.length === 0) return `No docs for "${query}" (keyword fallback: ${reason}).`;
+    const parts = [`docs "${query}" (keyword fallback: ${reason})`];
     hits.forEach((h, i) => parts.push(`${i + 1}) ${h.path}:${h.lineNumber} — ${h.snippet.slice(0, MAX_SNIPPET_CHARS)}`));
-    return parts.join("; ");
+    return parts.join("\n");
   }
   if (files.length === 0) return `No docs for "${query}".`;
 
@@ -80,7 +83,7 @@ async function execute(args, context) {
     const snippet = compactText(h.content).slice(0, MAX_SNIPPET_CHARS);
     parts.push(`${i + 1}) ${h.path}:${h.startLine}${anchor} — ${snippet}`);
   });
-  return parts.join("; ");
+  return parts.join("\n");
 }
 
 module.exports = { findDocsTool: { definition, execute } };

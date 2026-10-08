@@ -23,6 +23,7 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
     const engine = require(${JSON.stringify(path.join(__dirname, 'semantic-index.cjs'))});
     (async () => {
       const first = await engine.waitUntilReady(4000);
+      const failed = engine.embedderStatus();
       // Deps "finish installing" only now: write a minimal transformers stub.
       fs.mkdirSync(${JSON.stringify(modDir)}, { recursive: true });
       fs.writeFileSync(path.join(${JSON.stringify(modDir)}, 'package.json'),
@@ -39,7 +40,9 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
       const vector = second ? await engine.embedQuery('hello') : null;
       console.log(JSON.stringify({
         first,
+        failed,
         second,
+        ready: engine.embedderStatus(),
         embedded: Array.isArray(vector) && vector.length === 384,
       }));
       await engine.shutdown();
@@ -62,7 +65,11 @@ test('embedder retries worker spawn after cooldown once deps appear', async (t) 
 
   const result = JSON.parse(stdout.trim().split('\n').pop());
   assert.strictEqual(result.first, false, 'must report not-ready while deps are missing');
+  assert.strictEqual(result.failed.state, 'failed', 'a failed load must say so');
+  assert.match(result.failed.error, /@huggingface\/transformers/, 'with the reason it failed');
+  assert.ok(result.failed.retryInMs >= 0 && result.failed.retryInMs <= 50, 'and when the next load is allowed');
   assert.strictEqual(result.second, true, 'must recover after deps appear');
+  assert.deepStrictEqual(result.ready, { state: 'ready' });
   assert.strictEqual(result.embedded, true, 'recovered worker must serve embeddings');
   const calls = fs.readFileSync(path.join(root, 'pipeline-opts.json'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
   assert.deepStrictEqual(calls.map(c => c.device || 'cpu'), ['webgpu', 'cpu'], 'the embedder must try the GPU first, then fall back to the CPU');

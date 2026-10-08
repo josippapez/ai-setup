@@ -15,7 +15,7 @@ require.cache[rerankerPath] = {
 
 const { warmUp, waitUntilReady, embedDocument, shutdown } = require('./semantic-index.cjs');
 const { saveRecords } = require('./doc-index.cjs');
-const { rankDocs, fuseRankings } = require('./doc-search.cjs');
+const { rankDocs, fuseRankings, unavailableReason } = require('./doc-search.cjs');
 const { skipWithoutRuntimeDeps } = require('./test-runtime-deps.cjs');
 const skip = skipWithoutRuntimeDeps();
 
@@ -84,6 +84,39 @@ test('rankDocs picks up a rebuilt index without a restart', { skip }, async (t) 
   const bumped = new Date(fs.statSync(file).mtimeMs + 2000);
   fs.utimesSync(file, bumped, bumped);
   assert.strictEqual((await rankDocs(context, { query: 'gadget configuration', rerank: false }))[0].path, 'docs/gadgets.md', 'must see the rebuilt index, not a stale cached one');
+});
+
+// A server whose embedder failed to start (deps still installing) has no worker until a
+// query spawns one. That first query used to answer with keyword search while the model
+// loaded in under a second; it now waits for the load.
+test('the first query after the embedder stopped waits for it to load instead of falling back', { skip }, async () => {
+  warmUp();
+  assert.ok(await waitUntilReady(), 'embedder must warm up');
+  const context = await makeIndex([{ path: 'docs/cache.md', heading: 'Cache', content: '# Cache\nWhere cached server data may be stored.' }]);
+  await shutdown();
+  const hits = await rankDocs(context, { query: 'where is cached server data stored', rerank: false });
+  await shutdown();
+  assert.deepStrictEqual(hits && hits.map(h => h.path), ['docs/cache.md']);
+});
+
+test('unavailableReason says when a retry gets semantic results', { skip }, async (t) => {
+  warmUp();
+  assert.ok(await waitUntilReady(), 'embedder must warm up');
+  t.after(() => shutdown());
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
+  const context = { root, maxFileSizeBytes: 1e6 };
+  assert.match(unavailableReason(context), /not built yet; run \/repo-docs:reindex, then retry find_docs/);
+  const dir = path.join(root, '.claude', 'repo-docs');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index-build.lock'), String(process.pid));
+  fs.writeFileSync(path.join(dir, 'index-build.progress'), '0 40');
+  assert.match(unavailableReason(context), /building \(0 of 40 docs embedded\); retry find_docs when it finishes/);
+  // 10 docs in 20 s leaves 30 docs, about 60 s.
+  const started = new Date(Date.now() - 20000);
+  fs.utimesSync(path.join(dir, 'index-build.lock'), started, started);
+  fs.writeFileSync(path.join(dir, 'index-build.progress'), '10 40');
+  assert.match(unavailableReason(context), /10 of 40 docs embedded, about 6\ds left/);
+  assert.match(unavailableReason(context, new Error("Cannot find module '@orama/orama'")), /failed to start \(Cannot find module '@orama\/orama'\); retry find_docs in 30s/);
 });
 
 test('rankDocs resolves null when no index exists, so find_docs can fall back', { skip }, async (t) => {

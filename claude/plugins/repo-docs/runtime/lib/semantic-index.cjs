@@ -135,6 +135,8 @@ if (!isMainThread) {
 let worker = null;
 let workerReady = false;
 let lastFailedAt = 0;
+let lastError = '';
+let startedAt = 0;
 let msgId = 0;
 const pending = new Map();
 
@@ -149,7 +151,9 @@ function inFailureCooldown() {
   return lastFailedAt !== 0 && Date.now() - lastFailedAt < RETRY_COOLDOWN_MS;
 }
 
-function markFailed() {
+function markFailed(message) {
+  // Node's module errors carry a multi-line require stack after the first line.
+  lastError = String(message || 'unknown error').split('\n')[0];
   lastFailedAt = Date.now();
   workerReady = false;
   worker = null;
@@ -164,14 +168,16 @@ function warmUp() {
 
   try {
     worker = new Worker(__filename);
-  } catch {
-    markFailed();
+    startedAt = Date.now();
+  } catch (err) {
+    markFailed(err.message);
     return;
   }
 
   worker.on('message', (msg) => {
     if (msg.type === 'ready') {
       lastFailedAt = 0;
+      lastError = '';
       workerReady = true;
       return;
     }
@@ -185,12 +191,12 @@ function warmUp() {
     }
 
     if (msg.type === 'error') {
-      markFailed();
+      markFailed(msg.message);
     }
   });
 
-  worker.on('error', () => {
-    markFailed();
+  worker.on('error', (err) => {
+    markFailed(err.message);
   });
 }
 
@@ -200,6 +206,13 @@ function isReady() {
   // only when a build happens to run.
   if (!workerReady) warmUp();
   return workerReady;
+}
+
+// What a query that could not use the embedder tells the caller: why, and when to retry.
+function embedderStatus() {
+  if (workerReady) return { state: 'ready' };
+  if (worker) return { state: 'loading', forMs: Date.now() - startedAt };
+  return { state: 'failed', error: lastError || 'not started', retryInMs: Math.max(0, RETRY_COOLDOWN_MS - (Date.now() - lastFailedAt)) };
 }
 
 async function shutdown() {
@@ -274,6 +287,7 @@ module.exports = {
   warmUp,
   waitUntilReady,
   isReady,
+  embedderStatus,
   shutdown,
   embedQuery,
   embedDocument,

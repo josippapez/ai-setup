@@ -64,7 +64,7 @@ function execute(args, context) {
     ...matches
       .slice(0, limit)
       .map((item) => `${item.name}@${item.version} ${item.kind}`),
-  ].join('; ');
+  ].join('\n');
 }
 
 module.exports = { findLibsTool: { definition, execute } };
