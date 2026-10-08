@@ -63,7 +63,7 @@ function execute(args, context) {
   page.forEach((item, index) => parts.push(`${offset + index + 1}) ${item}`));
   if (offset + page.length < paths.length)
     parts.push(`next_offset=${offset + page.length}`);
-  return parts.join('; ');
+  return parts.join('\n');
 }
 
 module.exports = { listDocsTool: { definition, execute } };
