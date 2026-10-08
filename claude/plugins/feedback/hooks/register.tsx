@@ -58,7 +58,8 @@ async function reload($: EngineInterface) {
   }
   const list = [...byId.values()].reverse()
   await update($, entries, () => list)
-  const dir = await $.session.cwd()
+  // The project root, not cwd(): a shell `cd` into a subfolder moves cwd and would hide this project's entries.
+  const dir = await $.session.root()
   await update($, here, () => dir)
   await showStatus($)
 
