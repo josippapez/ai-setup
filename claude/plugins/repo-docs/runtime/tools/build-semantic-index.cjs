@@ -5,7 +5,7 @@ const path = require('node:path');
 const { createContext } = require('../lib/context.cjs');
 const { CONFIG_DIR } = require('../lib/platform.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
-const { relativePath } = require('../lib/fs-utils.cjs');
+const { relativePath, writeFileNoFollow } = require('../lib/fs-utils.cjs');
 const { waitUntilReady, embedDocsChunks, isReady, shutdown, MODEL_ID, MODEL_DTYPE } = require('../lib/semantic-index.cjs');
 const { saveRecords, readRecords } = require('../lib/doc-index.cjs');
 
@@ -43,7 +43,7 @@ const DOCS_PER_ROUND = 32;
 function ensureGitignore(dir) {
   fs.mkdirSync(dir, { recursive: true });
   const gi = path.join(dir, '.gitignore');
-  if (!fs.existsSync(gi)) fs.writeFileSync(gi, '*\n');
+  try { writeFileNoFollow(gi, '*\n', { exclusive: true }); } catch {} // already there, or a link
 }
 
 // A dead lock owner makes the lock stale immediately, so a server that exits
@@ -102,7 +102,7 @@ function buildProgress(context) {
     return { done, total, etaMs: done > 0 ? (elapsed / done) * (total - done) : null };
   } catch { return null; }
 }
-function markBuilt(context) { try { fs.writeFileSync(stampPath(context), String(Date.now())); } catch {} }
+function markBuilt(context) { try { writeFileNoFollow(stampPath(context), String(Date.now())); } catch {} }
 
 // The commit the docs were read at. A branch switch or pull changes the docs without
 // any edit this plugin sees, and find_docs kept answering from the old branch.
@@ -156,7 +156,7 @@ async function buildDocIndex(context, { force = false } = {}) {
   const head = gitHead(context);
   try {
     const result = await runBuild(context);
-    if (head) try { fs.writeFileSync(headPath(context), head); } catch {}
+    if (head) try { writeFileNoFollow(headPath(context), head); } catch {}
     return result;
   } finally {
     markBuilt(context);
@@ -193,7 +193,7 @@ async function runBuild(context) {
     changed.push({ i, rel, content, mtime: stat.mtimeMs });
   }
   for (let start = 0; start < changed.length; start += DOCS_PER_ROUND) {
-    try { fs.writeFileSync(progressPath(context), `${start} ${changed.length}`); } catch {}
+    try { writeFileNoFollow(progressPath(context), `${start} ${changed.length}`); } catch {}
     const round = changed.slice(start, start + DOCS_PER_ROUND);
     const results = await embedDocsChunks(round.map(d => ({ path: d.rel, text: d.content })));
     // A dead embedder means every remaining file would also come back null, so
@@ -220,7 +220,7 @@ async function runBuild(context) {
   // Write the index (atomic rename) FIRST, then the meta. A reader that sees
   // schemaVersion===current in meta is then guaranteed a complete matching index.
   await saveRecords(all, indexPath(context));
-  fs.writeFileSync(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
+  writeFileNoFollow(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 

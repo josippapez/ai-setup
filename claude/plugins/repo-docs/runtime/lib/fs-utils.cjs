@@ -58,6 +58,14 @@ function resolveInsideRoot(root, relPath) {
   return resolved;
 }
 
+// The index folder sits inside a checkout, and a cloned repo can ship a link
+// there. O_NOFOLLOW makes writing to a link fail instead of overwriting the file
+// it points to. exclusive also fails when the path already exists.
+function writeFileNoFollow(file, data, { exclusive = false } = {}) {
+  const { O_WRONLY, O_CREAT, O_TRUNC, O_EXCL, O_NOFOLLOW } = fs.constants;
+  fs.writeFileSync(file, data, { flag: O_WRONLY | O_CREAT | O_NOFOLLOW | (exclusive ? O_EXCL : O_TRUNC) });
+}
+
 function tokenize(input) {
   return String(input || '')
     .toLowerCase()
@@ -71,4 +79,5 @@ module.exports = {
   resolveInsideRoot,
   tokenize,
   walkDirectory,
+  writeFileNoFollow,
 };

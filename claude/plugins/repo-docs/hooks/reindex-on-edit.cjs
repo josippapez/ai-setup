@@ -40,7 +40,9 @@ function claimReindex(lockPath) {
   try {
     const st = fs.statSync(lockPath);
     if (Date.now() - st.mtimeMs < DEBOUNCE_MS) return false; // a reindex just ran
-    fs.writeFileSync(lockPath, String(Date.now())); // stale → refresh + claim
+    // stale → refresh + claim. O_NOFOLLOW: a link a cloned repo planted here
+    // must not be written through.
+    fs.writeFileSync(lockPath, String(Date.now()), { flag: fs.constants.O_WRONLY | fs.constants.O_TRUNC | fs.constants.O_NOFOLLOW });
     return true;
   } catch {
     try { fs.writeFileSync(lockPath, String(Date.now()), { flag: 'wx' }); return true; }

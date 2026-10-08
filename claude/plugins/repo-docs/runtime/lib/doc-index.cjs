@@ -68,7 +68,9 @@ function unpackVector(text) {
 function saveRecords(records, filePath) {
   const fs = require('node:fs');
   const tmp = `${filePath}.tmp.${process.pid}`;
-  const fd = fs.openSync(tmp, 'w');
+  // O_NOFOLLOW: a link planted at the temp path must not be written through.
+  const { O_WRONLY, O_CREAT, O_TRUNC, O_NOFOLLOW } = fs.constants;
+  const fd = fs.openSync(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0o644);
   try {
     for (const { embedding, ctxEmbedding, ...rest } of records) {
       fs.writeSync(fd, `${JSON.stringify({ ...rest, embedding: packVector(embedding), ctxEmbedding: packVector(ctxEmbedding) })}\n`);

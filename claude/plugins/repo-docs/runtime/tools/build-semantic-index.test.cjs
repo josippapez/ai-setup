@@ -148,6 +148,23 @@ test('a stale lock another server claims mid-takeover is not overwritten', { ski
 // @huggingface/transformers can never resolve, so the embedder never becomes
 // ready — the same condition a fresh checkout hits before the SessionStart
 // hook's npm install has run.
+// A cloned repo can ship links in its index folder. Writing through one let a
+// build overwrite any file the user can write (the stamp held a timestamp after).
+test('a build never writes through a link planted in the index folder', { skip }, async (t) => {
+  t.after(() => shutdown());
+  const root = makeRepo(1);
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
+  fs.mkdirSync(dir, { recursive: true });
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'build-victim-'));
+  const names = ['.gitignore', 'index-build.stamp', 'index-build.head', 'index-build.progress', 'repo-docs-index.meta.json', `repo-docs-index.json.tmp.${process.pid}`];
+  for (const name of names) {
+    fs.writeFileSync(path.join(outside, name), 'precious');
+    fs.symlinkSync(path.join(outside, name), path.join(dir, name));
+  }
+  await buildDocIndex(createContext(root), { force: true }).catch(() => {});
+  for (const name of names) assert.strictEqual(fs.readFileSync(path.join(outside, name), 'utf8'), 'precious', `${name} was written through`);
+});
+
 test('buildDocIndex reports unavailable instead of silent zeros when the embedder never becomes ready', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'build-semantic-index-unavailable-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

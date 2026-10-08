@@ -8,7 +8,8 @@ function claimReindex(lockPath, now = Date.now()) {
   try {
     const stat = fs.statSync(lockPath);
     if (now - stat.mtimeMs < DEBOUNCE_MS) return false;
-    fs.writeFileSync(lockPath, String(now));
+    // O_NOFOLLOW: a link a cloned repo planted here must not be written through.
+    fs.writeFileSync(lockPath, String(now), { flag: fs.constants.O_WRONLY | fs.constants.O_TRUNC | fs.constants.O_NOFOLLOW });
     return true;
   } catch {
     try {

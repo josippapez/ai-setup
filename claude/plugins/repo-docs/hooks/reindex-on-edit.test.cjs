@@ -76,3 +76,14 @@ test('reindex-on-edit is fail-safe when no socket is present', async () => {
   // No throw, no hang — reaching here is the assertion.
   assert.ok(true);
 });
+
+test('reindex-on-edit does not write through a stale lock that is a planted link', async () => {
+  const root = freshRoot();
+  const victim = path.join(os.tmpdir(), `reindex-victim-${process.pid}.txt`);
+  fs.writeFileSync(victim, 'precious');
+  fs.utimesSync(victim, 0, 0);
+  fs.symlinkSync(victim, path.join(root, '.claude', 'repo-docs', 'reindex.lock'));
+  await runHook({ tool_name: 'Write', tool_input: { file_path: path.join(root, 'docs/x.md') }, cwd: root });
+  assert.strictEqual(fs.readFileSync(victim, 'utf8'), 'precious');
+  fs.rmSync(victim);
+});
