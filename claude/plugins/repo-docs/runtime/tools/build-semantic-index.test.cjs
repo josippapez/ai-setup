@@ -165,6 +165,22 @@ test('a build never writes through a link planted in the index folder', { skip }
   for (const name of names) assert.strictEqual(fs.readFileSync(path.join(outside, name), 'utf8'), 'precious', `${name} was written through`);
 });
 
+// O_NOFOLLOW only checks the last path part, so a linked CONFIG_DIR or repo-docs
+// folder sent every write (and the .gitignore holding '*') into the link's target.
+test('a build writes nothing when the index folder or its parent is a link out of the repo', { skip }, async (t) => {
+  t.after(() => shutdown());
+  for (const linked of [path.join(CONFIG_DIR, 'repo-docs'), CONFIG_DIR]) {
+    const root = makeRepo(1);
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'build-victim-'));
+    fs.mkdirSync(path.dirname(path.join(root, linked)), { recursive: true });
+    fs.symlinkSync(outside, path.join(root, linked));
+    const result = await buildDocIndex(createContext(root), { force: true });
+    assert.ok(result.refused, `${linked}: the build must refuse`);
+    const written = fs.readdirSync(outside, { recursive: true }).filter(name => !fs.statSync(path.join(outside, name)).isDirectory());
+    assert.deepStrictEqual(written, [], `${linked}: nothing may be written through the link`);
+  }
+});
+
 test('buildDocIndex reports unavailable instead of silent zeros when the embedder never becomes ready', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'build-semantic-index-unavailable-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

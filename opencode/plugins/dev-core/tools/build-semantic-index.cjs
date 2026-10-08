@@ -46,6 +46,16 @@ function ensureGitignore(dir) {
   try { writeFileNoFollow(gi, '*\n', { exclusive: true }); } catch {} // already there, or a link
 }
 
+// O_NOFOLLOW only checks a path's last part. A cloned repo can ship CONFIG_DIR or
+// its repo-docs folder as a link to somewhere else, and every write would land
+// there, so a build only runs when neither one is a link.
+function indexDirInRepo(context) {
+  return [CONFIG_DIR, path.join(CONFIG_DIR, 'repo-docs')].every((rel) => {
+    try { return !fs.lstatSync(path.join(context.root, rel)).isSymbolicLink(); }
+    catch { return true; } // not there yet: the build creates it as a real folder
+  });
+}
+
 // A dead lock owner makes the lock stale immediately, so a server that exits
 // mid-build (its finally never ran) doesn't block every other session for up to
 // BUILD_LOCK_STALE_MS. process.kill(pid, 0) sends no signal: ESRCH means the pid
@@ -145,6 +155,7 @@ async function loadPriorCache(context) {
 async function buildDocIndex(context, { force = false } = {}) {
   const ready = await waitUntilReady();
   if (!ready) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), unavailable: true };
+  if (!indexDirInRepo(context)) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), refused: true };
   ensureGitignore(path.dirname(indexPath(context))); // dir must exist for the lock
   if (!force && recentlyBuilt(context)) {
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), debounced: true };
@@ -235,7 +246,7 @@ if (require.main === module) {
       await shutdown();
       process.exit(1);
     }
-    const note = r.locked ? ' (skipped: another build in progress)' : '';
+    const note = r.locked ? ' (skipped: another build in progress)' : r.refused ? ' (skipped: the index folder is a link out of the repo)' : '';
     process.stdout.write(`repo_docs_index updated=${r.updated} unchanged=${r.unchanged} skipped=${r.skipped} cache=${r.cache}${note}\n`);
     await shutdown();
   })().catch((e) => { process.stderr.write(`repo_docs_index error: ${e.message}\n`); process.exit(1); });
