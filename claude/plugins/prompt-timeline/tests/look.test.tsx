@@ -355,6 +355,27 @@ test('grouped MCP rows keep their result lines: every find_docs hit, and a count
   await doc.unmount()
 })
 
+test('a grouped row that errored shows the error text', async ($, on) => {
+  on('ui.render', { component: 'ToolGroup' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine group</Text>
+  })
+  const tool = 'mcp__wings__cyclops__list_projects'
+  const calls = [{ tool_use_id: 'e1', tool, input: {}, isRunning: false, isErrored: true, isInterrupted: false }]
+  const group = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolGroup', requestId: 'egrp', props: { calls, isActive: false, isExpanded: true } })
+  await group.unmount()
+
+  const row = await $.ui.mount({
+    plugin: 'prompt-timeline',
+    surface: 'terminal',
+    component: 'ToolUse',
+    requestId: 'e1',
+    props: { tool_use_id: 'e1', tool, input: {}, isRunning: false, isErrored: true, isInterrupted: false, output: 'Error: The plugin has no handler for list_projects' },
+  })
+  expect(await row.find({ text: '↳ Error: The plugin has no handler for list_projects' })).toBeDefined()
+  await row.unmount()
+})
+
 test('Bash output colours outcomes and draws rg matches with a gutter and highlighting', async $ => {
   const stdout = ['hooks/look.tsx:138:    <Box flexDirection="column">', '172:  return x', '✔ Validation passed', ' 18 pass', ' 2 fail'].join('\n')
   const result = await $.ui.mount({

@@ -243,6 +243,11 @@ function mcpResult(tool: string, text: string) {
   return [...lines.slice(0, RESULT_LINES), `… +${lines.length - RESULT_LINES} more lines`].join('\n')
 }
 
+// A call that errored stores the error text the model read in place of its result.
+export function errorLines(output: unknown): string | undefined {
+  return typeof output === 'string' && output.trim() ? mcpResult('', output) : undefined
+}
+
 // What a call returned, for rows inside an expanded group, where Claude Code draws the result
 // inline instead of as its own row. One line, except an MCP result, which keeps its lines.
 export function resultLine(tool: string, output: unknown): string | undefined {
