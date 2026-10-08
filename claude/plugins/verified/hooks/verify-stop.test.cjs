@@ -862,6 +862,25 @@ test('writing a memory file after the test run does not make "tests pass" stale'
   assert.strictEqual(r, null);
 });
 
+test('writing a README after the test run does not make "tests pass" stale', () => {
+  const fx = fixture();
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+    { name: 'Write', input: { file_path: fx.file('apps/desktop/README.md'), content: 'x' } },
+  ]);
+  assert.strictEqual(r, null);
+});
+
+test('editing a Markdown file a test reads still makes "tests pass" stale', () => {
+  const fx = fixture();
+  const r = run(fx, 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+    { name: 'Edit', input: { file_path: fx.file('skills/x/SKILL.md'), old_string: 'x', new_string: 'y' } },
+  ]);
+  assert.ok(blocked(r));
+  assert.match(reason(r), /before a file was written/);
+});
+
 test('editing a project file after the test run still makes "tests pass" stale', () => {
   const fx = fixture();
   const r = run(fx, 'All 14 tests pass.', [

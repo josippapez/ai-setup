@@ -62,6 +62,9 @@ function transcripts(limit) {
 // A write invalidates an earlier "tests pass" only when it can change the project. Memory files,
 // scratchpads and plugin data live outside it, and writing them made the gate demand a re-run.
 const OUTSIDE = [path.join(os.homedir(), '.claude') + '/', '/tmp/', '/private/tmp/', '/var/folders/', '/private/var/folders/'];
+// A README or CHANGELOG is prose that no test or build reads, so writing one does not age a run either.
+// debt: a Rust crate that pulls its README into rustdoc with include_str! does run it as a doctest.
+const PROSE_RE = /(^|\/)(README|CHANGELOG)(\.(md|txt|rst))?$/i;
 // A project can itself live under /tmp, so anything inside the session's folder still counts.
 const outsideProject = (p, cwd) => {
   const full = p.replace(/^~(?=\/)/, os.homedir());
@@ -72,7 +75,7 @@ const WRITE_CMD_RE = /(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|
 function writesProject(name, inp, cwd) {
   if (/^(Edit|Write|NotebookEdit)$/.test(name)) {
     const target = inp.file_path || inp.notebook_path;
-    return !(typeof target === 'string' && outsideProject(target, cwd));
+    return !(typeof target === 'string' && (outsideProject(target, cwd) || PROSE_RE.test(target)));
   }
   if (name !== 'Bash' || typeof inp.command !== 'string') return false;
   // A heredoc body is a script's text, not shell: its `=> n.type` read as a redirect into the project.
