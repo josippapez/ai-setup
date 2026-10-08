@@ -325,6 +325,36 @@ test('rows of an expanded group show their result inline, as Claude Code does', 
   await alone.unmount()
 })
 
+test('grouped MCP rows keep their result lines: every find_docs hit, and a count for what a long result leaves out', async ($, on) => {
+  on('ui.render', { component: 'ToolGroup' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine group</Text>
+  })
+  const docs = 'mcp__plugin_repo-docs_repo-docs__find_docs'
+  const other = 'mcp__plugin_ado_ado__list_items'
+  const read = 'mcp__plugin_repo-docs_repo-docs__read_doc'
+  const calls = [docs, other, read].map((tool, i) => ({ tool_use_id: `m${i}`, tool, input: { query: 'cache' }, isRunning: false, isErrored: false, isInterrupted: false }))
+  const group = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolGroup', requestId: 'mgrp', props: { calls, isActive: false, isExpanded: true } })
+  await group.unmount()
+  const row = (id: string, tool: string, text: string) =>
+    ({ plugin: 'prompt-timeline', surface: 'terminal', component: 'ToolUse', requestId: id, props: { tool_use_id: id, tool, input: { query: 'cache' }, isRunning: false, isErrored: false, isInterrupted: false, output: [{ type: 'text', text }] } }) as const
+
+  const hits = Array.from({ length: 12 }, (_, i) => `${i + 1}) docs/d${i + 1}.md:${i + 1} › Heading ${i + 1} — snippet`)
+  const found = await $.ui.mount(row('m0', docs, ['docs "cache"', ...hits].join('\n')))
+  expect(await found.find({ text: '↳ docs "cache"' })).toBeDefined()
+  expect(await found.find({ text: '  1) docs/d1.md:1 › Heading 1 — snippet' })).toBeDefined()
+  expect(await found.find({ text: '  12) docs/d12.md:12 › Heading 12 — snippet' })).toBeDefined()
+  await found.unmount()
+  const long = await $.ui.mount(row('m1', other, Array.from({ length: 20 }, (_, i) => `item ${i + 1}`).join('\n')))
+  expect(await long.find({ text: '  item 8' })).toBeDefined()
+  expect(await long.find({ text: '  item 9' })).toBeUndefined()
+  expect(await long.find({ text: '  … +12 more lines' })).toBeDefined()
+  await long.unmount()
+  const doc = await $.ui.mount(row('m2', read, '# Title\n\nBody\n'))
+  expect(await doc.find({ text: '↳ 4 lines' })).toBeDefined()
+  await doc.unmount()
+})
+
 test('Bash output colours outcomes and draws rg matches with a gutter and highlighting', async $ => {
   const stdout = ['hooks/look.tsx:138:    <Box flexDirection="column">', '172:  return x', '✔ Validation passed', ' 18 pass', ' 2 fail'].join('\n')
   const result = await $.ui.mount({

@@ -476,6 +476,7 @@ export function registerLook(on: On) {
       )
     }
     const state = e.props.isErrored ? 'red' : e.props.isInterrupted ? 'yellow' : e.props.isRunning ? 'gray' : 'green'
+    const result = resultLine(e.props.tool, e.props.output)
 
     return (
       <Box paddingLeft={INDENT} paddingRight={1} flexDirection="column" marginTop={1}>
@@ -509,8 +510,14 @@ export function registerLook(on: On) {
           <Box paddingLeft={2}>
             {e.props.tool === 'Bash' ? (
               bashOutput({ Box, Code, Text }, e.props.output as BashOutput, true, runs.get(e.props.tool_use_id))
-            ) : resultLine(e.props.tool, e.props.output) ? (
-              <Text dimColor wrap="truncate-end">{`↳ ${resultLine(e.props.tool, e.props.output)}`}</Text>
+            ) : result ? (
+              <Box flexDirection="column">
+                {result
+                  .split('\n')
+                  .map((line, i) => (
+                    <Text key={i} dimColor wrap="truncate-end">{`${i === 0 ? '↳' : ' '} ${line}`}</Text>
+                  ))}
+              </Box>
             ) : null}
           </Box>
         )}

@@ -232,8 +232,19 @@ export function describe(tool: string, input: Input): Card | null {
   return { label: human(server), color: 'blue', ...mcpSummary(mcp[2], input) }
 }
 
-// One line saying what a call returned, for rows inside an expanded group, where Claude Code
-// draws the result inline instead of as its own row.
+// An MCP result keeps its line breaks, so a list of hits reads as a list. find_docs shows every
+// hit; other results show RESULT_LINES and say how many they left out. read_doc returns a whole
+// doc, so it reads like Read: a line count.
+const RESULT_LINES = 8
+function mcpResult(tool: string, text: string) {
+  if (/repo-docs__read_doc$/.test(tool)) return `${text.split('\n').length} lines`
+  const lines = text.trim().split('\n').filter(line => line.trim())
+  if (/repo-docs__find_docs$/.test(tool) || lines.length <= RESULT_LINES) return lines.join('\n')
+  return [...lines.slice(0, RESULT_LINES), `… +${lines.length - RESULT_LINES} more lines`].join('\n')
+}
+
+// What a call returned, for rows inside an expanded group, where Claude Code draws the result
+// inline instead of as its own row. One line, except an MCP result, which keeps its lines.
 export function resultLine(tool: string, output: unknown): string | undefined {
   const o = (output ?? {}) as Record<string, unknown>
   const num = (value: unknown) => (typeof value === 'number' ? value : undefined)
@@ -271,7 +282,7 @@ export function resultLine(tool: string, output: unknown): string | undefined {
   }
   if (Array.isArray(output)) {
     const text = (output as { type?: string; text?: string }[]).find(block => block.type === 'text')?.text
-    return text ? firstLine(text).slice(0, 160) : undefined
+    return text ? mcpResult(tool, text) : undefined
   }
 
   return undefined
