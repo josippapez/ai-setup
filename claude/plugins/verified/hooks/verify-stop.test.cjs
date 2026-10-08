@@ -871,3 +871,28 @@ test('editing a project file after the test run still makes "tests pass" stale',
   assert.ok(blocked(r));
   assert.match(reason(r), /before a file was written/);
 });
+
+test('scratchpad scripts written after the test run do not make "tests pass" stale', () => {
+  const s = '/private/tmp/claude-501/proj/session/scratchpad';
+  const r = run(fixture(), 'All 14 tests pass.', [
+    { name: 'Bash', input: { command: 'npm test' } },
+    // A heredoc body is the script, not shell: its `=> n.type` is not a redirect.
+    { name: 'Bash', input: { command: `cat > ${s}/a.mjs <<'EOF2'\nconst f = (n) => n.type;\nconsole.log(' > ' + c.name);\nEOF2\nnode ${s}/a.mjs` } },
+    { name: 'Bash', input: { command: `sed -i '' "s/158:699/1843:18427/g" ${s}/a.mjs && node ${s}/a.mjs` } },
+    { name: 'Bash', input: { command: `S=${s} && sed -e "s/a/b/" $S/a.mjs > $S/b.mjs && node $S/b.mjs` } },
+  ]);
+  assert.strictEqual(r, null);
+});
+
+test('a sed -i or a variable redirect into the project still makes "tests pass" stale', () => {
+  for (const cmd of [`sed -i '' "s/a/b/g" src/app.ts`, 'D=src && echo x > $D/app.ts']) {
+    const fx = fixture();
+    fx.file('src/app.ts');
+    const r = run(fx, 'All 14 tests pass.', [
+      { name: 'Bash', input: { command: 'npm test' } },
+      { name: 'Bash', input: { command: cmd } },
+    ]);
+    assert.ok(blocked(r), cmd);
+    assert.match(reason(r), /before a file was written/);
+  }
+});

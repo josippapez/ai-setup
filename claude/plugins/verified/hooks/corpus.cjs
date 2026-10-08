@@ -74,10 +74,24 @@ function writesProject(name, inp, cwd) {
     const target = inp.file_path || inp.notebook_path;
     return !(typeof target === 'string' && outsideProject(target, cwd));
   }
-  if (name !== 'Bash' || typeof inp.command !== 'string' || !WRITE_CMD_RE.test(inp.command)) return false;
-  const cmd = inp.command;
-  // sed -i, tee, cp, mv and install.sh name their targets in ways a regex cannot read reliably.
-  if (/(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b/.test(cmd)) return true;
+  if (name !== 'Bash' || typeof inp.command !== 'string') return false;
+  // A heredoc body is a script's text, not shell: its `=> n.type` read as a redirect into the project.
+  let cmd = inp.command.replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\n|$)/g, '<<$2$3');
+  if (!WRITE_CMD_RE.test(cmd)) return false;
+  // `S=/tmp/x && ... > $S/out.mjs` names a scratchpad that only reads as such once $S is filled in.
+  for (const [, k, v] of cmd.matchAll(/(?:^|[\s;&])(\w+)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) {
+    cmd = cmd.replace(new RegExp(`\\$\\{?${k}\\b\\}?`, 'g'), v.replace(/^["']|["']$/g, ''));
+  }
+  // A sed -i whose every file argument sits outside the project does not change it.
+  const sedOutside = (seg) => {
+    const files = (seg.match(/'[^']*'|"[^"]*"|\S+/g) || []).map((t) => t.replace(/^["']|["']$/g, ''))
+      .filter((t) => /^[/~]/.test(t) || /\.[A-Za-z0-9]{1,6}$/.test(t));
+    return files.length > 0 && files.every((t) => outsideProject(t, cwd));
+  };
+  const segments = cmd.split(/&&|\|\||[;|\n]/);
+  if (segments.some((s) => /(^|\s)sed\s+-i\b/.test(s) && !sedOutside(s))) return true;
+  // tee, cp, mv and install.sh name their targets in ways a regex cannot read reliably.
+  if (/(^|[\s;&|])(tee|cp|mv|install\.sh)\b/.test(cmd)) return true;
   const targets = [...cmd.matchAll(/>>?\s*([^\s&|>;)]+\.[A-Za-z0-9]{1,6})(?=\s|$)/g)].map((m) => m[1].replace(/^["']|["']$/g, ''));
   return targets.some((t) => !outsideProject(t, cwd));
 }
