@@ -15,7 +15,7 @@ const firstLine = (text: string) => text.trim().split('\n')[0] ?? ''
 // front, home and scratchpad paths shorten, the rtk proxy prefix goes, and a chain of steps
 // (`a; b && c`) is split into one step per line, so a long one-liner reads top to bottom.
 const SCRATCH = /\/private\/tmp\/claude-\d+\/[^/\s'"]+\/[0-9a-f-]{36}\/scratchpad/g
-const STEPS_SHOWN = 4
+const STEPS_SHOWN = 2
 export function shell(command: string) {
   let rest = command.trim()
   let where = ''
@@ -235,7 +235,7 @@ export function describe(tool: string, input: Input): Card | null {
 // An MCP result keeps its line breaks, so a list of hits reads as a list. find_docs shows every
 // hit; other results show RESULT_LINES and say how many they left out. read_doc returns a whole
 // doc, so it reads like Read: a line count.
-const RESULT_LINES = 8
+const RESULT_LINES = 4
 function mcpResult(tool: string, text: string) {
   if (/repo-docs__read_doc$/.test(tool)) return `${text.split('\n').length} lines`
   const lines = text.trim().split('\n').filter(line => line.trim())

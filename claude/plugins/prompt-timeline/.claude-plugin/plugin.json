@@ -1,10 +1,18 @@
 {
   "name": "prompt-timeline",
-  "version": "0.11.11",
+  "version": "0.13.0",
   "description": "Draws your own prompts as a distinct card in the transcript and adds /timeline, a pane listing your prompts that jumps to any of them.",
   "author": {
     "name": "Personal AI Setup"
   },
   "license": "MIT",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "restyle_output": {
+      "type": "boolean",
+      "title": "Restyle the transcript",
+      "description": "Draw prompts, replies, tool calls and their output in this plugin's own look. Off keeps Claude Code's default display; the panes, the prompt strip and startup notices stay either way.",
+      "default": false
+    }
+  }
 }

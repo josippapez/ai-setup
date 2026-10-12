@@ -39,7 +39,7 @@ test('a table parses into header and rows, and its columns fit the room given', 
   expect(widths.reduce((a, b) => a + b, 0) + 4).toBeLessThanOrEqual(100)
 })
 
-test('a reply is plain text and its turn footer names the model and effort that made it; notices get a command pill', async ($, on) => {
+test('a reply is plain text and its turn footer names the model and effort that made it; notices get a command pill', { options: { restyle_output: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const stored: Record<string, unknown> = {}
   on('store.get', (_, e) => ({ value: stored[e.key] }))
@@ -138,7 +138,7 @@ test('a reply is plain text and its turn footer names the model and effort that 
   await notice.unmount()
 })
 
-test('a Bash card leads with its description and shows the command as one dim line', async ($, on) => {
+test('a Bash card leads with its description and shows the command as one dim line', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolUse' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine row</Text>
@@ -167,7 +167,7 @@ test('a Bash card leads with its description and shows the command as one dim li
   }
 })
 
-test('a screenshot returned in a grouped row is drawn under its card in the terminal and opens large', async ($, on) => {
+test('a screenshot returned in a grouped row is drawn under its card in the terminal and opens large', { options: { restyle_output: true } }, async ($, on) => {
   const opened: unknown[] = []
   on('ui.open', (_, e) => {
     opened.push(e)
@@ -206,7 +206,7 @@ test('a screenshot returned in a grouped row is drawn under its card in the term
   await desktop.unmount()
 })
 
-test('a call that sends text shows it as markdown, folded after eight lines', async $ => {
+test('a call that sends text shows it as markdown, folded after four lines', { options: { restyle_output: true } }, async $ => {
   const content = ['`useQuery` must be **on**.', ...Array.from({ length: 10 }, (_, i) => `line ${i + 2}`)].join('\n')
   const card = await $.ui.mount({
     plugin: 'prompt-timeline',
@@ -223,11 +223,11 @@ test('a call that sends text shows it as markdown, folded after eight lines', as
     },
   })
   expect(await card.find({ type: 'Markdown', text: /^`useQuery` must be \*\*on\*\*\.\nline 2/ })).toBeDefined()
-  expect(await card.find({ text: '… 3 more lines' })).toBeDefined()
+  expect(await card.find({ text: '… 7 more lines' })).toBeDefined()
   await card.unmount()
 })
 
-test('short Bash output sits under its card, with stderr in red', async $ => {
+test('short Bash output sits under its card, with stderr in red', { options: { restyle_output: true } }, async $ => {
   const stdout = ['\x1b[32mok\x1b[0m', 'row 2', '[see remaining: tail -n +1 "/x/tee.log"]'].join('\n')
   const result = await $.ui.mount({
     plugin: 'prompt-timeline',
@@ -242,7 +242,7 @@ test('short Bash output sits under its card, with stderr in red', async $ => {
   await result.unmount()
 })
 
-test('long Bash output goes to Claude Code, so details can unfold it; changed files keep their diff', async ($, on) => {
+test('long Bash output goes to Claude Code, so details can unfold it; changed files keep their diff', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolResult' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>{`engine row${(e.props.output as { bashEditDiff?: unknown }).bashEditDiff ? ' with diff' : ''}`}</Text>
@@ -262,7 +262,7 @@ test('long Bash output goes to Claude Code, so details can unfold it; changed fi
   await result.unmount()
 })
 
-test('a printed diff in short output goes to the highlighter', async $ => {
+test('a printed diff in short output goes to the highlighter', { options: { restyle_output: true } }, async $ => {
   const stdout = ['diff --git a/src/a.ts b/src/a.ts', '--- a/src/a.ts', '+++ b/src/a.ts', '@@ -1,1 +1,1 @@', '-old', '+new'].join('\n')
   const result = await $.ui.mount({
     plugin: 'prompt-timeline',
@@ -278,7 +278,7 @@ test('a printed diff in short output goes to the highlighter', async $ => {
   await result.unmount()
 })
 
-test('files a Bash command changed show as a diff under its output', async $ => {
+test('files a Bash command changed show as a diff under its output', { options: { restyle_output: true } }, async $ => {
   const bashEditDiff = {
     files: [{ filePath: '/Users/me/repo/plugin.json', hunks: [{ oldStart: 2, newStart: 2, lines: [' "name": "x",', '-"version": "0.1.0",', '+"version": "0.1.1",'] }] }],
   }
@@ -299,7 +299,7 @@ test('files a Bash command changed show as a diff under its output', async $ => 
   await result.unmount()
 })
 
-test('rows of an expanded group show their result inline, as Claude Code does', async ($, on) => {
+test('rows of an expanded group show their result inline, as Claude Code does', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine group</Text>
@@ -315,6 +315,8 @@ test('rows of an expanded group show their result inline, as Claude Code does', 
 
   const read = await $.ui.mount(row('g1', 'Read', { file_path: '/r/a.ts' }, { type: 'text', file: { numLines: 40, totalLines: 120 } }))
   expect(await read.find({ text: '↳ 40 of 120 lines' })).toBeDefined()
+  // A one-line detail sits on the title line, not a line of its own.
+  expect(await read.find({ text: 'a.ts  /r' })).toBeDefined()
   await read.unmount()
   const bash = await $.ui.mount(row('g2', 'Bash', { command: 'ls', description: 'List' }, { stdout: 'a.ts\nb.ts', stderr: '' }))
   expect(await bash.find({ text: 'b.ts' })).toBeDefined()
@@ -325,7 +327,7 @@ test('rows of an expanded group show their result inline, as Claude Code does', 
   await alone.unmount()
 })
 
-test('grouped MCP rows keep their result lines: every find_docs hit, and a count for what a long result leaves out', async ($, on) => {
+test('grouped MCP rows keep their result lines: every find_docs hit, and a count for what a long result leaves out', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine group</Text>
@@ -346,16 +348,16 @@ test('grouped MCP rows keep their result lines: every find_docs hit, and a count
   expect(await found.find({ text: '  12) docs/d12.md:12 › Heading 12 — snippet' })).toBeDefined()
   await found.unmount()
   const long = await $.ui.mount(row('m1', other, Array.from({ length: 20 }, (_, i) => `item ${i + 1}`).join('\n')))
-  expect(await long.find({ text: '  item 8' })).toBeDefined()
-  expect(await long.find({ text: '  item 9' })).toBeUndefined()
-  expect(await long.find({ text: '  … +12 more lines' })).toBeDefined()
+  expect(await long.find({ text: '  item 4' })).toBeDefined()
+  expect(await long.find({ text: '  item 5' })).toBeUndefined()
+  expect(await long.find({ text: '  … +16 more lines' })).toBeDefined()
   await long.unmount()
   const doc = await $.ui.mount(row('m2', read, '# Title\n\nBody\n'))
   expect(await doc.find({ text: '↳ 4 lines' })).toBeDefined()
   await doc.unmount()
 })
 
-test('a grouped row that errored shows the error text', async ($, on) => {
+test('a grouped row that errored shows the error text', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine group</Text>
@@ -376,7 +378,7 @@ test('a grouped row that errored shows the error text', async ($, on) => {
   await row.unmount()
 })
 
-test('Bash output colours outcomes and draws rg matches with a gutter and highlighting', async $ => {
+test('Bash output colours outcomes and draws rg matches with a gutter and highlighting', { options: { restyle_output: true } }, async $ => {
   const stdout = ['hooks/look.tsx:138:    <Box flexDirection="column">', '172:  return x', '✔ Validation passed', ' 18 pass', ' 2 fail'].join('\n')
   const result = await $.ui.mount({
     plugin: 'prompt-timeline',
@@ -400,7 +402,7 @@ test('an inline script is found with its language', () => {
   expect(scriptOf('git status')).toBeNull()
 })
 
-test('a script run shows its code numbered, then its output', async $ => {
+test('a script run shows its code numbered, then its output', { options: { restyle_output: true } }, async $ => {
   const command = "node - <<'JS'\nconst r = [1]\nconsole.log(JSON.stringify(r))\nJS"
   const use = await $.ui.mount({
     plugin: 'prompt-timeline',
@@ -424,4 +426,28 @@ test('a script run shows its code numbered, then its output', async $ => {
   ])
   expect(await result.find({ text: 'Output' })).toBeDefined()
   await result.unmount()
+})
+
+test('with restyle_output off, prompts, replies and tool rows keep the default look; notices keep theirs', async ($, on) => {
+  for (const component of ['UserMessage', 'AssistantMessage', 'TurnDuration', 'ToolUse', 'ToolResult'] as const) {
+    on('ui.render', { component }, ($, e) => {
+      const { Text } = $.ui.resolve(e)
+      return <Text>{`engine ${component}`}</Text>
+    })
+  }
+  const rows = [
+    { component: 'UserMessage', props: { text: 'a prompt', origin: { kind: 'composer' }, isExpanded: true } },
+    { component: 'AssistantMessage', props: { text: 'A reply.', isFirstOfReply: true } },
+    { component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } },
+    { component: 'ToolUse', props: { tool_use_id: 'b1', tool: 'Bash', input: { command: 'ls', description: 'List' }, isRunning: false, isErrored: false, isInterrupted: false } },
+    { component: 'ToolResult', props: { tool_use_id: 'b1', tool: 'Bash', output: { stdout: 'a.ts', stderr: '' }, isErrored: false } },
+  ] as const
+  for (const row of rows) {
+    const ui = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', requestId: `off-${row.component}`, ...row })
+    expect(await ui.find({ text: `engine ${row.component}` })).toBeDefined()
+    await ui.unmount()
+  }
+  const notice = await $.ui.mount({ plugin: 'prompt-timeline', surface: 'terminal', component: 'InfoNotice', props: { text: 'Continue in Desktop', command: '/desktop' } })
+  expect(await notice.find({ text: ' /desktop ' })).toBeDefined()
+  await notice.unmount()
 })

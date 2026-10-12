@@ -44,8 +44,9 @@ export const promptOf = (e: { door: string; uuid: string; message: { name?: stri
   return e.door === 'prompt' ? { id: e.uuid, text } : { id: e.uuid, text, isDrawn: true }
 }
 
-export const register: Register = on => {
-  registerLook(on)
+export const register: Register = (on, options) => {
+  const restyle = options.restyle_output === true
+  registerLook(on, restyle)
   registerReplay(on)
 
   on('session.start', async ($, e, next) => {
@@ -97,7 +98,7 @@ export const register: Register = on => {
     }
     // Slash commands are saved as commands, not prompts, so they never join the list; they keep the default row.
     // Task notifications and messages from other agents keep Claude Code's row, which names the sender.
-    if (e.props.task || e.props.from) return next(e)
+    if (!restyle || e.props.task || e.props.from) return next(e)
     if ((index < 0 && e.props.origin.kind !== 'composer') || !text || text.startsWith('/')) return next(e)
     const { Box, Text } = $.ui.resolve(e)
 
@@ -107,7 +108,7 @@ export const register: Register = on => {
       return (
         <Box marginTop={1} marginRight={1} backgroundColor={PANEL}>
           <Box width={1} backgroundColor="gray" />
-          <Box paddingX={2} paddingY={1} flexDirection="column" flexGrow={1}>
+          <Box paddingX={1} flexDirection="column" flexGrow={1}>
           <Text dimColor italic>
             ◌ Queued · sends when the current turn ends
           </Text>
@@ -122,7 +123,7 @@ export const register: Register = on => {
     return (
       <Box marginY={1} marginRight={1} backgroundColor={PANEL}>
         <Box width={1} backgroundColor={PROMPT_BAR} />
-        <Box paddingX={2} paddingY={1} flexGrow={1} justifyContent="space-between" gap={2}>
+        <Box paddingX={1} flexGrow={1} justifyContent="space-between" gap={2}>
           <Text wrap="wrap">{e.props.text}</Text>
           <Text dimColor>#{index + 1}</Text>
         </Box>

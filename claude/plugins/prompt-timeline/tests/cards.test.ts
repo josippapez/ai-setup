@@ -90,7 +90,7 @@ test('a shell command drops its leading cd, shortens paths and splits a chain in
     'git log | head -3',
     'echo "a; b"',
   ])
-  expect(shellDetail('cd /r/app && a; b; c; d; e')).toBe('app $ a\n  b\n  c\n  d  (+1 more steps)')
+  expect(shellDetail('cd /r/app && a; b; c; d; e')).toBe('app $ a\n  b  (+3 more steps)')
   // Loops stay whole and section markers drop out.
   expect(shell('echo "=== rules:"; for f in a b; do echo $f; cat $f; done; ls').steps).toEqual(['for f in a b; do echo $f; cat $f; done', 'ls'])
 })

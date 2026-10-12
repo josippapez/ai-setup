@@ -11,7 +11,7 @@ const message = (requestId: string, text: string, kind: 'composer' | 'task-notif
     props: { text, origin: { kind }, isExpanded: true },
   }) as const
 
-test('a prompt not saved yet draws as queued, other rows keep theirs, and an empty timeline stays out of the way', async ($, on) => {
+test('a prompt not saved yet draws as queued, other rows keep theirs, and an empty timeline stays out of the way', { options: { restyle_output: true } }, async ($, on) => {
   on('ui.render', { component: 'UserMessage' }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine row</Text>
@@ -53,7 +53,7 @@ test('a prompt not saved yet draws as queued, other rows keep theirs, and an emp
   await band.unmount()
 })
 
-test('earlier prompts come from the transcript and get numbered cards, strip entries, and timeline rows', async ($, on) => {
+test('earlier prompts come from the transcript and get numbered cards, strip entries, and timeline rows', { options: { restyle_output: true } }, async ($, on) => {
   const ran: (readonly string[])[] = []
   on('session.start', () => ({ cwd: '/repo' }))
   on('session.id', () => ({ value: 'sess-1' }))

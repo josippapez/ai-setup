@@ -23,13 +23,13 @@ const SHOT_PANE = 'screenshot'
 // the result row has neither.
 const runs = new Map<string, { command: string; ms?: number }>()
 // An inline script shows this many lines before it folds.
-const SCRIPT_LINES = 20
+const SCRIPT_LINES = 8
 // A call's text body (a PR comment, a query) shows this many lines before it folds.
-const BODY_LINES = 8
+const BODY_LINES = 4
 // Bash output shows this many lines before it folds.
-const OUTPUT_LINES = 12
+const OUTPUT_LINES = 6
 // A file a Bash command changed shows this many diff lines before it folds.
-const DIFF_LINES = 20
+const DIFF_LINES = 10
 // A terminal cell is about twice as tall as it is wide.
 const rowsFor = (shot: { width: number; height: number }, columns: number) => Math.min(60, Math.max(1, Math.round((columns * shot.height) / shot.width / 2)))
 // Each session's tags are also saved to the plugin's store (a JSON file on disk) under this
@@ -192,7 +192,7 @@ const duration = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed
 function scriptSection({ Box, Code, Text }: Ui, script: NonNullable<ReturnType<typeof scriptOf>>, ms: number | undefined) {
   const lines = script.source.split('\n')
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column">
       <Box justifyContent="space-between">
         <Text dimColor>Code</Text>
         {ms !== undefined && <Text dimColor>{`Completed · ${duration(ms)}`}</Text>}
@@ -225,9 +225,9 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput, withStdo
     <Box flexDirection="column" width="100%">
       {withStdout && !script && lines.length === 0 && !stderr && diffs.length === 0 && <Text dimColor>(no output)</Text>}
       {(lines.length > 0 || script) && (
-        <Box width="100%" backgroundColor={PANEL} marginTop={1}>
+        <Box width="100%" backgroundColor={PANEL}>
           <Box width={1} backgroundColor={OUTPUT_BAR} />
-          <Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
+          <Box flexDirection="column" flexGrow={1} paddingX={1}>
           {script && scriptSection({ Box, Code, Text }, script, run?.ms)}
           {script && <Text dimColor>Output</Text>}
           {script && lines.length === 0 && <Text dimColor>(no output)</Text>}
@@ -291,9 +291,9 @@ export function bashOutput({ Box, Code, Text }: Ui, output: BashOutput, withStdo
         const path = file.filePath.replace(/^\/Users\/[^/]+/, '~')
         const cut = path.lastIndexOf('/') + 1
         return (
-          <Box key={`d${f}`} width="100%" marginTop={1} backgroundColor={PANEL}>
+          <Box key={`d${f}`} width="100%" backgroundColor={PANEL}>
             <Box width={1} backgroundColor={OUTPUT_BAR} />
-            <Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
+            <Box flexDirection="column" flexGrow={1} paddingX={1}>
             <Box gap={1}>
               <Text color="yellow">✎</Text>
               <Text bold>{path.slice(cut)}</Text>
@@ -317,7 +317,28 @@ const grouped = new Set<string>()
 // The tag of the reply drawn last: the turn's footer, drawn after its replies, names it.
 let lastTag: ReplyTag | null = null
 
-export function registerLook(on: On) {
+export function registerLook(on: On, restyle: boolean) {
+  on('ui.render', { component: 'InfoNotice' }, async ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+
+    return (
+      <Box marginX={1} gap={1}>
+        <Text color="blue" bold>
+          ℹ
+        </Text>
+        <Text>{e.props.text}</Text>
+        {e.props.command && (
+          <Text backgroundColor="blue" color="black">
+            {` ${e.props.command} `}
+          </Text>
+        )}
+      </Box>
+    )
+  })
+
+  // The rest restyles the transcript, off unless the restyle_output setting is on.
+  if (!restyle) return
+
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     for (const call of e.props.calls) if (call.tool_use_id) grouped.add(call.tool_use_id)
 
@@ -414,9 +435,9 @@ export function registerLook(on: On) {
     }
 
     return (
-      <Box marginTop={1} marginRight={2}>
+      <Box marginY={1} marginRight={2}>
         <Box width={1} backgroundColor={familyColor((lastTag ?? { model }).model || '')} />
-        <Box paddingLeft={INDENT - 1} paddingY={1} flexDirection="column" flexGrow={1}>
+        <Box paddingLeft={INDENT - 1} flexDirection="column" flexGrow={1}>
         {parts.map((part, i) =>
           // Claude Code's own table when it fits; the fitted grid only when the table is wider than
           // the reply, where the markdown element would run past the edge and wrap its border.
@@ -436,7 +457,7 @@ export function registerLook(on: On) {
     const time = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`
 
     return (
-      <Box paddingLeft={INDENT} marginY={1}>
+      <Box paddingLeft={INDENT}>
         <Text color={familyColor(lastTag.model)}>◆ {lastTag.model}</Text>
         <Text dimColor>{`${lastTag.effort ? ` · ${lastTag.effort}` : ''} · ${time}`}</Text>
       </Box>
@@ -478,18 +499,24 @@ export function registerLook(on: On) {
     const state = e.props.isErrored ? 'red' : e.props.isInterrupted ? 'yellow' : e.props.isRunning ? 'gray' : 'green'
     const error = e.props.isErrored ? errorLines(e.props.output) : undefined
     const result = error ?? resultLine(e.props.tool, e.props.output)
+    // A one-line detail (a file's folder, a search path) rides on the title line. A Bash
+    // command keeps its own line, so it is not cut off by a long description.
+    const inlineDetail = e.props.tool !== 'Bash' && !!card.detail && !card.detail.includes('\n')
 
     return (
-      <Box paddingLeft={INDENT} paddingRight={1} flexDirection="column" marginTop={1}>
+      <Box paddingLeft={INDENT} paddingRight={1} flexDirection="column">
         <Box gap={1}>
           <Text color={state}>→</Text>
           <Text color={card.color === 'blackBright' ? 'gray' : card.color} bold>
             {card.label}
           </Text>
-          <Text wrap="truncate-end">{card.title}</Text>
+          <Text wrap="truncate-end">
+            {card.title}
+            {inlineDetail && <Text dimColor>{`  ${card.detail}`}</Text>}
+          </Text>
           {e.props.isInterrupted && <Text color="yellow">interrupted</Text>}
         </Box>
-        {card.detail && (
+        {card.detail && !inlineDetail && (
           <Box paddingLeft={2}>
             <Text dimColor wrap="wrap">
               {card.detail}
@@ -497,13 +524,13 @@ export function registerLook(on: On) {
           </Box>
         )}
         {card.body && (
-          <Box paddingLeft={2} marginTop={1} flexDirection="column">
+          <Box paddingLeft={2} flexDirection="column">
             <Markdown text={card.body.split('\n').slice(0, BODY_LINES).join('\n')} />
             {card.body.split('\n').length > BODY_LINES && <Text dimColor>{`… ${card.body.split('\n').length - BODY_LINES} more lines`}</Text>}
           </Box>
         )}
         {picture && (
-          <Box paddingLeft={2} marginTop={1}>
+          <Box paddingLeft={2}>
             {picture}
           </Box>
         )}
@@ -545,9 +572,9 @@ export function registerLook(on: On) {
         <Box flexDirection="column" width="100%">
           {script &&
             pad(
-              <Box width="100%" backgroundColor={PANEL} marginTop={1}>
+              <Box width="100%" backgroundColor={PANEL}>
                 <Box width={1} backgroundColor={OUTPUT_BAR} />
-                <Box flexDirection="column" flexGrow={1} paddingX={2} paddingTop={1}>
+                <Box flexDirection="column" flexGrow={1} paddingX={1}>
                   {scriptSection({ Box, Code, Text }, script, run?.ms)}
                 </Box>
               </Box>,
@@ -571,24 +598,6 @@ export function registerLook(on: On) {
     return (
       <Box paddingX={1}>
         <Image source={{ png: shot.png }} columns={columns} rows={rowsFor(shot, columns)} alt="Screenshot" />
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'InfoNotice' }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-
-    return (
-      <Box marginX={1} gap={1}>
-        <Text color="blue" bold>
-          ℹ
-        </Text>
-        <Text>{e.props.text}</Text>
-        {e.props.command && (
-          <Text backgroundColor="blue" color="black">
-            {` ${e.props.command} `}
-          </Text>
-        )}
       </Box>
     )
   })
