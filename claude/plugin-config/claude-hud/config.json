@@ -30,30 +30,20 @@
     "showUsage": true,
     "showTokenBreakdown": true,
     "showSessionTokens": true,
-    "showCompactions": true
+    "showCompactions": true,
+    "showProject": false
   },
   "elementOrder": [
     "project",
-    "addedDirs",
     "context",
-    "usage",
-    "memory",
-    "promptCache",
-    "environment",
-    "tools",
-    "skills",
-    "mcp",
-    "agents",
-    "todos",
-    "sessionTime"
+    "usage"
   ],
   "pathLevels": "full",
   "projectLineOrder": [
-    "project",
     "model"
   ],
   "gitStatus": {
-    "enabled": true,
+    "enabled": false,
     "showDirty": true,
     "showAheadBehind": true,
     "showFileStats": false

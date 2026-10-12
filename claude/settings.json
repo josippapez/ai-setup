@@ -49,7 +49,7 @@
       "mcp__plugin_feedback_feedback__update_feedback"
     ]
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "modelSettings": {
     "claude-opus-5": {
       "effortLevel": "xhigh"
@@ -85,7 +85,7 @@
     "fundamentals@ai-setup": true,
     "verified@ai-setup": true,
     "feedback@ai-setup": true,
-    "prompt-timeline@ai-setup": true,
+    "prompt-timeline@ai-setup": false,
     "tool-group-hints@ai-setup": true
   },
   "extraKnownMarketplaces": {
