@@ -43,7 +43,7 @@
     "model"
   ],
   "gitStatus": {
-    "enabled": false,
+    "enabled": true,
     "showDirty": true,
     "showAheadBehind": true,
     "showFileStats": false
