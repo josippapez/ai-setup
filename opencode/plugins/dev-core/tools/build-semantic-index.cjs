@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { createContext } = require('../lib/context.cjs');
 const { CONFIG_DIR } = require('../lib/platform.cjs');
 const { getDocFiles } = require('../lib/docs.cjs');
@@ -20,7 +21,8 @@ const MAX_FILE_BYTES = 1_000_000;
 // Bumped 5 -> 6 so each chunk records the line its own text starts on.
 // Bumped 6 -> 7 when the index became one line per record with packed vectors,
 // and the embedder moved to 8-bit weights.
-const SCHEMA_VERSION = 7;
+// Bumped 7 -> 8 when records gained a content hash, so a checkout with new mtimes reuses unchanged chunks.
+const SCHEMA_VERSION = 8;
 
 function indexPath(context) { return path.join(context.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
@@ -126,8 +128,8 @@ function builtAtOtherHead(context) {
   try { return fs.readFileSync(headPath(context), 'utf8') !== head; } catch { return true; }
 }
 
-// Groups the prior index's records by path, keyed to their mtime, so buildDocIndex
-// can reuse cached chunks verbatim for files whose mtime hasn't changed.
+// Groups the prior index's records by path, keyed to their mtime and content hash, so
+// buildDocIndex can reuse cached chunks verbatim for files whose mtime or content is unchanged.
 async function loadPriorCache(context) {
   const byPath = new Map();
   try {
@@ -139,12 +141,13 @@ async function loadPriorCache(context) {
   const records = await readRecords(indexPath(context));
   if (!records) return byPath;
   for (const rec of records) {
-    if (!rec || typeof rec.mtime !== 'number' || typeof rec.path !== 'string') continue;
+    if (!rec || typeof rec.mtime !== 'number' || typeof rec.hash !== 'string' || typeof rec.path !== 'string') continue;
     let group = byPath.get(rec.path);
-    if (!group) { group = { mtime: rec.mtime, records: [] }; byPath.set(rec.path, group); }
-    // A path's records should all share one mtime (written together per build).
+    if (!group) { group = { mtime: rec.mtime, hash: rec.hash, records: [] }; byPath.set(rec.path, group); }
+    // A path's records should all share one mtime and hash (written together per build).
     // If they don't (corrupt/foreign index), force a rebuild for that path.
     if (group.mtime !== rec.mtime) group.mtime = NaN;
+    if (group.hash !== rec.hash) group.hash = null;
     group.records.push(rec);
   }
   return byPath;
@@ -201,7 +204,13 @@ async function runBuild(context) {
     try {
       content = fs.readFileSync(filePath, 'utf8');
     } catch { skipped++; continue; }
-    changed.push({ i, rel, content, mtime: stat.mtimeMs });
+    const hash = crypto.createHash('sha256').update(content).digest('hex');
+    if (prior && prior.hash === hash) {
+      slots[i] = prior.records.map(rec => ({ ...rec, mtime: stat.mtimeMs }));
+      unchanged++;
+      continue;
+    }
+    changed.push({ i, rel, content, mtime: stat.mtimeMs, hash });
   }
   for (let start = 0; start < changed.length; start += DOCS_PER_ROUND) {
     try { writeFileNoFollow(progressPath(context), `${start} ${changed.length}`); } catch {}
@@ -216,7 +225,7 @@ async function runBuild(context) {
       for (const ch of (results && results[k]) || []) {
         // A live worker skipping one bad chunk keeps today's behavior.
         if (!ch.vector) continue;
-        records.push({ path: doc.rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, ctxEmbedding: ch.ctxVector, mtime: doc.mtime });
+        records.push({ path: doc.rel, heading: ch.headingPath, content: ch.text, startLine: ch.startLine, embedding: ch.vector, ctxEmbedding: ch.ctxVector, mtime: doc.mtime, hash: doc.hash });
       }
       if (records.length) { slots[doc.i] = records; updated++; }
     });

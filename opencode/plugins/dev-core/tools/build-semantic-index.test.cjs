@@ -43,6 +43,35 @@ test('second build reuses unchanged files and only re-embeds a touched one', { s
   assert.strictEqual(second.skipped, 0);
 });
 
+test('a file with a new mtime but the same content is reused, not re-embedded', { skip }, async (t) => {
+  const root = makeRepo(3);
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  await buildDocIndex(context, { force: true });
+
+  const future = new Date(Date.now() + 5000);
+  for (let i = 0; i < 3; i++) fs.utimesSync(path.join(root, `doc${i}.md`), future, future);
+
+  const second = await buildDocIndex(context, { force: true });
+  assert.strictEqual(second.updated, 0);
+  assert.strictEqual(second.unchanged, 3);
+});
+
+test('after new mtimes, changing one file re-embeds only that file', { skip }, async (t) => {
+  const root = makeRepo(3);
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  await buildDocIndex(context, { force: true });
+
+  fs.writeFileSync(path.join(root, 'doc1.md'), '# Doc 1\nCHANGED content for doc 1\n');
+  const future = new Date(Date.now() + 5000);
+  for (let i = 0; i < 3; i++) fs.utimesSync(path.join(root, `doc${i}.md`), future, future);
+
+  const second = await buildDocIndex(context, { force: true });
+  assert.strictEqual(second.updated, 1);
+  assert.strictEqual(second.unchanged, 2);
+});
+
 test('a build removes temp files a killed writer left behind', { skip }, async (t) => {
   const root = makeRepo(1);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
