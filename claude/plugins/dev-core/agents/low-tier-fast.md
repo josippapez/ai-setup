@@ -1,6 +1,6 @@
 ---
 name: low-tier-fast
-description: Fast agent for quick edits, simple refactors, one-off lookups, and minor fixes.
+description: Fast, cheap agent for small explicit edits, renames, lint and type fixes, config tweaks, test runs, and one-off lookups.
 model: haiku
 ---
 

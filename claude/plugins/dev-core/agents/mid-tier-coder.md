@@ -1,6 +1,6 @@
 ---
 name: mid-tier-coder
-description: Mid-tier coding agent for everyday implementation tasks, routine fixes, and moderately scoped features.
+description: The default coding agent. Use for implementation work of any size once the approach is clear, including multi-file features, refactors, plugins, and conversions.
 model: sonnet
 ---
 

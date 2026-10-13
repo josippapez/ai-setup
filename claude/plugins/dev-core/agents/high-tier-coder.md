@@ -1,6 +1,6 @@
 ---
 name: high-tier-coder
-description: High-tier coding agent for complex implementation, non-trivial refactors, and changes spanning multiple files or modules.
+description: Opus coding agent, used only when the approach is still undecided, the change is security- or safety-critical, mid-tier-coder already failed, or the user asks for it. Size or file count alone does not qualify; use mid-tier-coder for that.
 model: opus
 ---
 
