@@ -1,6 +1,6 @@
 'use strict';
 
-const { Worker, isMainThread, parentPort } = require('node:worker_threads');
+const { fork } = require('node:child_process');
 
 const MODEL_ID = 'Xenova/bge-small-en-v1.5';
 // 8-bit weights: 87 ms a chunk on one thread, against 108 ms for fp32 on two, with
@@ -22,7 +22,8 @@ const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: '
 // for a whole rebuild. One thread keeps a CPU-fallback build to one core.
 const SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
-if (!isMainThread) {
+if (require.main === module && process.send) {
+  process.on('disconnect', () => process.exit(0));
   (async () => {
     const { createRequire } = require('node:module');
     const { pathToFileURL } = require('node:url');
@@ -78,7 +79,7 @@ if (!isMainThread) {
       return out;
     };
 
-    parentPort.on('message', async (msg) => {
+    process.on('message', async (msg) => {
       if (msg.type === 'chunks') {
         // Every doc in the message is chunked first and all their texts are embedded
         // together, so batches stay full across docs too small to fill one alone.
@@ -105,13 +106,13 @@ if (!isMainThread) {
           const vector = vectors[next++], ctxVector = vectors[next++];
           return vector && ctxVector ? { ...ch, vector, ctxVector } : { ...ch, vector: null, ctxVector: null };
         }));
-        parentPort.postMessage({ type: 'chunks', id: msg.id, chunks });
+        process.send({ type: 'chunks', id: msg.id, chunks });
         return;
       }
       if (msg.type !== 'embed') return;
       try {
         const out = await embed(msg.text, { pooling: 'mean', normalize: true });
-        parentPort.postMessage({
+        process.send({
           type: 'embed',
           id: msg.id,
           vector: Array.from(out.data),
@@ -119,20 +120,21 @@ if (!isMainThread) {
       } catch {
         // One bad chunk (e.g. an ONNX runtime error) must cost one chunk, not
         // the whole worker: reply null instead of letting the throw kill it.
-        parentPort.postMessage({ type: 'embed', id: msg.id, vector: null });
+        process.send({ type: 'embed', id: msg.id, vector: null });
       }
     });
 
-    parentPort.postMessage({ type: 'ready' });
+    process.send({ type: 'ready' });
   })().catch((err) => {
-    parentPort.postMessage({ type: 'error', message: err.message });
-    process.exit(1);
+    // Exit only once the reason is sent, so the server can report it.
+    process.send({ type: 'error', message: err.message }, () => process.exit(1));
   });
   return;
 }
 
 let worker = null;
 let workerReady = false;
+let idleTimer = null;
 let lastFailedAt = 0;
 let lastError = '';
 let startedAt = 0;
@@ -162,22 +164,40 @@ function markFailed(message) {
   pending.clear();
 }
 
+// The model runs in a child process that exits after IDLE_MS without a request.
+// Ending a worker thread freed only 140 of 380 MB and leaked 6 MB a cycle, since
+// onnxruntime's native memory stays with the process. A reload takes about 0.5 s.
+const IDLE_MS = Number(process.env.REPO_DOCS_EMBED_IDLE_MS) > 0
+  ? Number(process.env.REPO_DOCS_EMBED_IDLE_MS)
+  : 10 * 60 * 1000;
+
+function armIdleTimer() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (pending.size) armIdleTimer();
+    else shutdown();
+  }, IDLE_MS);
+  idleTimer.unref();
+}
+
 function warmUp() {
   if (worker || inFailureCooldown()) return;
 
   try {
-    worker = new Worker(__filename);
+    worker = fork(__filename, [], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'], serialization: 'advanced' });
     startedAt = Date.now();
   } catch (err) {
     markFailed(err.message);
     return;
   }
 
-  worker.on('message', (msg) => {
+  const child = worker;
+  child.on('message', (msg) => {
     if (msg.type === 'ready') {
       lastFailedAt = 0;
       lastError = '';
       workerReady = true;
+      armIdleTimer();
       return;
     }
 
@@ -185,17 +205,22 @@ function warmUp() {
       const resolve = pending.get(msg.id);
       if (!resolve) return;
       pending.delete(msg.id);
+      armIdleTimer();
       resolve(msg.type === 'chunks' ? msg.chunks : msg.vector);
       return;
     }
 
     if (msg.type === 'error') {
-      markFailed(msg.message);
+      if (worker === child) markFailed(msg.message);
     }
   });
 
-  worker.on('error', (err) => {
-    markFailed(err.message);
+  child.on('error', (err) => {
+    if (worker === child) markFailed(err.message);
+  });
+  // shutdown() clears `worker` first, so only an exit nobody asked for is a failure.
+  child.on('exit', (code, signal) => {
+    if (worker === child) markFailed(`embedder exited (${signal || code})`);
   });
 }
 
@@ -215,12 +240,16 @@ function embedderStatus() {
 }
 
 async function shutdown() {
+  clearTimeout(idleTimer);
   if (!worker) return;
-  const activeWorker = worker;
+  const child = worker;
   worker = null;
   workerReady = false;
   pending.clear();
-  await activeWorker.terminate().catch(() => {});
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  child.kill();
+  await exited;
 }
 
 function waitUntilReady(timeoutMs = 300000) {
@@ -250,7 +279,7 @@ function request(type, text, extra = {}) {
   return new Promise((resolve) => {
     const id = ++msgId;
     pending.set(id, resolve);
-    worker.postMessage({ ...extra, type, id, text });
+    worker.send({ ...extra, type, id, text });
   });
 }
 

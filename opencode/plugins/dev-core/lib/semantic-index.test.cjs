@@ -154,3 +154,67 @@ test('embedDocChunks sizes chunks by the model tokenizer and keeps the whole doc
   const proseChunks = await engine.embedDocChunks(prose, 'docs/prose.md');
   assert.deepStrictEqual(proseChunks.map(({ vector, ctxVector, ...rest }) => rest), chunkMarkdown(prose));
 });
+
+// A loaded embedder held 300 MB to 1.4 GB for the rest of a session. After
+// REPO_DOCS_EMBED_IDLE_MS without a request its process must exit, and the next
+// request must load it again.
+test('the embedder process exits when idle and reloads on the next request', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'semidx-idle-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const modDir = path.join(root, 'node_modules', '@huggingface', 'transformers');
+  fs.mkdirSync(modDir, { recursive: true });
+  fs.writeFileSync(path.join(modDir, 'package.json'),
+    JSON.stringify({ name: '@huggingface/transformers', version: '0.0.0', main: 'index.js' }));
+  fs.writeFileSync(path.join(modDir, 'index.js'), [
+    "const f = async () => ({ data: new Array(384).fill(0) });",
+    "f.tokenizer = { _tokenizerConfig: {} };",
+    "exports.env = {};",
+    "exports.pipeline = async () => { require('node:fs').appendFileSync(process.env.STUB_PID_FILE, process.pid + '\\n'); return f; };",
+  ].join('\n'));
+
+  const driver = path.join(root, 'driver.cjs');
+  fs.writeFileSync(driver, `
+    'use strict';
+    const fs = require('node:fs');
+    const engine = require(${JSON.stringify(path.join(__dirname, 'semantic-index.cjs'))});
+    const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    const pids = () => fs.readFileSync(process.env.STUB_PID_FILE, 'utf8').trim().split('\\n').map(Number);
+    (async () => {
+      await engine.waitUntilReady(8000);
+      const firstEmbed = Array.isArray(await engine.embedQuery('a'));
+      const first = pids()[0];
+      const aliveWhileUsed = alive(first);
+      await new Promise((r) => setTimeout(r, 1200));
+      const aliveAfterIdle = alive(first);
+      const statusAfterIdle = engine.embedderStatus().state;
+      const reloaded = await engine.waitUntilReady(8000);
+      const secondEmbed = Array.isArray(await engine.embedQuery('b'));
+      console.log(JSON.stringify({ firstEmbed, notInServer: first !== process.pid, aliveWhileUsed, aliveAfterIdle, statusAfterIdle, reloaded, secondEmbed, loads: pids().length }));
+      await engine.shutdown();
+      process.exit(0);
+    })().catch((e) => { console.error(e); process.exit(1); });
+  `);
+
+  const stdout = await new Promise((resolve, reject) => {
+    execFile('node', [driver], {
+      env: {
+        ...process.env,
+        NODE_PATH: path.join(root, 'node_modules'),
+        REPO_DOCS_MODELS_DIR: path.join(root, 'models'),
+        REPO_DOCS_EMBED_IDLE_MS: '300',
+        STUB_PID_FILE: path.join(root, 'pids'),
+      },
+      timeout: 30000,
+    }, (err, out, stderr) => (err ? reject(new Error(`${err.message}\n${stderr}`)) : resolve(out)));
+  });
+
+  const r = JSON.parse(stdout.trim().split('\n').pop());
+  assert.strictEqual(r.firstEmbed, true);
+  assert.strictEqual(r.notInServer, true, 'the model must load in its own process, or exiting cannot free its memory');
+  assert.strictEqual(r.aliveWhileUsed, true);
+  assert.strictEqual(r.aliveAfterIdle, false, 'the embedder process must exit after the idle timeout');
+  assert.notStrictEqual(r.statusAfterIdle, 'ready');
+  assert.strictEqual(r.reloaded, true, 'the next request must load the model again');
+  assert.strictEqual(r.secondEmbed, true);
+  assert.strictEqual(r.loads, 2);
+});
