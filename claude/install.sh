@@ -111,6 +111,29 @@ if have claude; then
   for plugin in $(node -e 'const p=require(process.argv[1]).enabledPlugins;for(const k in p)if(p[k]===false&&k.endsWith("@ai-setup"))console.log(k)' "$SRC/settings.json"); do
     claude plugin disable "$plugin" --scope user >/dev/null
   done
+
+  # User-scope MCP servers whose tools load upfront instead of behind tool search, so
+  # Claude reaches for them unprompted. settings.json has no key for this: alwaysLoad
+  # lives on the server's entry in ~/.claude.json, and the app that registers the
+  # server owns the rest of that entry, so only the flag is changed.
+  CLAUDE_JSON="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"
+  CLAUDE_JSON="${CLAUDE_JSON:-$HOME/.claude.json}"
+  for server in wings; do
+    entry="$(node -e '
+      const fs = require("fs");
+      let c = {};
+      try { c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+      const s = c.mcpServers?.[process.argv[2]];
+      if (s && s.alwaysLoad !== true) console.log(JSON.stringify({ ...s, alwaysLoad: true }));
+      else if (!s) console.log("missing");
+    ' "$CLAUDE_JSON" "$server")"
+    if [ "$entry" = "missing" ]; then
+      warn "MCP server '$server' isn't registered yet; start its app, then re-run this script to load its tools upfront."
+    elif [ -n "$entry" ]; then
+      claude mcp remove --scope user "$server" >/dev/null
+      claude mcp add-json --scope user "$server" "$entry" >/dev/null
+    fi
+  done
 else
   warn "the 'claude' CLI is not on PATH; skipped marketplace + plugin install. Install Claude Code, then re-run this script."
 fi
