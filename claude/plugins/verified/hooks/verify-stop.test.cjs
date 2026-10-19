@@ -970,6 +970,25 @@ test('a sed -i on a README, a version bump, or a cd outside the project keeps "t
   }
 });
 
+test('an outcome the sentence disowns is not a claim: attributed, not checked, or a question', () => {
+  const calls = [{ name: 'Bash', input: { command: 'ls src' } }];
+  for (const answer of [
+    '`workitem` has fixed all four of its review issues and reports its 52 tests passing, though none of it has run in Wings yet.',
+    '`ui` is done. `Page` and `Split` are in `packages/plugin-ui`, and its tests pass 42 of 42.',
+    'Ligatures need a separate addon, and I haven\'t checked it works with WebGL.',
+    'The live test is still waiting on the deploy. Should I add the three events after that test passes?',
+  ]) {
+    assert.strictEqual(run(fixture(), answer, calls, 'h1'), null, answer);
+  }
+  for (const answer of [
+    'All 6 tests pass.',
+    'The new test fails on the old parser, and all 86 plugin-ui tests pass.',
+    'I asked `ui` for a report. The 42 tests pass on the current tree.',
+  ]) {
+    assert.ok(blocked(run(fixture(), answer, calls, 'h2')), answer);
+  }
+});
+
 test('a link gh or az printed after creating it counts as fetched', () => {
   const fx = fixture();
   const r = run(fx, 'PR 6740 is open: https://dev.azure.com/Org/Proj/_git/Repo/pullrequest/6740 and the release is https://github.com/x/y/releases/tag/v1.', [

@@ -182,6 +182,23 @@ command-outcome 45 catch / 85 fp on both, because a ledger node stores its `last
 see the write-detection change. The ledger read is now chunked: `readFileSync` threw at 718 MB and
 every replay had been scoring zero nodes.
 
+Of the 24 live blocks the new gate would still issue, 5 were outcome claims the sentence itself
+disowned: attributed to a subagent, "I haven't checked", or a question. verified 0.2.8 treats those
+as non-claims; corpus replay drops exactly those 5 flags (98 to 93 blocks, V 70.5 to 66.8 because the
+corpus labeller credits them). Six local models read the same 19 sentences with an instruction written
+from those patterns:
+
+| model | agrees with hand labels | lifts a real claim | per call |
+|---|---|---|---|
+| Apple on-device (FoundationModels) | 16/19 | 0 | 1.0 s |
+| gemma3n:e4b | 17/19 | 0 | 4.4 s, 21 s cold, 7.5 GB |
+| llama3.2:3b | 16/19 | 1 | 1.3 s |
+| gemma3:4b | 16/19 | 1 | 2.1 s |
+| qwen2.5:3b | 10/19 | 8 | 0.6 s |
+| qwen3:4b, gemma3:1b | 8/19, 5/19 | | |
+
+None lifted the two subagent-attributed blocks the regex lifts, so the regex ships and no model runs.
+
 ## Targets once live
 
 Precision (resolved blocks / all blocks) ≥ 0.9. Block rate ≤ 0.1. Replay puts

@@ -11,7 +11,7 @@ The hook reads the session transcript, builds a list of what actually ran, and m
 | Class | Fires on | Backed by | State |
 |---|---|---|---|
 | `path-missing` | a file path | a tool having printed the file's name this session, or the file existing on this machine: from cwd, the git root, the tracked-file list, or the repo of any folder the answer names by `~/` or `/` path | note: shown to you, never sent back (`pathMissingBlocks: false`) |
-| `command-outcome` | "tests pass", "build succeeds", "it works" | a clean test/build/lint run after the last file write. A README, CHANGELOG, memory or scratchpad write, or a version-string bump, does not count as a write | on |
+| `command-outcome` | "tests pass", "build succeeds", "it works" | a clean test/build/lint run after the last file write. A README, CHANGELOG, memory or scratchpad write, or a version-string bump, does not count as a write. A pass the sentence disowns is not a claim: attributed to a subagent ("`ui` reports its tests passing"), "I haven't checked it works", or a question to the user | on |
 | `url` | a cited URL, outside quotes and code spans | a tool having printed that URL, WebFetch or WebSearch of that host, an `agent-browser`, `curl` or `wget` command naming it, or a `gh` / `az repos` / `az boards` call for github.com and dev.azure.com | on |
 | `path` | a file path | a Read/Edit/codegraph of it | off |
 | `version` | `v1.2`, `1.2.3`, "version 4" | find_libs, a manifest read, opensrc | off |

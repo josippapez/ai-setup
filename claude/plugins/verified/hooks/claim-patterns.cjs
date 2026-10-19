@@ -39,6 +39,27 @@ const PATH_RE =
 const OUTCOME_RE =
   /\b(?:(?:all\s+)?(?:\d+\s+)?tests?\s+(?:now\s+)?(?:pass|passes|passed|are\s+passing|is\s+passing)|the\s+(?:test\s+)?suite\s+(?:passes|passed|is\s+green)|(?:the\s+)?build\s+(?:succeeds|succeeded|passes|passed|is\s+clean)|(?:the\s+)?lint(?:er)?\s+(?:passes|passed|is\s+clean)|type(?:check|s)\s+(?:pass|passes|passed|are\s+clean)|it\s+(?:now\s+)?works\b|verified\s+it\s+works)/gi;
 
+// An outcome the sentence itself disowns is not the speaker's claim. The five outcome blocks
+// still wrong after the Oct 2026 manifest fixes all had the disowning in plain words: the pass
+// attributed to a subagent ("`workitem` reports its 52 tests passing", "`ui` is done ... its
+// tests pass 42 of 42"), an explicit "I haven't checked it works", or a question to the user
+// ("Should I add them after that test passes?"). Three local models read the same sentences
+// no better than these words do, and one of them lifted a real claim.
+const NOT_CHECKED_RE = /\b(?:haven'?t|have\s+not|hasn'?t|has\s+not|didn'?t|did\s+not|not)\s+(?:yet\s+|been\s+)?(?:re-?run|re-?ran|checked|verified|run|tested|confirmed)\b/i;
+const ATTRIBUTED_RE = /\b(?:reports?|reported|says?|said)\s+(?:its|their|that)\b|\bits\s+(?:\d+\s+)?tests?\s+(?:pass|passing)/i;
+const NAMED_AGENT_RE = /`[^`\n]+`|\b(?:sub)?agents?\b/;
+function isHedged(text, at) {
+  const start = Math.max(text.lastIndexOf('. ', at), text.lastIndexOf('\n', at), text.lastIndexOf('? ', at), text.lastIndexOf('! ', at)) + 1;
+  const endAt = ['. ', '.\n', '?', '!', '\n'].map((d) => text.indexOf(d, at)).filter((i) => i >= 0);
+  const end = endAt.length ? Math.min(...endAt) : text.length;
+  const sentence = text.slice(start, end + 1);
+  if (sentence.trim().endsWith('?')) return true;
+  if (NOT_CHECKED_RE.test(sentence)) return true;
+  // The agent's name may sit one sentence back: "`ui` is done. ... and its tests pass 42 of 42."
+  const previous = text.slice(Math.max(0, text.lastIndexOf('\n', start - 2), text.lastIndexOf('. ', start - 2)), start);
+  return ATTRIBUTED_RE.test(sentence) && NAMED_AGENT_RE.test(sentence + previous);
+}
+
 // Negative existence claims. The half of Gate 1 that gets skipped most, per
 // external-facts: "absence from your memory is not absence from the API".
 const ABSENCE_RE =
@@ -285,7 +306,7 @@ function classify(answer, ev, cfg) {
 
   if (C.outcome) for (const m of text.matchAll(OUTCOME_RE)) {
     covered.push(m[0]);
-    if (isMention(text, m[0].trim())) continue;
+    if (isMention(text, m[0].trim()) || isHedged(text, m.index)) continue;
     // The run has to be the LATEST state of the tree, not just somewhere in the
     // session. A pass followed by an edit is a claim about code that no longer
     // exists, which is the failure session-scoped evidence would otherwise let
