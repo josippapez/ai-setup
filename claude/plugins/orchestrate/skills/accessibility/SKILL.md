@@ -43,9 +43,11 @@ Every command is prefixed (`get-*`, `list-*`, `search-*`). There is no bare
 - `list-techniques` — list every published technique; `--technology html|aria|css|pdf|general|client-side-script|server-side-script|smil|text|failures` and `--type sufficient|advisory|failure` narrow it
 - `get-technique <id>` — the technique page: what it applies to, description, examples with code, the test procedure and expected results, related techniques and resources
 - `get-technique <id> --brief` — the same without examples and resources. Examples are the part that gets large, so use this when you need the procedure, not the samples.
+- Retired techniques (F70, the FLASH and SL pages, ...) still answer `get-technique`, with an **Obsolete** notice; they are not in `list-techniques`.
 - `get-techniques-for-criterion <id>` — techniques mapped to a success criterion
 - `search-techniques <query>` — matches technique titles; `--description` also searches each technique's description, examples and tests, and reports which section matched
 - `get-failures-for-criterion <id>` — known failure techniques for a criterion
+- `get-techniques-for-element <name>` — the techniques and failures about an HTML element or attribute (`img`, `<input>`, `alt`, `aria-describedby`), the criteria they serve, and the techniques whose code examples use it. Start here when you know the markup but not the criterion.
 
 **Glossary**
 - `get-glossary-term <term>` — definition of one glossary term
@@ -54,9 +56,11 @@ Every command is prefixed (`get-*`, `list-*`, `search-*`). There is no bare
 
 **Test rules, conformance, errata**
 - `get-test-rules-for-criterion <id>` — the W3C-approved ACT test rules for a criterion, with a link to each; rules awaiting approval are marked (proposed)
+- `get-test-cases <id>` — the ACT rules' HTML examples for a criterion, or for one ACT rule id (`23a2a8`): markup that passes, fails, or is out of scope. `--expected failed` keeps only the failing markup. Large for 1.3.1 and 4.1.2, so filter it.
 - `get-conformance-requirements` — the conformance requirements from the Recommendation
 - `list-input-purposes [keyword]` — the autocomplete tokens that 1.3.5 Identify Input Purpose relies on, optionally filtered
 - `list-errata` — published errata, newest first, each with the pull request behind it
+- `list-changes [--since YYYY-MM-DD]` — which Understanding and technique pages W3C changed in each publish, and which sections (intent, examples, resources, ...)
 
 **Enhanced**
 - `whats-new` — the criteria the selected version added and removed (`whats-new-in-wcag22` is an alias)
@@ -76,6 +80,8 @@ magnitude. Smallest first:
 |---|---|
 | How to test it automatically | `get-test-rules-for-criterion <id>` |
 | Known failures to check for | `get-failures-for-criterion <id>` |
+| Which techniques cover this markup | `get-techniques-for-element <name>` |
+| Real markup that fails a rule | `get-test-cases <id> --expected failed` |
 | What does it demand? (cite this) | `get-criterion <id> --normative` |
 | How to satisfy it | `get-techniques-for-criterion <id>` |
 | Which criteria at this level | `list-success-criteria --level AA` |
@@ -115,6 +121,9 @@ wcag get-techniques-for-criterion 2.4.7
 wcag get-technique H37 --brief                # description + test procedure
 wcag search-techniques "newsletter" --description # technique bodies, not just titles
 wcag get-test-rules-for-criterion 1.1.1
+wcag get-test-cases 1.1.1 --expected failed    # failing ACT example markup
+wcag get-techniques-for-element "<img>"       # techniques for the markup you have
+wcag list-changes --since 2026-10-01          # what W3C changed recently
 wcag get-criteria-by-level AA --include_lower
 wcag get-glossary-term contrast ratio         # multi-word, no quotes needed
 wcag whats-new
