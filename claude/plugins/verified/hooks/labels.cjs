@@ -19,6 +19,7 @@
 
 const path = require('node:path');
 const resolve = require('./resolve.cjs');
+const { TEST_CMD_RE } = require('./claim-patterns.cjs');
 
 // Replaying old transcripts, a file can be missing now because it was never
 // there or because the repo moved on. Control group: paths a Read or Edit
@@ -104,8 +105,27 @@ function label(flag, world, seen, passSeqs) {
 function truthLabel(flag, world, resolved) {
   if (!resolved) return { c: 0, e: 1, u: 0 };
   if (typeof world.nextAnswer !== 'string') return { c: 1, e: 0, u: 0 };
+  // The rewrite's manifest, past the point the block was issued. The span not coming
+  // back used to be the whole verdict, and the model always rewrites: 48 of 48 live
+  // blocks in Oct 2026 scored "resolved" while about 8 were right. A block was right
+  // when it made the session go and check: a test run or a fetch after the block.
+  const next = world.nextEv || {};
+  const since = (world.ev && world.ev.seq) || 0;
+  if (flag.class === 'command-outcome') {
+    // A block issued on an empty manifest was a compaction or away summary judged as an
+    // answer; the next node is an unrelated turn whose every command looks like a re-run.
+    if (!since) return { c: 0, e: 1, u: 0 };
+    const ran = (next.commands || []).some((c) => c.ok && (c.seq || 0) > since && (c.check || TEST_CMD_RE.test(c.cmd)));
+    return ran || (next.testOut || 0) > since ? { c: 1, e: 0, u: 0 } : { c: 0, e: 1, u: 0 };
+  }
   if (flag.class === 'url') {
-    if (world.nextAnswer.includes(flag.span)) return { c: 1, e: 0, u: 0 };
+    let host = '';
+    try { host = new URL(flag.span).host; } catch { /* malformed */ }
+    const fetched = host && (next.urls || []).includes(host) && !(world.ev && world.ev.urls.has(host));
+    if (fetched) return { c: 1, e: 0, u: 0 };
+    // Kept without a fetch: the model wrote around the gate, so the link was a value or
+    // a thing it made, not a page it claimed to have read.
+    if (world.nextAnswer.includes(flag.span)) return { c: 0, e: 1, u: 0 };
     // Dropped. A URL some tool printed was real, so the reader lost the link.
     return world.seenOutput && world.seenOutput.has(flag.span) ? { c: 0, e: 1, u: 0 } : { c: 0, e: 0, u: 1 };
   }

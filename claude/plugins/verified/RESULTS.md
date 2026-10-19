@@ -160,6 +160,28 @@ of an earlier step.
 
 The split rule says `REJECT` on both sources, and the change shipped as an override (README). The 116.8 ledger catches split into 5.0 from blocks with a recorded outcome (against 26.0 wrong blocks) and 111.8 from the fixed per-flag credit.
 
+## Live audit and the scorer (2026-10-19)
+
+Every block of 2026-10-08..19 read by hand: 49 blocks in 7570 turns, about 8 right. All 48 with a
+recorded outcome scored `resolved`, because the model always rewrites. Causes: 13 compaction or
+away summaries judged with an empty manifest, about 15 prose, version-bump or outside-project
+writes via Bash aging a run, 12 links the session had made with `az` or `gh`, 4 URLs in code spans.
+verified 0.2.7 fixes those four. Same data, old vs new config:
+
+| source | blocks | V | fp |
+|---|---|---|---|
+| corpus, 3082 turns from 1370 worlds, old | 157 (5.1%) | 74.8 | 17 |
+| corpus, same, new | 98 (3.2%) | 70.5 | 9 |
+
+V falls because the labeller credited the removed blocks as catches. `truthLabel` now scores an
+outcome block as a catch only when the rewrite's manifest holds a check run after the block, and a
+url block only when the host was fetched after it; a kept link without a fetch, and a block issued on
+an empty manifest, are false positives. Hand-label agreement 76% to 80% (command-outcome 40% to 50%,
+url 73% to 80%). Under this scorer the live ledger (12719 nodes) reads V -49.0 new vs -50.8 old,
+command-outcome 45 catch / 85 fp on both, because a ledger node stores its `lastWrite` and so cannot
+see the write-detection change. The ledger read is now chunked: `readFileSync` threw at 718 MB and
+every replay had been scoring zero nodes.
+
 ## Targets once live
 
 Precision (resolved blocks / all blocks) ≥ 0.9. Block rate ≤ 0.1. Replay puts

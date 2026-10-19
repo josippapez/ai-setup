@@ -179,7 +179,7 @@ test('path claim backed by a Bash cat passes', () => {
 
 test('"tests pass" with no test run blocks', () => {
   const fx = fixture();
-  const r = run(fx, 'All 14 tests pass.');
+  const r = run(fx, 'All 14 tests pass.', [{ name: 'Bash', input: { command: 'ls src' } }]);
   assert.ok(blocked(r));
   assert.match(reason(r), /command-outcome/);
 });
@@ -661,6 +661,23 @@ test('a path block is a catch only if the rewrite keeps the file', () => {
   assert.deepStrictEqual(truthLabel(flag, w('same'), false), { c: 0, e: 1, u: 0 });
 });
 
+test('an outcome or url block is a catch only if the rewrite ran the check it asked for', () => {
+  const { truthLabel } = require('./labels.cjs');
+  const outcome = { class: 'command-outcome', span: 'tests pass' };
+  const block = { ev: { seq: 10, urls: new Set() }, nextAnswer: 'All 14 tests pass on the current tree.', cwd: '' };
+  const reran = { ...block, nextEv: { seq: 11, commands: [{ cmd: 'npm test', ok: true, seq: 11 }] } };
+  assert.deepStrictEqual(truthLabel(outcome, reran, true), { c: 1, e: 0, u: 0 });
+  const reworded = { ...block, nextEv: { seq: 10, commands: [{ cmd: 'npm test', ok: true, seq: 4 }] } };
+  assert.deepStrictEqual(truthLabel(outcome, reworded, true), { c: 0, e: 1, u: 0 });
+  const summary = { ...reran, ev: { seq: 0, urls: new Set() } };
+  assert.deepStrictEqual(truthLabel(outcome, summary, true), { c: 0, e: 1, u: 0 });
+  const url = { class: 'url', span: 'https://example.com/docs' };
+  const fetched = { ...block, nextAnswer: 'See https://example.com/docs.', nextEv: { urls: ['example.com'] } };
+  assert.deepStrictEqual(truthLabel(url, fetched, true), { c: 1, e: 0, u: 0 });
+  const kept = { ...block, nextAnswer: 'The config value is `https://example.com/docs`.', nextEv: { urls: [] } };
+  assert.deepStrictEqual(truthLabel(url, kept, true), { c: 0, e: 1, u: 0 });
+});
+
 test('a file or URL a tool printed is not blocked as missing or unfetched', () => {
   const fx = fixture();
   assert.ok(blocked(run(fx, 'The rules are in docs/RTK.md.', [], 'pr1', PM_BLOCKS)));
@@ -914,4 +931,57 @@ test('a sed -i or a variable redirect into the project still makes "tests pass" 
     assert.ok(blocked(r), cmd);
     assert.match(reason(r), /before a file was written/);
   }
+});
+
+test('an agent that ran nothing is not judged: compaction and away summaries arrive this way', () => {
+  const fx = fixture();
+  const out = execFileSync('node', [HOOK], {
+    input: JSON.stringify({
+      hook_event_name: 'SubagentStop', session_id: 's9', agent_id: 'a1', agent_type: 'x',
+      transcript_path: fx.transcript([{ name: 'Bash', input: { command: 'ls' } }], 's9'),
+      agent_transcript_path: path.join(fx.home, 'missing.jsonl'),
+      last_assistant_message: 'Done (Rust, all 14 tests pass). See https://github.com/x/y.',
+      cwd: fx.home,
+    }),
+    encoding: 'utf8',
+    env: { ...process.env, VERIFIED_HOME: fx.home },
+  });
+  assert.strictEqual(out.trim(), '');
+  const node = JSON.parse(fs.readFileSync(path.join(fx.home, 'ledger.jsonl'), 'utf8').trim().split('\n').pop());
+  assert.strictEqual(node.decided_by, 'no-evidence');
+  assert.strictEqual(node.event, 'SubagentStop');
+});
+
+test('a sed -i on a README, a version bump, or a cd outside the project keeps "tests pass" current', () => {
+  const memory = path.join(os.homedir(), '.claude', 'projects', 'x', 'memory');
+  for (const cmd of [
+    `sed -i '' 's/every page/each page/' README.md`,
+    `cd ${process.cwd()}; sed -i '' 's/"version": "0.1.47"/"version": "0.1.48"/' apps/desktop/package.json`,
+    `b(){ sed -i '' "s/\\"version\\": \\"$2\\"/\\"version\\": \\"$3\\"/" $1/wings-plugin.json; }; b changes 0.6.1 0.6.2`,
+    `sed -i '' '3s/^version = "0.1.47"/version = "0.1.48"/' apps/desktop/src-tauri/Cargo.toml`,
+    `cd ${memory} && echo '- [note](note.md)' >> MEMORY.md`,
+  ]) {
+    const fx = fixture();
+    const r = run(fx, 'All 14 tests pass.', [
+      { name: 'Bash', input: { command: 'npm test' } },
+      { name: 'Bash', input: { command: cmd } },
+    ]);
+    assert.strictEqual(r, null, cmd);
+  }
+});
+
+test('a link gh or az printed after creating it counts as fetched', () => {
+  const fx = fixture();
+  const r = run(fx, 'PR 6740 is open: https://dev.azure.com/Org/Proj/_git/Repo/pullrequest/6740 and the release is https://github.com/x/y/releases/tag/v1.', [
+    { name: 'Bash', input: { command: 'az repos pr create --title x --target-branch develop -o json' }, result: '{"pullRequestId": 6740}' },
+    { name: 'Bash', input: { command: 'cd /tmp && gh release create v1 ./x.tar.gz' }, result: 'https://github.com/x/y/releases/tag/v1' },
+  ], 'u5');
+  assert.strictEqual(r, null);
+});
+
+test('a URL inside a code span is a value, not a citation', () => {
+  const fx = fixture();
+  assert.strictEqual(run(fx, 'The manifest allows `openUrl: ["https://github.com/"]` links.', [{ name: 'Bash', input: { command: 'ls' } }], 'u6'), null);
+  const fx2 = fixture();
+  assert.ok(blocked(run(fx2, 'The docs at https://github.com/x/y say so.', [{ name: 'Bash', input: { command: 'ls' } }], 'u7')));
 });

@@ -283,6 +283,13 @@ const main = async () => {
     ? buildEvidence(ev0.agent_transcript_path, `${session}.${ev0.agent_id || 'agent'}`)
     : buildEvidence(ev0.transcript_path, session);
   evidence.cwd = typeof ev0.cwd === 'string' ? ev0.cwd : process.cwd();
+  // A compaction or away summary arrives as an agent answer whose transcript has no tool call, so
+  // every outcome and url claim in it looks unbacked: 13 of the 49 live blocks of 2026-10-08..19,
+  // none of them right. An agent that ran nothing has nothing to check against.
+  if (ev0.agent_transcript_path && !evidence.seq) {
+    ledger.append({ ts: new Date().toISOString(), session, event: ev0.hook_event_name, agent: ev0.agent_type, answer, claims: [], action: 'pass', decided_by: 'no-evidence' });
+    return;
+  }
   pruneStale(evidence);
   // Load the command classifier only when there is an outcome claim to check; without it the regex decides.
   if (answer.match(OUTCOME_RE)) await markChecks(evidence.commands, evidence.lastWrite || 0).catch(() => {});
@@ -299,6 +306,10 @@ const main = async () => {
   const node = {
     ts: new Date().toISOString(),
     session,
+    // Which event delivered the answer. The Oct 2026 audit could not tell a compaction summary
+    // from a turn, because nothing recorded how the hook had been called.
+    ...(ev0.hook_event_name ? { event: ev0.hook_event_name } : {}),
+    ...(ev0.agent_type ? { agent: ev0.agent_type } : {}),
     answer,
     evidence: {
       paths: [...evidence.paths],

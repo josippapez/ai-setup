@@ -107,6 +107,20 @@ function isMention(text, span) {
   return onlyQuoted(text, span);
 }
 
+// A URL inside a code span is a value the code holds (`openUrl: ["https://github.com/"]`), not a page
+// the answer cites. Four live url blocks were manifest permissions and URI schemes written this way.
+// Only urls use this: paths live in code spans as a matter of style.
+function onlyInCode(text, span) {
+  let i = -1;
+  let any = false;
+  while ((i = text.indexOf(span, i + 1)) !== -1) {
+    any = true;
+    const before = text.slice(text.lastIndexOf('\n', i) + 1, i).match(/`/g);
+    if (!before || before.length % 2 === 0) return false;
+  }
+  return any;
+}
+
 // A file the answer says gets created later ("created on first write", "doesn't exist
 // yet") is a forward reference, not a claim that it exists now.
 const FUTURE_FILE_RE = /\b(will be (created|written|generated)|gets? (created|written|generated)|(is|are) created (on|when|the first)|created on (its )?first|(does ?n[o']t|does not|won'?t) exist yet|not (created|written) yet|on (its )?first (use|write|save|run))\b/i;
@@ -152,9 +166,16 @@ function printedNames(out, cap = 2000) {
   for (const m of out.matchAll(URL_RE)) { names.push(m[0].replace(/[.,;:]+$/, '')); if (names.length >= cap) break; }
   return names;
 }
+// A CLI that talks to one service reaches that host: `gh` prints the PR or release it made, `az repos`
+// and `az boards` the pull request or work item. 12 of the 22 live url blocks of 2026-10-08..19 were
+// links the session had just created this way.
+const CLI_HOSTS = [
+  [/(^|[\s;&|(])gh\s+(?:pr|release|issue|repo|api|run)\b/, 'github.com'],
+  [/(^|[\s;&|(])az\s+(?:repos|boards|devops|pipelines)\b/, 'dev.azure.com'],
+];
 function fetchedHosts(cmd) {
-  if (!FETCH_CMD_RE.test(cmd)) return [];
-  const hosts = [];
+  const hosts = CLI_HOSTS.filter(([re]) => re.test(cmd)).map(([, host]) => host);
+  if (!FETCH_CMD_RE.test(cmd)) return hosts;
   for (const m of cmd.matchAll(URL_RE)) {
     try { hosts.push(new URL(m[0]).host); } catch { /* malformed */ }
   }
@@ -311,7 +332,7 @@ function classify(answer, ev, cfg) {
 
   if (C.url) for (const m of text.matchAll(URL_RE)) {
     covered.push(m[0]);
-    if (isMention(text, m[0])) continue;
+    if (isMention(text, m[0]) || onlyInCode(text, m[0])) continue;
     let host = '';
     try { host = new URL(m[0]).host; } catch { /* malformed, treat as unbacked */ }
     // A URL a tool printed (search result, page links) is real; blocking on it

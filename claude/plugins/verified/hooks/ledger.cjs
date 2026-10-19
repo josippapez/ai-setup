@@ -147,17 +147,32 @@ const recentBlocks = (session) => readState(session).blocks || [];
 
 // Resolutions are appended as { op: 'resolve' } lines and merged here, so the Stop
 // hook never rewrites the ledger under another session's append.
-function read() {
-  let nodes;
+// Read in chunks: one readFileSync of the whole file threw ERR_STRING_TOO_LONG at 718 MB, and the
+// catch below turned that into "0 replayable nodes" for every replay and gold sample.
+function readLines(file) {
+  const lines = [];
+  let fd;
+  try { fd = fs.openSync(file, 'r'); } catch { return lines; }
   try {
-    nodes = fs.readFileSync(ledgerPath(), 'utf8')
-      .split('\n')
-      .filter(Boolean)
-      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+    const decoder = new (require('node:string_decoder').StringDecoder)('utf8');
+    const buf = Buffer.allocUnsafe(64 * 1024 * 1024);
+    let rest = '';
+    let n;
+    while ((n = fs.readSync(fd, buf, 0, buf.length, null)) > 0) {
+      const parts = (rest + decoder.write(buf.subarray(0, n))).split('\n');
+      rest = parts.pop();
+      for (const l of parts) if (l) lines.push(l);
+    }
+    rest += decoder.end();
+    if (rest) lines.push(rest);
+  } finally { fs.closeSync(fd); }
+  return lines;
+}
+
+function read() {
+  const nodes = readLines(ledgerPath())
+    .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter(Boolean);
   const resolved = new Map();
   for (const n of nodes) if (n.op === 'resolve') resolved.set(`${n.session}\0${n.ts}`, n.resolved);
   return nodes

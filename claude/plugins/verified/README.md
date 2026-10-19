@@ -11,15 +11,15 @@ The hook reads the session transcript, builds a list of what actually ran, and m
 | Class | Fires on | Backed by | State |
 |---|---|---|---|
 | `path-missing` | a file path | a tool having printed the file's name this session, or the file existing on this machine: from cwd, the git root, the tracked-file list, or the repo of any folder the answer names by `~/` or `/` path | note: shown to you, never sent back (`pathMissingBlocks: false`) |
-| `command-outcome` | "tests pass", "build succeeds", "it works" | a clean test/build/lint run after the last file write | on |
-| `url` | a cited URL | a tool having printed that URL, WebFetch or WebSearch of that host, or an `agent-browser`, `curl` or `wget` command naming it | on |
+| `command-outcome` | "tests pass", "build succeeds", "it works" | a clean test/build/lint run after the last file write. A README, CHANGELOG, memory or scratchpad write, or a version-string bump, does not count as a write | on |
+| `url` | a cited URL, outside quotes and code spans | a tool having printed that URL, WebFetch or WebSearch of that host, an `agent-browser`, `curl` or `wget` command naming it, or a `gh` / `az repos` / `az boards` call for github.com and dev.azure.com | on |
 | `path` | a file path | a Read/Edit/codegraph of it | off |
 | `version` | `v1.2`, `1.2.3`, "version 4" | find_libs, a manifest read, opensrc | off |
 | `absence` | "there is no X" | a Grep/Glob/rg/codegraph search | off |
 
 Guesses stay legal. The gate checks labelling, not certainty: "I'd use Postgres" passes, and "Postgres handles this natively" blocks unless something was fetched. A span in "double quotes" or after "e.g." counts as a mention, not a claim. A path-missing block asks the model to correct the path, not delete it. After 3 blocks on the same claims, the hook stops blocking and tells the model to mark them unverified.
 
-`SubagentStop` runs the same checks on subagent answers, against the subagent's own transcript.
+`SubagentStop` runs the same checks on subagent answers, against the subagent's own transcript. An agent answer with no tool call behind it is recorded and let through: compaction and away summaries arrive that way, and 13 of 49 live blocks in October 2026 were such summaries.
 
 ## Where the data is
 
@@ -61,6 +61,8 @@ The page preselects each draft label. Change any you disagree with, download the
 Scores per commit, the scorer's blind spots and the gap to the best possible score are in `RESULTS.md`.
 
 ### Known labeller blind spot, and the overrides
+
+Since 2026-10-19 an outcome or url block counts as a catch only when the rewrite ran the check the block asked for (`truthLabel` reads the next node's manifest). The two cases below predate that.
 
 A fix that only removes wrong blocks can lower V, because the labeller credited those blocks as catches:
 

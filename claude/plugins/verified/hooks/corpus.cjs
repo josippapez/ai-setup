@@ -65,6 +65,9 @@ const OUTSIDE = [path.join(os.homedir(), '.claude') + '/', '/tmp/', '/private/tm
 // A README or CHANGELOG is prose that no test or build reads, so writing one does not age a run either.
 // debt: a Rust crate that pulls its README into rustdoc with include_str! does run it as a doctest.
 const PROSE_RE = /(^|\/)(README|CHANGELOG)(\.(md|txt|rst))?$/i;
+// A sed that only rewrites a version string is a release bump: package.json, Cargo.toml and a plugin
+// manifest were bumped after a clean run in 5 of the 40 live outcome blocks of 2026-10-08..19.
+const VERSION_BUMP_RE = /(^|\s)sed\s+-i\b.*\bversion\\?["']?\s*[:=]/;
 // A project can itself live under /tmp, so anything inside the session's folder still counts.
 const outsideProject = (p, cwd) => {
   const full = p.replace(/^~(?=\/)/, os.homedir());
@@ -85,18 +88,24 @@ function writesProject(name, inp, cwd) {
   for (const [, k, v] of cmd.matchAll(/(?:^|[\s;&])(\w+)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) {
     cmd = cmd.replace(new RegExp(`\\$\\{?${k}\\b\\}?`, 'g'), v.replace(/^["']|["']$/g, ''));
   }
-  // A sed -i whose every file argument sits outside the project does not change it.
-  const sedOutside = (seg) => {
+  const segments = cmd.split(/&&|\|\||[;|\n]/);
+  // `cd ~/.claude/projects/x/memory && echo note >> MEMORY.md` writes outside the project, but the
+  // relative target only says so once it is resolved against the cd.
+  const cdTo = segments[0].match(/^\s*cd\s+("[^"]*"|'[^']*'|[^\s]+)\s*$/);
+  const base = cdTo ? path.resolve(cwd || '/', cdTo[1].replace(/^["']|["']$/g, '').replace(/^~(?=\/)/, os.homedir())) : cwd;
+  const harmless = (t) => outsideProject(path.isAbsolute(t) || t.startsWith('~') ? t : path.join(base || '', t), cwd) || PROSE_RE.test(t);
+  // A sed -i whose every file argument sits outside the project, or is prose, does not change it.
+  const sedHarmless = (seg) => {
+    if (VERSION_BUMP_RE.test(seg)) return true;
     const files = (seg.match(/'[^']*'|"[^"]*"|\S+/g) || []).map((t) => t.replace(/^["']|["']$/g, ''))
       .filter((t) => /^[/~]/.test(t) || /\.[A-Za-z0-9]{1,6}$/.test(t));
-    return files.length > 0 && files.every((t) => outsideProject(t, cwd));
+    return files.length > 0 && files.every(harmless);
   };
-  const segments = cmd.split(/&&|\|\||[;|\n]/);
-  if (segments.some((s) => /(^|\s)sed\s+-i\b/.test(s) && !sedOutside(s))) return true;
+  if (segments.some((s) => /(^|\s)sed\s+-i\b/.test(s) && !sedHarmless(s))) return true;
   // tee, cp, mv and install.sh name their targets in ways a regex cannot read reliably.
   if (/(^|[\s;&|])(tee|cp|mv|install\.sh)\b/.test(cmd)) return true;
   const targets = [...cmd.matchAll(/>>?\s*([^\s&|>;)]+\.[A-Za-z0-9]{1,6})(?=\s|$)/g)].map((m) => m[1].replace(/^["']|["']$/g, ''));
-  return targets.some((t) => !outsideProject(t, cwd));
+  return targets.some((t) => !harmless(t));
 }
 
 // Fold one tool call into a manifest. Mirrors verify-stop's collect closely

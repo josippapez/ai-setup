@@ -158,12 +158,13 @@ function ledgerWorlds() {
   // the manifest against itself. The session's end-state manifest is the
   // record that answers it, and it is already on disk.
   const nodes = ledger.read();
-  // The rewrite after a block is the session's next node.
-  const nextAnswer = new Map();
+  // The rewrite after a block is the session's next node. Its manifest holds what the
+  // rewrite ran, which is how the labeller tells a re-run from a rewording.
+  const nextNode = new Map();
   const lastOf = new Map();
   for (const n of nodes) {
     const prev = lastOf.get(n.session);
-    if (prev) nextAnswer.set(prev, n.answer);
+    if (prev) nextNode.set(prev, n);
     lastOf.set(n.session, n);
   }
   // Basenames of every blocked path, looked up once per session in its tool output.
@@ -202,7 +203,9 @@ function ledgerWorlds() {
         for (const c of n.claims || []) truth[c.span] = n.resolved;
       }
       return {
-        answer: n.answer, ev, final, truth, nextAnswer: nextAnswer.get(n), seenOutput: seenOutput.get(n.session),
+        answer: n.answer, ev, final, truth, seenOutput: seenOutput.get(n.session),
+        nextAnswer: nextNode.has(n) ? nextNode.get(n).answer : undefined,
+        nextEv: nextNode.has(n) ? nextNode.get(n).evidence : undefined,
         nextUser: '', idx: 0, cwd: n.evidence.cwd || '', ageDays: 0,
         file: null, bytes: 0, group: n.session, ts: n.ts,
       };
