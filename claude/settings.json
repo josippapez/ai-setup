@@ -86,6 +86,7 @@
     "verified@ai-setup": true,
     "feedback@ai-setup": true,
     "scope@ai-setup": true,
+    "journal@ai-setup": true,
     "prompt-timeline@ai-setup": false,
     "tool-group-hints@ai-setup": true
   },

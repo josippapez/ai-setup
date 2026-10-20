@@ -122,6 +122,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/scope"
+    },
+    {
+      "name": "journal",
+      "description": "Per-turn change journal written by hooks: one on-device-model line per changed file, shown at the next session start and logged to the session's open Wings issue.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/journal"
     }
   ]
 }
