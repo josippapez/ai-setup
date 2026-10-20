@@ -16,8 +16,9 @@ export default {
     const cwd = location.project.directory || location.directory;
     if (!cwd) return;
 
-    // swiftc can take a minute, so the describer builds in its own process.
-    spawn(process.execPath, [join(pluginDirectory, 'journal.cjs'), 'build'], { stdio: 'ignore', detached: true }).unref();
+    // swiftc can take a minute, so the describer builds in its own process. Not
+    // process.execPath: inside OpenCode that is the opencode binary, not node.
+    spawn('node', [join(pluginDirectory, 'journal.cjs'), 'build'], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
 
     await session.hook('prompt', (e) => {
       journal.snapshot({ session_id: e.sessionID, cwd, prompt: e.prompt?.text || '' });
@@ -32,9 +33,11 @@ export default {
       if (text) e.system.push({ type: 'text', text });
     });
 
+    // OpenCode 2.x declares session.idle but never sends it; a turn ends with one of these.
+    const turnEnd = new Set(['session.execution.succeeded', 'session.execution.failed', 'session.execution.interrupted']);
     (async () => {
       for await (const e of event.subscribe()) {
-        if (e.type === 'session.idle') await journal.record({ session_id: e.data.sessionID, cwd }, 'opencode').catch(() => {});
+        if (turnEnd.has(e.type)) await journal.record({ session_id: e.data.sessionID, cwd }, 'opencode').catch(() => {});
       }
     })().catch(() => {});
   },
