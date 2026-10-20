@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 // scope: `snapshot` on UserPromptSubmit records the working tree, `check` on Stop
-// diffs it and sends the answer back once if a file changed that neither the
-// request nor the answer names.
+// diffs it and tells the person which changed files neither the request nor the
+// answer names.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -36,7 +36,8 @@ function tree(cwd) {
     else present.push(rel);
   }
   if (present.length) {
-    const hashes = (git(cwd, ['hash-object', '--stdin-paths'], present.join('\n') + '\n') || '').trim().split('\n');
+    // -w stores the blobs so versionOnly can diff them later.
+    const hashes = (git(cwd, ['hash-object', '-w', '--stdin-paths'], present.join('\n') + '\n') || '').trim().split('\n');
     present.forEach((rel, i) => { files[rel] = hashes[i] || 'unreadable'; });
   }
   return { head, files };
@@ -56,7 +57,19 @@ function changedFiles(before, after, cwd) {
   if (before.head && after.head && before.head !== after.head) {
     for (const rel of (git(cwd, ['diff', '--name-only', before.head, after.head]) || '').split('\n')) if (rel) candidates.add(rel);
   }
-  return [...candidates].filter(rel => current(rel) !== original(rel)).sort();
+  return [...candidates].sort().map(rel => ({ rel, from: original(rel), to: current(rel) })).filter(f => f.from !== f.to);
+}
+
+const LOCKFILES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock', 'bun.lockb', 'Cargo.lock', 'Gemfile.lock', 'poetry.lock', 'uv.lock', 'composer.lock', 'go.sum', 'Package.resolved', 'flake.lock']);
+
+// A release bump: every changed line is the same line with a different version number.
+function versionOnly(cwd, f) {
+  if (f.from === 'deleted' || f.to === 'deleted') return false;
+  const lines = (git(cwd, ['diff', '--no-color', f.from, f.to]) || '').split('\n').filter(l => /^[+-](?![+-]{2})/.test(l));
+  const strip = l => l.slice(1).replace(/\d+\.\d+\.\d+[\w.+-]*/g, 'V');
+  const minus = lines.filter(l => l[0] === '-').map(strip).sort();
+  const plus = lines.filter(l => l[0] === '+').map(strip).sort();
+  return minus.length > 0 && minus.join('\n') === plus.join('\n');
 }
 
 // Named by path, by basename, or by an ancestor directory written as one ("src/"),
@@ -102,25 +115,22 @@ function check(ev) {
     return;
   }
   fs.unlinkSync(file);
-  // One shot: a turn already continued by a Stop hook ends however it ends.
-  if (ev.stop_hook_active) return;
   const now = tree(snap.cwd);
   if (!now) return;
   const changed = changedFiles(snap, now, snap.cwd);
   const text = snap.prompts.join('\n') + '\n' + (ev.last_assistant_message || '');
-  const unnamed = changed.filter(rel => !named(text, rel));
+  const unnamed = changed
+    .filter(f => !named(text, f.rel) && !LOCKFILES.has(path.basename(f.rel)) && !versionOnly(snap.cwd, f))
+    .map(f => f.rel);
   fs.mkdirSync(dataDir, { recursive: true });
   fs.appendFileSync(path.join(dataDir, 'ledger.jsonl'), JSON.stringify({
-    ts: new Date().toISOString(), session: ev.session_id, cwd: snap.cwd, changed, unnamed, action: unnamed.length ? 'block' : 'pass',
+    ts: new Date().toISOString(), session: ev.session_id, cwd: snap.cwd, changed: changed.map(f => f.rel), unnamed, action: unnamed.length ? 'note' : 'pass',
   }) + '\n');
   if (!unnamed.length) return;
   const shown = unnamed.slice(0, LIST_CAP).join(', ') + (unnamed.length > LIST_CAP ? `, +${unnamed.length - LIST_CAP} more` : '');
-  const noun = unnamed.length === 1 ? 'file' : 'files';
-  process.stdout.write(JSON.stringify({
-    decision: 'block',
-    reason: `scope: ${unnamed.length} ${noun} changed this turn that neither the request nor your answer names: ${shown}. Say why each one changed, next to its path, or revert it.`,
-    systemMessage: `scope sent the answer back: ${unnamed.length} unnamed ${noun}`,
-  }));
+  // Shown to the person only. A block here forced an explanation on every in-scope
+  // file the answer described in prose, and never once pointed at a ride-along.
+  process.stdout.write(JSON.stringify({ systemMessage: `scope: changed but not named: ${shown}` }));
 }
 
 async function main() {

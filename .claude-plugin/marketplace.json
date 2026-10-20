@@ -116,7 +116,7 @@
     },
     {
       "name": "scope",
-      "description": "Stop-hook scope gate: snapshots the working tree at each prompt, diffs it when the answer stops, and sends the answer back once if a changed file is named by neither the request nor the answer.",
+      "description": "Stop-hook scope note: snapshots the working tree at each prompt, diffs it when the answer stops, and shows which changed files neither the request nor the answer names, skipping lockfiles and version bumps.",
       "author": {
         "name": "Personal AI Setup"
       },

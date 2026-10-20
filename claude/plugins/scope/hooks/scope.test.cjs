@@ -26,21 +26,19 @@ function repo() {
     encoding: 'utf8',
   });
   const write = (rel, text) => fs.writeFileSync(path.join(dir, rel), text);
-  return { dir, git, run, write };
+  const commit = (msg) => { git('add', '.'); git('commit', '-qm', msg); };
+  const note = (answer) => run('check', { last_assistant_message: answer, stop_hook_active: false });
+  return { dir, git, run, write, commit, note };
 }
 
-test('a changed file the answer does not name blocks once', () => {
+test('a changed file the answer does not name is noted, not blocked', () => {
   const r = repo();
   r.run('snapshot', { prompt: 'fix a' });
   r.write('a.txt', 'A\n');
   r.write('src/b.txt', 'B\n');
-  const out = JSON.parse(r.run('check', { last_assistant_message: 'Changed a.txt.', stop_hook_active: false }));
-  assert.equal(out.decision, 'block');
-  assert.match(out.reason, /src\/b\.txt/);
-  assert.doesNotMatch(out.reason, /a\.txt/);
-  // The snapshot is spent: the continued turn passes.
-  r.run('snapshot', { prompt: 'x' });
-  assert.equal(r.run('check', { last_assistant_message: '', stop_hook_active: true }), '');
+  const out = JSON.parse(r.note('Changed a.txt.'));
+  assert.equal(out.decision, undefined);
+  assert.equal(out.systemMessage, 'scope: changed but not named: src/b.txt');
 });
 
 test('a file named in the prompt, by basename, or by directory passes', () => {
@@ -49,41 +47,36 @@ test('a file named in the prompt, by basename, or by directory passes', () => {
   r.write('a.txt', 'A\n');
   r.write('src/b.txt', 'B\n');
   r.write('c.txt', 'new\n');
-  const out = r.run('check', { last_assistant_message: 'Updated a.txt and added c.txt.', stop_hook_active: false });
-  assert.equal(out, '');
+  assert.equal(r.note('Updated a.txt and added c.txt.'), '');
   const r2 = repo();
   r2.run('snapshot', { prompt: 'x' });
   r2.write('src/b.txt', 'B\n');
-  assert.equal(r2.run('check', { last_assistant_message: 'Edited the src/ files.', stop_hook_active: false }), '');
+  assert.equal(r2.note('Edited the src/ files.'), '');
 });
 
 test('naming a sibling by full path does not name the file', () => {
   const r = repo();
   r.write('src/c.txt', 'c\n');
-  r.git('add', '.');
-  r.git('commit', '-qm', 'c');
+  r.commit('c');
   r.run('snapshot', { prompt: 'x' });
   r.write('src/b.txt', 'B\n');
   r.write('src/c.txt', 'C\n');
-  const out = JSON.parse(r.run('check', { last_assistant_message: 'Changed src/c.txt.', stop_hook_active: false }));
-  assert.match(out.reason, /src\/b\.txt/);
-  assert.doesNotMatch(out.reason, /c\.txt/);
+  assert.equal(JSON.parse(r.note('Changed src/c.txt.')).systemMessage, 'scope: changed but not named: src/b.txt');
 });
 
 test('changes already in the tree before the prompt are not the turn\'s', () => {
   const r = repo();
   r.write('a.txt', 'user edit\n');
   r.run('snapshot', { prompt: 'x' });
-  assert.equal(r.run('check', { last_assistant_message: 'Nothing changed.', stop_hook_active: false }), '');
+  assert.equal(r.note('Nothing changed.'), '');
 });
 
 test('a file changed and committed during the turn still counts', () => {
   const r = repo();
   r.run('snapshot', { prompt: 'x' });
   r.write('src/b.txt', 'B\n');
-  r.git('commit', '-qam', 'ride along');
-  const out = JSON.parse(r.run('check', { last_assistant_message: 'Done.', stop_hook_active: false }));
-  assert.match(out.reason, /src\/b\.txt/);
+  r.commit('ride along');
+  assert.match(JSON.parse(r.note('Done.')).systemMessage, /src\/b\.txt/);
 });
 
 test('committing what was already in the tree is not a change', () => {
@@ -91,9 +84,8 @@ test('committing what was already in the tree is not a change', () => {
   r.write('a.txt', 'user edit\n');
   r.write('c.txt', 'user file\n');
   r.run('snapshot', { prompt: 'commit this' });
-  r.git('add', '.');
-  r.git('commit', '-qm', 'user work');
-  assert.equal(r.run('check', { last_assistant_message: 'Committed as 1234567.', stop_hook_active: false }), '');
+  r.commit('user work');
+  assert.equal(r.note('Committed as 1234567.'), '');
 });
 
 test('a prompt sent mid-turn keeps the snapshot', () => {
@@ -101,8 +93,29 @@ test('a prompt sent mid-turn keeps the snapshot', () => {
   r.run('snapshot', { prompt: 'x' });
   r.write('a.txt', 'A\n');
   r.run('snapshot', { prompt: 'also y' });
-  const out = JSON.parse(r.run('check', { last_assistant_message: 'Done.', stop_hook_active: false }));
-  assert.match(out.reason, /a\.txt/);
+  assert.match(JSON.parse(r.note('Done.')).systemMessage, /a\.txt/);
+});
+
+test('lockfiles are never noted', () => {
+  const r = repo();
+  r.write('package-lock.json', '{"v":1}\n');
+  r.write('src/Cargo.lock', 'x\n');
+  r.commit('locks');
+  r.run('snapshot', { prompt: 'x' });
+  r.write('package-lock.json', '{"v":2}\n');
+  r.write('src/Cargo.lock', 'y\n');
+  assert.equal(r.note('Done.'), '');
+});
+
+test('a diff that only changes version numbers is not noted, one that changes more is', () => {
+  const r = repo();
+  r.write('package.json', '{\n  "name": "x",\n  "version": "1.2.3"\n}\n');
+  r.write('tauri.conf.json', '{\n  "version": "1.2.3",\n  "title": "x"\n}\n');
+  r.commit('v1.2.3');
+  r.run('snapshot', { prompt: 'cut a release' });
+  r.write('package.json', '{\n  "name": "x",\n  "version": "1.2.4"\n}\n');
+  r.write('tauri.conf.json', '{\n  "version": "1.2.4",\n  "title": "y"\n}\n');
+  assert.equal(JSON.parse(r.note('Bumped to 1.2.4.')).systemMessage, 'scope: changed but not named: tauri.conf.json');
 });
 
 test('outside a git repo nothing happens', () => {
