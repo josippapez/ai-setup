@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "diff -q \"${CLAUDE_PLUGIN_ROOT}/package.json\" \"${CLAUDE_PLUGIN_DATA}/.installed-package.json\" >/dev/null 2>&1 || (cd \"${CLAUDE_PLUGIN_DATA}\" && cp \"${CLAUDE_PLUGIN_ROOT}/package.json\" . && npm install --no-fund --no-audit && cp package.json .installed-package.json)"
+            "command": "diff -q \"${CLAUDE_PLUGIN_ROOT}/package-lock.json\" \"${CLAUDE_PLUGIN_DATA}/.installed-package-lock.json\" >/dev/null 2>&1 || (cd \"${CLAUDE_PLUGIN_DATA}\" && cp \"${CLAUDE_PLUGIN_ROOT}/package.json\" \"${CLAUDE_PLUGIN_ROOT}/package-lock.json\" . && npm ci --ignore-scripts --no-fund --no-audit && cp package-lock.json .installed-package-lock.json)"
           }
         ]
       }
