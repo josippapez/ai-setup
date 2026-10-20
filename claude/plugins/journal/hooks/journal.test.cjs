@@ -18,9 +18,9 @@ function repo() {
   git('add', '.');
   git('commit', '-qm', 'init');
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'journal-data-'));
-  // No WINGS_PANE_ID: a test must never write to the real issue tracker.
-  const env = { ...process.env, CLAUDE_PLUGIN_DATA: data };
-  delete env.WINGS_PANE_ID;
+  // Its own sink config: a test must never hand entries to the real tracker.
+  const env = { ...process.env, CLAUDE_PLUGIN_DATA: data, JOURNAL_SINK_CONFIG: path.join(data, 'sink.json') };
+  delete env.JOURNAL_DATA;
   const run = (mode, ev) => execFileSync('node', [script, mode], { input: JSON.stringify({ session_id: 's1', cwd: dir, ...ev }), env, encoding: 'utf8' });
   const write = (rel, text) => fs.writeFileSync(path.join(dir, rel), text);
   const rows = () => {
@@ -77,6 +77,22 @@ test('a sensitive file never reaches the describer, and a symlink is hashed by i
   assert.doesNotMatch(sent, /SECRET=abc|TOKEN=outside/);
 });
 
+test('a file name holding a newline never makes git hash a path outside the repo', () => {
+  const r = repo();
+  const outside = path.join(r.data, 'outside.txt');
+  fs.writeFileSync(outside, 'TOKEN=outside\n');
+  const { tree } = require('./journal.cjs');
+  // A real file whose name, split at the newline, reads "x" and a path out of the repo.
+  const evil = `x\n${path.relative(r.dir, outside)}`;
+  fs.writeFileSync(path.join(r.dir, 'x'), 'x\n');
+  fs.mkdirSync(path.dirname(path.join(r.dir, evil)), { recursive: true });
+  fs.writeFileSync(path.join(r.dir, evil), 'y\n');
+  tree(r.dir);
+  // -w writes every hashed path into the repo's object store, so look there.
+  const all = execFileSync('git', ['cat-file', '--batch-all-objects', '--batch'], { cwd: r.dir, encoding: 'utf8' });
+  assert.doesNotMatch(all, /TOKEN=outside/);
+});
+
 test('a turn that changes nothing writes no row, and earlier edits are not the turn\'s', () => {
   const r = repo();
   r.write('a.txt', 'user edit\n');
@@ -101,13 +117,33 @@ test('commits the turn made are found, a pulled or older commit is not', () => {
   assert.deepEqual(turnCommits(before, { top: r.dir, head: head() }), [mine]);
 });
 
-test('a turn that only commits is recorded for linking but writes no journal row', () => {
+test('a configured sink gets the entry, including a turn that only commits', () => {
   const r = repo();
-  r.write('a.txt', 'staged earlier\n');
+  const got = path.join(r.data, 'got.jsonl');
+  fs.writeFileSync(path.join(r.data, 'sink.sh'), `#!/bin/sh\ncat >> "${got}"\necho >> "${got}"\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(r.data, 'sink.json'), JSON.stringify({ command: [path.join(r.data, 'sink.sh')] }));
+  r.run('snapshot', { prompt: 'edit a' });
+  r.write('a.txt', 'A\n');
+  r.run('record', {});
+  r.write('a.txt', 'B\n');
   r.run('snapshot', { prompt: 'commit this' });
   r.git('commit', '-qam', 'user work');
+  r.write('a.txt', 'C\n');
+  r.git('commit', '-qam', 'turn work');
   r.run('record', {});
-  assert.deepEqual(r.rows(), []);
+  const [edit, commit] = fs.readFileSync(got, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+  assert.deepEqual({ ...edit, cwd: undefined }, { session_id: 's1', cwd: undefined, agent: 'claude-code', prompt: 'edit a', files: [{ path: 'a.txt', what: 'changed (+1 -1)' }] });
+  assert.equal(fs.realpathSync(edit.cwd), fs.realpathSync(r.dir));
+  assert.equal(commit.commits.length, 2);
+  assert.equal(r.rows().length, 2);
+});
+
+test('no sink config, no sink, and the journal still writes', () => {
+  const r = repo();
+  r.run('snapshot', { prompt: 'x' });
+  r.write('a.txt', 'A\n');
+  r.run('record', {});
+  assert.equal(r.rows().length, 1);
 });
 
 test('session start shows the last three rows, nothing when there are none', () => {

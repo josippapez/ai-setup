@@ -40,14 +40,16 @@ function tree(cwd) {
   for (const rel of [...present]) {
     let st = null;
     try { st = fs.lstatSync(path.join(cwd, rel)); } catch {}
-    if (st?.isFile()) continue;
+    // --stdin-paths splits on newlines, so a name holding one would hash other paths.
+    if (st?.isFile() && !/[\r\n]/.test(rel)) continue;
     present.splice(present.indexOf(rel), 1);
     if (st?.isSymbolicLink()) files[rel] = (git(cwd, ['hash-object', '-w', '--stdin'], fs.readlinkSync(path.join(cwd, rel))) || '').trim() || 'unreadable';
+    else if (st?.isFile()) files[rel] = 'unreadable';
   }
   if (present.length) {
     // -w stores the blobs so versionOnly can diff them later.
     const hashes = (git(cwd, ['hash-object', '-w', '--stdin-paths'], present.join('\n') + '\n') || '').trim().split('\n');
-    present.forEach((rel, i) => { files[rel] = hashes[i] || 'unreadable'; });
+    present.forEach((rel, i) => { files[rel] = hashes.length === present.length ? hashes[i] : 'unreadable'; });
   }
   return { head, files };
 }
