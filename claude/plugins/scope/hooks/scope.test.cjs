@@ -118,6 +118,17 @@ test('a diff that only changes version numbers is not noted, one that changes mo
   assert.equal(JSON.parse(r.note('Bumped to 1.2.4.')).systemMessage, 'scope: changed but not named: tauri.conf.json');
 });
 
+test('reordered lines or a version with extra text are not taken for a bump', () => {
+  const r = repo();
+  r.write('app.cfg', 'api=1.0.0\ndb=2.0.0\n');
+  r.write('b.cfg', 'version=1.2.3\n');
+  r.commit('v1.2.3');
+  r.run('snapshot', { prompt: 'cut a release' });
+  r.write('app.cfg', 'db=2.0.1\napi=1.0.1\n');
+  r.write('b.cfg', 'version=1.2.4evil\n');
+  assert.equal(JSON.parse(r.note('Bumped.')).systemMessage, 'scope: changed but not named: app.cfg, b.cfg');
+});
+
 test('outside a git repo nothing happens', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-nogit-'));
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-data-'));

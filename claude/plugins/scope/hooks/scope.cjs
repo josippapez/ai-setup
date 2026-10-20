@@ -35,6 +35,15 @@ function tree(cwd) {
     if (entry[1] === 'D' || entry[0] === 'D') files[rel] = 'deleted';
     else present.push(rel);
   }
+  // hash-object follows a symlink and would store whatever it points at, even outside
+  // the repo, so a link is hashed by its target text, the way git stores it.
+  for (const rel of [...present]) {
+    let st = null;
+    try { st = fs.lstatSync(path.join(cwd, rel)); } catch {}
+    if (st?.isFile()) continue;
+    present.splice(present.indexOf(rel), 1);
+    if (st?.isSymbolicLink()) files[rel] = (git(cwd, ['hash-object', '-w', '--stdin'], fs.readlinkSync(path.join(cwd, rel))) || '').trim() || 'unreadable';
+  }
   if (present.length) {
     // -w stores the blobs so versionOnly can diff them later.
     const hashes = (git(cwd, ['hash-object', '-w', '--stdin-paths'], present.join('\n') + '\n') || '').trim().split('\n');
@@ -66,10 +75,12 @@ const LOCKFILES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'yarn.loc
 function versionOnly(cwd, f) {
   if (f.from === 'deleted' || f.to === 'deleted') return false;
   const lines = (git(cwd, ['diff', '--no-color', f.from, f.to]) || '').split('\n').filter(l => /^[+-](?![+-]{2})/.test(l));
-  const strip = l => l.slice(1).replace(/\d+\.\d+\.\d+[\w.+-]*/g, 'V');
-  const minus = lines.filter(l => l[0] === '-').map(strip).sort();
-  const plus = lines.filter(l => l[0] === '+').map(strip).sort();
-  return minus.length > 0 && minus.join('\n') === plus.join('\n');
+  // Pairwise in diff order, and the token is a plain semver, so a reordered line or a
+  // "1.2.3-anything" suffix is not taken for a bump.
+  const strip = l => l.slice(1).replace(/\b\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?\b/g, 'V');
+  const minus = lines.filter(l => l[0] === '-').map(strip);
+  const plus = lines.filter(l => l[0] === '+').map(strip);
+  return minus.length > 0 && minus.length === plus.length && minus.every((l, i) => l === plus[i] && l.includes('V'));
 }
 
 // Named by path, by basename, or by an ancestor directory written as one ("src/"),

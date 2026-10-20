@@ -62,6 +62,21 @@ test('a diff with no text lines never reaches the describer', () => {
   assert.deepEqual(r.rows()[0].files, [{ path: 'bin.dat', what: 'changed (+0 -0)' }]);
 });
 
+test('a sensitive file never reaches the describer, and a symlink is hashed by its target text', () => {
+  const r = repo();
+  fs.writeFileSync(path.join(r.data, 'describe'), '#!/bin/sh\ncat > "$0.in"\nprintf ".env\\tSECRET=abc\\n"\n', { mode: 0o755 });
+  const outside = path.join(r.data, 'outside.txt');
+  fs.writeFileSync(outside, 'TOKEN=outside\n');
+  r.run('snapshot', { prompt: 'x' });
+  r.write('.env', 'SECRET=abc\n');
+  fs.symlinkSync(outside, path.join(r.dir, 'link'));
+  r.run('record', {});
+  const files = r.rows()[0].files;
+  assert.deepEqual(files.find(f => f.path === '.env'), { path: '.env', what: 'new: added (+1 -0)' });
+  const sent = fs.readFileSync(path.join(r.data, 'describe.in'), 'utf8');
+  assert.doesNotMatch(sent, /SECRET=abc|TOKEN=outside/);
+});
+
 test('a turn that changes nothing writes no row, and earlier edits are not the turn\'s', () => {
   const r = repo();
   r.write('a.txt', 'user edit\n');
