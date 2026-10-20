@@ -1,12 +1,13 @@
 # RTK - Rust Token Killer
 
-**Usage**: Token-optimized CLI proxy (60-90% savings on dev operations). Verified against rtk 0.45.0.
+**Usage**: Token-optimized CLI proxy (60-90% savings on dev operations). Verified against rtk 1.0.1.
 
 ## Hook-Based Usage
 
 A `PreToolUse` hook (`rtk hook claude` in `settings.json`) rewrites Bash commands transparently:
-`git status` → `rtk git status`, `cat f` → `rtk read f`, `head -20 f` → `rtk read f --max-lines 20`,
+`git status` → `rtk git status`, `cat f` → `rtk read f`, `head -20 f` → `rtk read f --head-lines 20`,
 `grep` → `rtk grep`, `rg` → `rtk rg`, `find` → `rtk find`, `ls` → `rtk ls`, `diff` → `rtk diff`.
+Commands inside a quoted `bash -c '...'` / `sh -c '...'` are rewritten too (1.0+).
 Heredocs, `sed`, and multi-line blocks (loops, `python3 - <<'PY'`) are left alone.
 
 Only the Bash tool is hooked. The dedicated Read/Edit/Write/**Grep**/Glob tools never go through rtk.
@@ -14,9 +15,9 @@ Only the Bash tool is hooked. The dedicated Read/Edit/Write/**Grep**/Glob tools 
 ## ⚠️ Never `grep -r` from Bash — write `rg`
 
 `rtk grep` does **not** respect `.gitignore` and does **not** enforce its own `--max-len`, so a single
-long line in a generated file becomes a single enormous line of output. Measured in this repo:
-`rtk grep -rn <pat> .` emitted **19.8 MB** (one 19,834,723-char line from the gitignored 19 MB
-`.claude/repo-docs/repo-docs-index.json`), while `rtk rg -n <pat> .` emitted **3.4 KB** for the same
+long line in a generated file becomes a single enormous line of output. Measured in this repo
+(rtk 1.0.1): `rtk grep -rn <pat> .` emitted **58.6 MB**, almost all of it from the gitignored
+`.claude/repo-docs/repo-docs-index.json`, while `rtk rg -n <pat> .` emitted **147 bytes** for the same
 query. That output volume is what stalls a Bash call.
 
 - From Bash, write `rg`, never `grep -r`. `rg` is rewritten to `rtk rg` and stays gitignore-aware,
@@ -42,8 +43,9 @@ rtk learn               # Learn CLI corrections from Claude Code error history
 ## Escape Hatches
 
 ```bash
-rtk proxy <cmd>   # Run without output filtering, but still track usage
-rtk run <cmd>     # Run raw via sh -c: no filtering, no tracking
+rtk bypass <cmd>  # Run without output filtering, but still track usage (`rtk proxy` is the old alias)
+rtk run <cmd>     # Run argv directly: no filtering, no tracking
+rtk run -c '<sh>' # Same, through a shell (1.0+ no longer shell-expands plain args)
 rtk pipe          # Read stdin, apply a filter, print result (Unix pipe mode)
 ```
 

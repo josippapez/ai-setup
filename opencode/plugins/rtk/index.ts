@@ -28,14 +28,19 @@ export default Plugin.define({
       const command = (args as Record<string, unknown>)[commandKey]
       if (typeof command !== "string" || !command) return
 
+      let stdout: string
       try {
-        const result = await execFileAsync("rtk", ["rewrite", command])
-        const rewritten = result.stdout.trim()
-        if (rewritten && rewritten !== command) {
-          ;(args as Record<string, unknown>)[commandKey] = rewritten
-        }
-      } catch {
-        return
+        stdout = (await execFileAsync("rtk", ["rewrite", command])).stdout
+      } catch (error) {
+        // rtk >= 1.0 exits 3 for a rewrite whose approval it leaves to the host,
+        // which is every rewrite when no Claude Code allow rule covers it.
+        const { code, stdout: out } = error as { code?: unknown; stdout?: string }
+        if (code !== 3 || typeof out !== "string") return
+        stdout = out
+      }
+      const rewritten = stdout.trim()
+      if (rewritten && rewritten !== command) {
+        ;(args as Record<string, unknown>)[commandKey] = rewritten
       }
     })
   },
