@@ -126,6 +126,13 @@ const snapshotFile = session => path.join(sessionsDir, `${slug(session)}.json`);
 const journalFile = top => path.join(journalDir, `${slug(top)}.jsonl`);
 
 function snapshot(ev) {
+  // A turn whose end never arrived (killed, crashed, a missed event) leaves its snapshot behind.
+  try {
+    for (const f of fs.readdirSync(sessionsDir)) {
+      const p = path.join(sessionsDir, f);
+      if (Date.now() - fs.statSync(p).mtimeMs > 24 * STALE_MS) fs.unlinkSync(p);
+    }
+  } catch {}
   const file = snapshotFile(ev.session_id);
   let snap = null;
   try {

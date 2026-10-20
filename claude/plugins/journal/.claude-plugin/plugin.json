@@ -1,6 +1,6 @@
 {
   "name": "journal",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Per-turn change journal written by hooks, not by the model. Each turn that changes files gets one line per file, described from its diff by Apple's on-device model; the last turns are shown at session start, and each entry can be handed to an issue tracker through an optional sink command.",
   "author": {
     "name": "Personal AI Setup"

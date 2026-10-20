@@ -93,6 +93,18 @@ test('a file name holding a newline never makes git hash a path outside the repo
   assert.doesNotMatch(all, /TOKEN=outside/);
 });
 
+test('a snapshot older than a day is swept at the next prompt', () => {
+  const r = repo();
+  fs.mkdirSync(path.join(r.data, 'sessions'), { recursive: true });
+  const old = path.join(r.data, 'sessions', 'gone.json');
+  fs.writeFileSync(old, '{}');
+  const day = new Date(Date.now() - 25 * 3600 * 1000);
+  fs.utimesSync(old, day, day);
+  r.run('snapshot', { prompt: 'x' });
+  assert.equal(fs.existsSync(old), false);
+  assert.equal(fs.existsSync(path.join(r.data, 'sessions', 's1.json')), true);
+});
+
 test('a turn that changes nothing writes no row, and earlier edits are not the turn\'s', () => {
   const r = repo();
   r.write('a.txt', 'user edit\n');

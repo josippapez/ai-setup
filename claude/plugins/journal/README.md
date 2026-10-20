@@ -2,7 +2,7 @@
 
 Keeps a record of what each turn changed, written by hooks so it never depends on the main model remembering. It knows no issue tracker: a tracker gets each entry through an optional sink command.
 
-- **`snapshot`** (`UserPromptSubmit`): records `HEAD` and a content hash of every modified or untracked file in the repo. A prompt sent mid-turn adds its text to the turn's snapshot.
+- **`snapshot`** (`UserPromptSubmit`): records `HEAD` and a content hash of every modified or untracked file in the repo. A prompt sent mid-turn adds its text to the turn's snapshot, and snapshots older than a day (a turn whose end never arrived) are swept.
 - **`record`** (`Stop`, async, so the turn never waits): diffs against the snapshot, skips lockfiles, describes up to 8 changed files in one line each, and finds the commits the turn made (new since the prompt, by this repo's git user, committed after the prompt, so a `git pull` brings none in). It appends `{ ts, session, prompt, files, more?, commits? }` to `$CLAUDE_PLUGIN_DATA/journal/<repo>.jsonl`, then hands the entry to the sink.
 - **`inject`** (`SessionStart`): adds the last 3 entries for the repo to the session's context, marked as data from a small local model.
 - **`build`** (`SessionStart`, async): compiles `hooks/describe.swift` into the data dir with `swiftc` when its source changes.
@@ -30,7 +30,7 @@ They come from Apple's on-device model (free, no download, 1 to 3 s a file). It 
 
 ## OpenCode
 
-`opencode/plugins/journal` runs a copy of `hooks/journal.cjs` and `hooks/describe.swift` (`journal-sync.test.cjs` fails when they drift): the `prompt` hook snapshots, the `session.idle` event records, and the `context` hook adds the last entries once per session. Its data lives in `~/.config/opencode/journal`.
+`opencode/plugins/journal` runs a copy of `hooks/journal.cjs` and `hooks/describe.swift` (`journal-sync.test.cjs` fails when they drift): the `prompt` hook snapshots, the end of a turn (`session.execution.succeeded`, `.failed` or `.interrupted`; OpenCode 2.x declares `session.idle` but never sends it) records, and the `context` hook adds the last entries once per session. Its data lives in `~/.config/opencode/journal`.
 
 ## Tests
 
