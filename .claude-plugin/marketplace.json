@@ -113,6 +113,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/tool-group-hints"
+    },
+    {
+      "name": "scope",
+      "description": "Stop-hook scope gate: snapshots the working tree at each prompt, diffs it when the answer stops, and sends the answer back once if a changed file is named by neither the request nor the answer.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/scope"
     }
   ]
 }
