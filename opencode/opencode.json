@@ -5,7 +5,8 @@
     "./plugins/rtk",
     "./plugins/format-lint-edited-files",
     "./plugins/git-move-guard",
-    "./plugins/dev-core"
+    "./plugins/dev-core",
+    "./plugins/journal"
   ],
   "skills": ["./skills"],
   "permissions": [
