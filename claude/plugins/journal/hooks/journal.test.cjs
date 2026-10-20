@@ -144,7 +144,9 @@ test('a configured sink gets the entry, including a turn that only commits', () 
   r.git('commit', '-qam', 'turn work');
   r.run('record', {});
   const [edit, commit] = fs.readFileSync(got, 'utf8').trim().split('\n').map(l => JSON.parse(l));
-  assert.deepEqual({ ...edit, cwd: undefined }, { session_id: 's1', cwd: undefined, agent: 'claude-code', prompt: 'edit a', files: [{ path: 'a.txt', what: 'changed (+1 -1)' }] });
+  assert.deepEqual({ ...edit, cwd: undefined, started: undefined }, { session_id: 's1', cwd: undefined, started: undefined, agent: 'claude-code', prompt: 'edit a', files: [{ path: 'a.txt', what: 'changed (+1 -1)' }] });
+  // When the turn's prompt arrived, so a tracker can tell what the agent wrote during the turn.
+  assert.ok(Date.parse(edit.started) <= Date.now() && Date.parse(commit.started) >= Date.parse(edit.started));
   assert.equal(fs.realpathSync(edit.cwd), fs.realpathSync(r.dir));
   assert.equal(commit.commits.length, 2);
   assert.equal(r.rows().length, 2);

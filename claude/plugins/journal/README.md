@@ -18,11 +18,11 @@ Configured outside this repo, in `~/.config/journal/sink.json`, usually written 
 After every turn that changed files or made commits, the command gets one JSON object on stdin and its output is ignored:
 
 ```json
-{ "session_id": "...", "cwd": "/abs/repo", "agent": "claude-code", "prompt": "first 200 chars",
+{ "session_id": "...", "cwd": "/abs/repo", "agent": "claude-code", "started": "2026-10-20T14:02:11.000Z", "prompt": "first 200 chars",
   "files": [{ "path": "src/a.ts", "what": "adds the X type" }], "more": 3, "commits": ["abc123def456"] }
 ```
 
-`agent` is `claude-code` or `opencode`. The command runs as a child of the agent's process, so a tracker can tell which terminal and session it came from. No config, no sink; the journal works the same.
+`agent` is `claude-code` or `opencode`. `started` is when the turn's first prompt arrived. The command runs as a child of the agent's process, so a tracker can tell which terminal and session it came from. No config, no sink; the journal works the same.
 
 ## Descriptions
 

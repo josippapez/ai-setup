@@ -208,7 +208,7 @@ async function record(ev, agent = 'claude-code') {
     fs.mkdirSync(journalDir, { recursive: true });
     fs.appendFileSync(journalFile(now.top), JSON.stringify(entry) + '\n');
   }
-  await sink({ session_id: ev.session_id, cwd: now.top, agent, prompt, files, ...(more > 0 ? { more } : {}), ...(commits.length ? { commits } : {}) });
+  await sink({ session_id: ev.session_id, cwd: now.top, agent, started: new Date(snap.ts).toISOString(), prompt, files, ...(more > 0 ? { more } : {}), ...(commits.length ? { commits } : {}) });
 }
 
 // The last entries for the repo, as text for the start of a session, or '' when there are none.
