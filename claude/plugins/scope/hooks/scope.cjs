@@ -59,12 +59,13 @@ function changedFiles(before, after, cwd) {
   return [...candidates].filter(rel => current(rel) !== original(rel)).sort();
 }
 
-// Named by path, by basename, or by any ancestor directory.
+// Named by path, by basename, or by an ancestor directory written as one ("src/"),
+// not as the start of a sibling's path: naming src/a.ts does not name src/b.ts.
 function named(text, rel) {
   if (text.includes(rel) || text.includes(path.basename(rel))) return true;
   let dir = path.dirname(rel);
   while (dir && dir !== '.') {
-    if (text.includes(dir + '/')) return true;
+    if (new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/(?![\\w.-])').test(text)) return true;
     dir = path.dirname(dir);
   }
   return false;

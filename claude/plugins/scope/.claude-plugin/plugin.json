@@ -1,6 +1,6 @@
 {
   "name": "scope",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stop-hook scope gate. Snapshots the working tree when a prompt arrives, diffs it when the answer stops, and sends the answer back once if a file changed that neither the request nor the answer names, so every ride-along edit gets a stated reason or a revert.",
   "author": {
     "name": "Personal AI Setup"

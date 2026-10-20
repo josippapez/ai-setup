@@ -57,6 +57,19 @@ test('a file named in the prompt, by basename, or by directory passes', () => {
   assert.equal(r2.run('check', { last_assistant_message: 'Edited the src/ files.', stop_hook_active: false }), '');
 });
 
+test('naming a sibling by full path does not name the file', () => {
+  const r = repo();
+  r.write('src/c.txt', 'c\n');
+  r.git('add', '.');
+  r.git('commit', '-qm', 'c');
+  r.run('snapshot', { prompt: 'x' });
+  r.write('src/b.txt', 'B\n');
+  r.write('src/c.txt', 'C\n');
+  const out = JSON.parse(r.run('check', { last_assistant_message: 'Changed src/c.txt.', stop_hook_active: false }));
+  assert.match(out.reason, /src\/b\.txt/);
+  assert.doesNotMatch(out.reason, /c\.txt/);
+});
+
 test('changes already in the tree before the prompt are not the turn\'s', () => {
   const r = repo();
   r.write('a.txt', 'user edit\n');
