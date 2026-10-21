@@ -5,7 +5,10 @@
 // build, so it does not get the embedder's CPU cap. The GPU (690 ms) reordered results.
 const SESSION_OPTIONS = { intraOpNumThreads: 4, interOpNumThreads: 1 };
 
-const RERANKER_ID = 'Xenova/bge-reranker-base';
+// On 40 labelled questions per repo (ai-setup, NX) it ranked as well as bge-reranker-base
+// (find_docs MRR .773 vs .766 and .815 vs .811) at 253 MB peak against 979 MB, 159 ms a
+// query against 661 ms. Every reranker tried was within two questions of none at all.
+const RERANKER_ID = 'jinaai/jina-reranker-v1-turbo-en';
 let _mod = null, _lastFailedAt = 0;
 
 // A failed load (e.g. offline on the first rerank:true call) retries after this
@@ -33,8 +36,6 @@ async function load() {
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
       || require('./platform.cjs').MODELS_DIR;
     const tokenizer = await AutoTokenizer.from_pretrained(RERANKER_ID);
-    // q8: measured identical ranking to fp32 on 27/27 verbatim rerank queries
-    // (both 100% hit@1 / 1.000 MRR) while ~4x smaller (~300MB vs 1.1GB).
     const model = await AutoModelForSequenceClassification.from_pretrained(RERANKER_ID, { dtype: 'q8', session_options: SESSION_OPTIONS });
     _mod = { tokenizer, model };
   } catch { _lastFailedAt = Date.now(); }
