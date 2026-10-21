@@ -36,8 +36,10 @@ const PATH_RE =
 
 // Claims that a command succeeded. Anchored on the verb so "the test file" or
 // "a passing grade" do not match.
+// "How it works" (a heading) and "it works out the changed lines" describe, they don't claim: both
+// blocked live in Oct 2026.
 const OUTCOME_RE =
-  /\b(?:(?:all\s+)?(?:\d+\s+)?tests?\s+(?:now\s+)?(?:pass|passes|passed|are\s+passing|is\s+passing)|the\s+(?:test\s+)?suite\s+(?:passes|passed|is\s+green)|(?:the\s+)?build\s+(?:succeeds|succeeded|passes|passed|is\s+clean)|(?:the\s+)?lint(?:er)?\s+(?:passes|passed|is\s+clean)|type(?:check|s)\s+(?:pass|passes|passed|are\s+clean)|it\s+(?:now\s+)?works\b|verified\s+it\s+works)/gi;
+  /\b(?:(?:all\s+)?(?:\d+\s+)?tests?\s+(?:now\s+)?(?:pass|passes|passed|are\s+passing|is\s+passing)|the\s+(?:test\s+)?suite\s+(?:passes|passed|is\s+green)|(?:the\s+)?build\s+(?:succeeds|succeeded|passes|passed|is\s+clean)|(?:the\s+)?lint(?:er)?\s+(?:passes|passed|is\s+clean)|type(?:check|s)\s+(?:pass|passes|passed|are\s+clean)|(?<!\bhow\s)it\s+(?:now\s+)?works\b(?!\s+out\b)|verified\s+it\s+works)/gi;
 
 // An outcome the sentence itself disowns is not the speaker's claim. The five outcome blocks
 // still wrong after the Oct 2026 manifest fixes all had the disowning in plain words: the pass
@@ -171,7 +173,7 @@ function pathSeen(claimed, seenPaths, basenameFallback = true) {
 }
 
 const TEST_CMD_RE =
-  /\b(?:npm|pnpm|yarn|bun|npx)\s+(?:run\s+)?(?:test|tests|lint|typecheck|type-check|build|tsc|check)\b|\b(?:jest|vitest|mocha|ava|pytest|tox|nox|go\s+test|cargo\s+(?:test|build|check|clippy)|gradle|mvn|rspec|phpunit|tsc|eslint|ruff|mypy|make\s+(?:test|check|build))\b|\bnode\s+[^\s|;&]*\.test\.[cm]?js\b|--test\b/;
+  /\b(?:npm|pnpm|yarn|bun|npx)\s+(?:run\s+)?(?:test|tests|lint|typecheck|type-check|build|tsc|check)\b|\b(?:jest|vitest|mocha|ava|pytest|tox|nox|go\s+test|cargo\s+(?:test|build|check|clippy)|gradle|mvn|rspec|phpunit|tsc|eslint|ruff|mypy|make\s+(?:test|check|build)|dotnet\s+(?:test|build))\b|\bnode\s+[^\s|;&]*\.test\.[cm]?js\b|--test\b/;
 
 const SEARCH_TOOLS = new Set(['Grep', 'Glob']);
 const SEARCH_CMD_RE = /\b(?:rg|grep|ag|ack|find|codegraph)\b/;

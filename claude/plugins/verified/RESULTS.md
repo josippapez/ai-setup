@@ -219,6 +219,21 @@ ones above. Same config as 0.2.8.
   1 kept the claim, 22 dropped it, 16 hit a summary with no manifest. Running the check is not the
   same as the block being right: a model re-runs a test just to get past the gate.
 
+## False "tests pass" blocks (2026-10-21, verified 0.3.1)
+
+Of 7 live outcome blocks since 0.2.8, 4 were wrong: `dotnet test` was not a known test runner, a
+redirect to `$TMPDIR/q.log` read as a project write, a version bump made with Edit aged the run, and
+"How it works" / "It works out" read as claims. A Markdown edit that aged a run stays a write, since
+tests here read SKILL.md files.
+
+| source | V before | V after | outcome catch / fp |
+|---|---|---|---|
+| ledger | -8.5 | -2.5 | 63 / 67 → 60 / 60 |
+| corpus | 66.8 | 65.0 | 56 / 0 → 54 / 0 |
+
+Ships as an override: corpus train V falls 47.8 to 46.0, but every one of the 12 flags it removes
+(10 ledger, 2 corpus) is a wrong block by hand, and the corpus scorer credited the 2 as catches.
+
 ## Targets once live
 
 Precision (resolved blocks / all blocks) ≥ 0.9. Block rate ≤ 0.1. Replay puts

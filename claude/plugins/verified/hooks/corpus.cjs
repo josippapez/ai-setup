@@ -68,6 +68,10 @@ const PROSE_RE = /(^|\/)(README|CHANGELOG)(\.(md|txt|rst))?$/i;
 // A sed that only rewrites a version string is a release bump: package.json, Cargo.toml and a plugin
 // manifest were bumped after a clean run in 5 of the 40 live outcome blocks of 2026-10-08..19.
 const VERSION_BUMP_RE = /(^|\s)sed\s+-i\b.*\bversion\\?["']?\s*[:=]/;
+// The same bump made with Edit: the two strings differ only in a version value.
+const unversioned = (s) => String(s).replace(/(\bversion["']?\s*[:=]\s*["']?)[\w.+-]+/gi, '$1');
+const editBumpsVersion = (inp) => typeof inp.old_string === 'string' && inp.old_string !== inp.new_string
+  && unversioned(inp.old_string) === unversioned(inp.new_string);
 // A project can itself live under /tmp, so anything inside the session's folder still counts.
 const outsideProject = (p, cwd) => {
   const full = p.replace(/^~(?=\/)/, os.homedir());
@@ -78,7 +82,8 @@ const WRITE_CMD_RE = /(^|[\s;&|])(sed\s+-i|tee|cp|mv|install\.sh)\b|>>?\s*[^\s&|
 function writesProject(name, inp, cwd) {
   if (/^(Edit|Write|NotebookEdit)$/.test(name)) {
     const target = inp.file_path || inp.notebook_path;
-    return !(typeof target === 'string' && (outsideProject(target, cwd) || PROSE_RE.test(target)));
+    return !(typeof target === 'string' && (outsideProject(target, cwd) || PROSE_RE.test(target)))
+      && !(name === 'Edit' && editBumpsVersion(inp));
   }
   if (name !== 'Bash' || typeof inp.command !== 'string') return false;
   // A heredoc body is a script's text, not shell: its `=> n.type` read as a redirect into the project.
@@ -88,6 +93,8 @@ function writesProject(name, inp, cwd) {
   for (const [, k, v] of cmd.matchAll(/(?:^|[\s;&])(\w+)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) {
     cmd = cmd.replace(new RegExp(`\\$\\{?${k}\\b\\}?`, 'g'), v.replace(/^["']|["']$/g, ''));
   }
+  // `> $TMPDIR/q.log` around a dotnet test read as a write into the project until the variable was filled in.
+  cmd = cmd.replace(/\$\{?([A-Z_][A-Z0-9_]*)\}?/g, (m, k) => process.env[k] || m);
   const segments = cmd.split(/&&|\|\||[;|\n]/);
   // `cd ~/.claude/projects/x/memory && echo note >> MEMORY.md` writes outside the project, but the
   // relative target only says so once it is resolved against the cd.

@@ -1105,3 +1105,39 @@ test('a clean set that does not parse stops replay instead of switching the veto
   fs.writeFileSync(path.join(fx.home, 'clean.json'), '[{"id": "a",');
   assert.throws(() => execFileSync('node', [CLEAN], { stdio: 'pipe', env: { ...process.env, VERIFIED_HOME: fx.home } }), /JSON/);
 });
+
+// ---- false "tests pass" blocks seen live in Oct 2026 ------------------------
+
+test('"How it works" and "it works out" are not outcome claims, "it works" still is', () => {
+  const { classify } = require('./claim-patterns.cjs');
+  const ev = { paths: new Set(), commands: [], searches: [], urls: new Set(), seq: 3, lastWrite: 0 };
+  assert.deepStrictEqual(classify('**How it works.** It uses three layers.', ev, {}).unbacked, []);
+  assert.deepStrictEqual(classify('It works out the changed lines from each diff.', ev, {}).unbacked, []);
+  assert.deepStrictEqual(classify('I ran it and it works.', ev, {}).unbacked.map((f) => f.span), ['it works']);
+});
+
+test('dotnet test counts as a test run', () => {
+  const { TEST_CMD_RE } = require('./claim-patterns.cjs');
+  assert.ok(TEST_CMD_RE.test('dotnet test src/Security.QueryService.Tests --filter "X"'));
+});
+
+test('a redirect into $TMPDIR is not a write into the project', () => {
+  const { writesProject } = require('./corpus.cjs');
+  const cwd = '/repo';
+  const prev = process.env.TMPDIR;
+  process.env.TMPDIR = '/var/folders/77/T';
+  try {
+    assert.strictEqual(writesProject('Bash', { command: 'dotnet test src/X.Tests > $TMPDIR/q.log 2>&1' }, cwd), false);
+    assert.strictEqual(writesProject('Bash', { command: 'echo x > src/out.txt' }, cwd), true);
+  } finally {
+    if (prev === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = prev;
+  }
+});
+
+test('an Edit that only bumps a version does not age a test run', () => {
+  const { writesProject } = require('./corpus.cjs');
+  const bump = { file_path: '/repo/.claude-plugin/plugin.json', old_string: '  "version": "0.2.9",', new_string: '  "version": "0.2.10",' };
+  assert.strictEqual(writesProject('Edit', bump, '/repo'), false);
+  assert.strictEqual(writesProject('Edit', { ...bump, new_string: '  "version": "0.2.10",\n  "main": "x.js",' }, '/repo'), true);
+  assert.strictEqual(writesProject('Edit', { file_path: '/repo/src/a.js', old_string: 'a', new_string: 'b' }, '/repo'), true);
+});
