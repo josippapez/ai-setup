@@ -7,7 +7,8 @@ test('a turn that touched a markdown file asks for one reindex when it ends', as
   const clock = mock.clock(on)
   const runs: (readonly string[])[] = []
   on('tool.call', { tool: 'Bash' }, () => OK)
-  on('session.cwd', () => ({ value: '/repo' }))
+  on('session.root', () => ({ value: '/repo' }))
+  on('session.cwd', () => ({ value: '/repo/docs' }))
   on('turn.complete', () => ({ text: 'done' }))
   on('process.run', (_, e) => {
     runs.push(e.argv)

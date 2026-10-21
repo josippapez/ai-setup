@@ -23,7 +23,8 @@ export function registerReindex(on: On) {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined && isDirty) {
       isDirty = false
-      const cwd = await $.session.cwd()
+      // The repo root, not the shell's folder: after a `cd docs` the socket under cwd isn't there.
+      const cwd = await $.session.root()
       // Started off the turn's own dispatch so the turn does not wait on the rebuild.
       // The script handles the socket, its 2 s debounce lock, and a missing server.
       $.clock.after(0, () => {
