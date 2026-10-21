@@ -88,11 +88,24 @@ function ensureChild() {
 async function rerank(query, candidates) {
   const identity = candidates.map((_, i) => i);
   if (candidates.length === 0) return identity;
+  const texts = candidates.map(c => String(c.text).slice(0, 2000));
+  // The shared model server first: its one copy of the 1.2 GB model serves every session.
+  const shared = await require('./model-client.cjs').rerank({
+    model: RERANKER_ID,
+    query,
+    texts,
+    load: {
+      dtype: 'q8',
+      sessionOptions: SESSION_OPTIONS,
+      cacheDir: process.env.REPO_DOCS_MODELS_DIR || require('./platform.cjs').MODELS_DIR,
+    },
+  });
+  if (shared) return Array.isArray(shared.order) && shared.order.length === candidates.length ? shared.order : identity;
   const proc = ensureChild();
   const id = ++nextId;
   const order = await new Promise(done => {
     pending.set(id, done);
-    proc.send({ id, query, texts: candidates.map(c => String(c.text).slice(0, 2000)) });
+    proc.send({ id, query, texts });
   });
   clearTimeout(idle);
   idle = setTimeout(() => child?.kill(), IDLE_MS);

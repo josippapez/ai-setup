@@ -31,40 +31,71 @@ if (require.main === module && process.send) {
     // the absolute entry via require, then import that file URL so the worker finds
     // @huggingface/transformers when it lives in CLAUDE_PLUGIN_DATA/node_modules.
     const entry = createRequire(__filename).resolve('@huggingface/transformers');
-    const { pipeline, env } = await import(pathToFileURL(entry).href);
+    const { pipeline, AutoTokenizer, env } = await import(pathToFileURL(entry).href);
     // One model cache for every plugin data dir, so each model downloads once;
     // REPO_DOCS_MODELS_DIR overrides it.
     env.cacheDir = process.env.REPO_DOCS_MODELS_DIR
       || require('./platform.cjs').MODELS_DIR;
-    // The GPU first: a full rebuild of 2,287 chunks measured 133 s and 36 s of CPU,
-    // against 274 s and 274 s for the 8-bit model on one CPU thread, with the same
-    // top hits. onnxruntime-node marks WebGPU experimental, so a load or first-run
-    // failure falls back to the CPU model.
-    let embed;
-    try {
-      embed = await pipeline('feature-extraction', MODEL_ID, { device: 'webgpu', dtype: GPU_DTYPE });
-      await embed('warm up', { pooling: 'mean', normalize: true });
-    } catch {
-      embed = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });
+    // The shared model server holds the model when it can; this worker then loads only
+    // the tokenizer (the server's embedder copy is ~125 MB, one per session otherwise).
+    const client = require('./model-client.cjs');
+    const serverEmbed = (texts, priority) => client.embed({
+      model: MODEL_ID,
+      texts,
+      load: {
+        device: 'webgpu', dtype: GPU_DTYPE, fallbackDtype: MODEL_DTYPE,
+        sessionOptions: SESSION_OPTIONS, maxTokens: MODEL_MAX_TOKENS, cacheDir: env.cacheDir,
+      },
+      pooling: 'mean',
+      normalize: true,
+      priority,
+    });
+    // Without the server the worker loads the model itself, as it did before the server
+    // existed; also the way out when the server dies mid-build.
+    let local = null;
+    const loadLocal = () => local || (local = (async () => {
+      // The GPU first: a full rebuild of 2,287 chunks measured 133 s and 36 s of CPU,
+      // against 274 s and 274 s for the 8-bit model on one CPU thread, with the same
+      // top hits. onnxruntime-node marks WebGPU experimental, so a load or first-run
+      // failure falls back to the CPU model.
+      let model;
+      try {
+        model = await pipeline('feature-extraction', MODEL_ID, { device: 'webgpu', dtype: GPU_DTYPE });
+        await model('warm up', { pooling: 'mean', normalize: true });
+      } catch {
+        model = await pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE, session_options: SESSION_OPTIONS });
+      }
+      // Some model configs ship model_max_length as Infinity, so the pipeline's
+      // hardcoded `truncation: true` never clips and docs over 512 tokens crash the
+      // ONNX model (position-embedding broadcast mismatch). Pin the tokenizer's
+      // ceiling to the model's real context so a rare token-dense chunk truncates
+      // instead of crashing.
+      model.tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
+      return model;
+    })().catch((err) => { local = null; throw err; }));
+    let tokenizer;
+    if (await serverEmbed(['warm up'], 'query')) {
+      tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
+      tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
+    } else {
+      tokenizer = (await loadLocal()).tokenizer;
     }
-    // Some model configs ship model_max_length as Infinity, so the pipeline's
-    // hardcoded `truncation: true` never clips and docs over 512 tokens crash the
-    // ONNX model (position-embedding broadcast mismatch). Pin the tokenizer's
-    // ceiling to the model's real context so a rare token-dense chunk truncates
-    // instead of crashing.
-    embed.tokenizer._tokenizerConfig.model_max_length = MODEL_MAX_TOKENS;
 
     const { chunkMarkdown } = require('./chunker.cjs');
     // Chunks are sized with the model's own tokenizer, leaving room for [CLS] and
     // [SEP], so none is cut at the context limit and loses its tail. The budget
     // covers the context-prefixed text, the longer of the two a chunk is embedded as.
     const maxTokens = MODEL_MAX_TOKENS - 2;
-    const vectorOf = async (text) => Array.from((await embed(text, { pooling: 'mean', normalize: true })).data);
     // Vectors for texts in order, EMBED_BATCH per model run. A batch that throws is
-    // retried one text at a time, so a bad text costs only itself (null).
-    // Batches are cut from the texts sorted by length, so each pads to a near neighbour.
-    const vectorsOf = async (texts) => {
+    // retried one text at a time, so a bad text costs only itself (null). The server
+    // does the same; this is the local copy for when it cannot be used.
+    const vectorsOf = async (texts, priority) => {
+      const viaServer = await serverEmbed(texts, priority);
+      if (viaServer) return viaServer.vectors;
+      const embed = await loadLocal();
+      const vectorOf = async (text) => Array.from((await embed(text, { pooling: 'mean', normalize: true })).data);
       const out = new Array(texts.length).fill(null);
+      // Batches are cut from the texts sorted by length, so each pads to a near neighbour.
       const order = texts.map((_, i) => i).sort((a, b) => texts[a].length - texts[b].length);
       for (let i = 0; i < order.length; i += EMBED_BATCH) {
         const idx = order.slice(i, i + EMBED_BATCH);
@@ -87,7 +118,7 @@ if (require.main === module && process.send) {
           const docName = String(docPath || '').replace(/\.mdx?$/, '');
           const context = (headingPath) => `${[docName, headingPath].filter(Boolean).join(' › ')}\n`;
           const countTokens = (t, headingPath) =>
-            embed.tokenizer.encode(context(headingPath) + t, { add_special_tokens: false }).length;
+            tokenizer.encode(context(headingPath) + t, { add_special_tokens: false }).length;
           try {
             return chunkMarkdown(String(text || ''), { maxTokens, countTokens })
               .map(ch => ({ ch, texts: [ch.text, context(ch.headingPath) + ch.text] }));
@@ -97,7 +128,7 @@ if (require.main === module && process.send) {
         });
         let vectors;
         try {
-          vectors = await vectorsOf(splits.flatMap(split => (split || []).flatMap(c => c.texts)));
+          vectors = await vectorsOf(splits.flatMap(split => (split || []).flatMap(c => c.texts)), 'bulk');
         } catch {
           vectors = null;
         }
@@ -111,11 +142,11 @@ if (require.main === module && process.send) {
       }
       if (msg.type !== 'embed') return;
       try {
-        const out = await embed(msg.text, { pooling: 'mean', normalize: true });
+        const [vector] = await vectorsOf([msg.text], 'query');
         process.send({
           type: 'embed',
           id: msg.id,
-          vector: Array.from(out.data),
+          vector,
         });
       } catch {
         // One bad chunk (e.g. an ONNX runtime error) must cost one chunk, not

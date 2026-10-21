@@ -21,6 +21,8 @@ Guesses stay legal. The gate checks labelling, not certainty: "I'd use Postgres"
 
 `SubagentStop` runs the same checks on subagent answers, against the subagent's own transcript. An agent answer with no tool call behind it is recorded and let through: compaction and away summaries arrive that way, and 13 of 49 live blocks in October 2026 were such summaries.
 
+Commands the test-command regex doesn't know (nx, turbo, custom scripts) are scored by a local classifier (`hooks/check-commands.cjs`, weights in `hooks/check-model.json`), which can only add checks, never remove one. It asks the shared model server (`hooks/model-server.cjs`, one process per machine) for the embeddings first and loads the model itself only when the server can't be used.
+
 ## Where the data is
 
 `~/.claude/verified/`, deliberately outside the plugin data dir so a reinstall never wipes it. It holds `ledger.jsonl` (one node per evaluated turn, with answer text, so it never goes in git), `manifests/`, `worlds.lock.json` (the pinned replay history), `replay-log.jsonl`, `offsets.json` and `sessions/` (each session's last verdict and recent blocks, so the Stop hook never reads the ledger). A block's resolution is appended to the ledger as an `{ "op": "resolve" }` line and merged on read.

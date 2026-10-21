@@ -23,6 +23,15 @@ test('serversUnder selects ONLY standalone-mcp children of the given session pid
   assert.deepStrictEqual(serversUnder(rows, '777'), ['999']); // a different session's pid selects only its own
 });
 
+test('serversUnder leaves the shared model server alone, whoever its parent is', () => {
+  const rows = [
+    { pid: '301', ppid: '100', cmd: 'node /x/repo-docs/runtime/lib/model-server.cjs /h/.claude/models/model-server.sock' },
+    { pid: '302', ppid: '201', cmd: 'node /x/repo-docs/runtime/lib/model-server.cjs /h/.claude/models/model-server.sock' },
+  ];
+  assert.deepStrictEqual(serversUnder(rows, '100'), []);
+  assert.deepStrictEqual(serversUnder(rows, '201'), []);
+});
+
 test('findSessionPid returns the nearest --session-id ancestor, honoring a known id', () => {
   // Ancestry: hook(ppid=10) → 10 (shell) → 20 (session, has --session-id SID) → 30 (bg-pty, also --session-id) → 1
   const cmd = { '10': '/bin/zsh', '20': 'claude --session-id SID-abc ...', '30': 'ClaudeCode bg-pty --session-id SID-abc', '1': 'launchd' };

@@ -1,5 +1,8 @@
 'use strict';
 
+// Keeps these tests off a real model server on ~/.claude/models.
+process.env.MODEL_SERVER_DISABLE = '1';
+
 const test = require('node:test');
 const assert = require('node:assert');
 

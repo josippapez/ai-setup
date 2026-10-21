@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const MODEL = require('./gap-model.json');
+const client = require('./model-client.cjs');
 const COLLECT = /^mcp__plugin_feedback_feedback__collect_feedback$/;
 
 const isPrompt = entry =>
@@ -71,12 +72,30 @@ async function prefetch() {
   writeWarmup({ state: 'ready' });
 }
 
+const CACHE_DIR = path.join(require('node:os').homedir(), '.claude', 'models');
+
+// The shared model server first; this process loads the model itself only when it can't be used.
+async function vectorFor(text, deps = {}) {
+  const ask = deps.client || client.embed;
+  const local = deps.local || embed;
+  const res = await ask({
+    model: MODEL.model,
+    texts: [MODEL.prefix + text.slice(0, MODEL.maxChars)],
+    load: { dtype: MODEL.dtype, cacheDir: CACHE_DIR },
+    pooling: 'mean',
+    normalize: true,
+    priority: 'query',
+  }).catch(() => null);
+  const vector = res && res.vectors && res.vectors[0];
+  return vector || local(text);
+}
+
 async function embed(text, onProgress) {
   // NODE_PATH points at the plugin data dir; ESM import() ignores it, so resolve through require.
   const entry = require.resolve('@huggingface/transformers');
   const { pipeline, env } = await import(require('node:url').pathToFileURL(entry).href);
   // Shared by the feedback and verified plugins, so the model is downloaded and stored once.
-  env.cacheDir = path.join(require('node:os').homedir(), '.claude', 'models');
+  env.cacheDir = CACHE_DIR;
   const extract = await pipeline('feature-extraction', MODEL.model, { dtype: MODEL.dtype, progress_callback: onProgress });
   const output = await extract(MODEL.prefix + text.slice(0, MODEL.maxChars), { pooling: 'mean', normalize: true });
   return Array.from(output.data);
@@ -89,7 +108,7 @@ async function main() {
   if (!text) return;
   const lines = fs.readFileSync(input.transcript_path, 'utf8').split('\n').filter(Boolean);
   if (lastTurn(lines).logged) return;
-  if (score(await embed(text)) < MODEL.cutoff) return;
+  if (score(await vectorFor(text)) < MODEL.cutoff) return;
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -108,4 +127,4 @@ if (require.main === module) {
   else main().catch(() => {});
 }
 
-module.exports = { lastTurn, score };
+module.exports = { lastTurn, score, vectorFor };
