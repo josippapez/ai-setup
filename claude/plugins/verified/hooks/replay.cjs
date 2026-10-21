@@ -151,6 +151,49 @@ function candidates() {
   return out;
 }
 
+// The rewrite after a block is the next answer on the same thread of the session, not the
+// next ledger node. Prompt suggestions and progress lines ("push it", "Reading x.ts") arrive
+// as side answers under the parent session with an empty manifest, and in Oct 2026 they sat
+// between a block and its rewrite: "push it" was graded as the rewrite of a tests-pass block.
+const threadOf = (n) => `${n.session}\0${n.event || ''}\0${n.agent || ''}`;
+
+// Calls onPair(node, rewrite) for every node `wants` keeps, once its thread answers again.
+// A node from before any tool call has seq 0 like the side answers, and so does its own
+// rewrite, so it takes the next answer on its thread whatever its seq: skipping those left
+// 4 of 78 such blocks with no rewrite, which truthLabel scores as a catch.
+function rewritePairs(onPair, wants = () => true) {
+  const waiting = new Map();
+  return (n) => {
+    const key = threadOf(n);
+    const ran = !!(n.evidence && n.evidence.seq > 0);
+    if (waiting.has(key)) {
+      const left = [];
+      for (const p of waiting.get(key)) {
+        if (ran || !(p.evidence && p.evidence.seq > 0)) onPair(p, n);
+        else left.push(p);
+      }
+      if (left.length) waiting.set(key, left); else waiting.delete(key);
+    }
+    if (!wants(n)) return;
+    if (!waiting.has(key)) waiting.set(key, []);
+    waiting.get(key).push(n);
+  };
+}
+
+// A ledger manifest in the shape classify() reads.
+function evOf(e, printed) {
+  return {
+    paths: new Set(e.paths || []), commands: e.commands || [],
+    searches: e.searches || [], urls: new Set(e.urls || []),
+    libLookup: !!e.libLookup, seq: e.seq || 0, lastWrite: e.lastWrite || 0,
+    testOut: e.testOut || 0,
+    // classify reads cwd off the manifest, not off the world, because the
+    // live hook only ever hands it a manifest.
+    cwd: e.cwd || '',
+    printed: new Set(printed),
+  };
+}
+
 // The gate's own ledger as replay worlds.
 function ledgerWorlds() {
   // `final` used to be a copy of `ev`, which made resolvedLater structurally
@@ -161,12 +204,7 @@ function ledgerWorlds() {
   // The rewrite after a block is the session's next node. Its manifest holds what the
   // rewrite ran, which is how the labeller tells a re-run from a rewording.
   const nextNode = new Map();
-  const lastOf = new Map();
-  for (const n of nodes) {
-    const prev = lastOf.get(n.session);
-    if (prev) nextNode.set(prev, n);
-    lastOf.set(n.session, n);
-  }
+  nodes.forEach(rewritePairs((n, next) => nextNode.set(n, next)));
   // Basenames of every blocked path, looked up once per session in its tool output.
   const wanted = new Map();
   for (const n of nodes) {
@@ -181,18 +219,9 @@ function ledgerWorlds() {
   return nodes
     .filter((n) => n.answer && n.evidence)
     .map((n) => {
-      const ev = {
-        paths: new Set(n.evidence.paths || []), commands: n.evidence.commands || [],
-        searches: n.evidence.searches || [], urls: new Set(n.evidence.urls || []),
-        libLookup: !!n.evidence.libLookup, seq: n.evidence.seq || 0, lastWrite: n.evidence.lastWrite || 0,
-        testOut: n.evidence.testOut || 0,
-        // classify reads cwd off the manifest, not off the world, because the
-        // live hook only ever hands it a manifest.
-        cwd: n.evidence.cwd || '',
-        // Names printed before this answer, since nodes do not store them.
-        printed: new Set([...(seenOutput.get(n.session) || new Map())]
-          .filter(([, at]) => at < Date.parse(n.ts)).map(([w]) => w)),
-      };
+      // Names printed before this answer, since nodes do not store them.
+      const ev = evOf(n.evidence, [...(seenOutput.get(n.session) || new Map())]
+        .filter(([, at]) => at < Date.parse(n.ts)).map(([w]) => w));
       const m = ledger.readManifest(n.session);
       const final = (m.paths.size || m.commands.length || m.searches.length || m.urls.size) ? m : ev;
       // resolved=true means none of the blocked spans came back, so the model
@@ -251,6 +280,10 @@ function main() {
   for (const [k, v] of Object.entries(current.byClass).sort((a, b) => b[1].caught - a[1].caught)) {
     console.log(`             ${k.padEnd(16)} caught ${v.caught.toFixed(0).padStart(4)}  fp ${v.fp.toFixed(0).padStart(4)}  unknown ${String(v.unknown).padStart(5)}`);
   }
+  // Required lazily: clean.cjs takes evOf from this file.
+  const { cleanBlocks } = require('./clean.cjs');
+  const cleanNow = cleanBlocks(classify);
+  if (cleanNow.total) console.log(`           clean set: ${cleanNow.blocked.length} of ${cleanNow.total} known-clean claims blocked`);
 
   const candidatePath = arg('--candidate');
   if (typeof candidatePath === 'string') {
@@ -258,9 +291,16 @@ function main() {
     const alt = require(path.resolve(candidatePath)).classify;
     const cand = score(worlds, alt, {});
     const d = split.compare(worlds, current.per, cand.per);
-    const v = split.verdict(d);
+    const cleanAlt = cleanBlocks(alt);
+    // By claim, not by count: unblocking one clean claim does not pay for blocking another.
+    const was = new Set(cleanNow.blocked.map((c) => c.id));
+    const more = cleanAlt.blocked.filter((c) => !was.has(c.id)).length;
+    // V can rise on a change that blocks claims a person confirmed were fine, when the labeller
+    // scores those blocks as catches, so the clean set gets its own veto.
+    const v = more > 0 ? { ship: false, word: 'REJECT', why: `it blocks ${more} known-clean claim${more === 1 ? '' : 's'} the current config lets through` } : split.verdict(d);
     console.log(`\ncandidate  ${fmt(cand)}`);
     console.log(`           ${deltaLine(d)}`);
+    if (cleanAlt.total) console.log(`           clean set: ${cleanAlt.blocked.length} of ${cleanAlt.total} known-clean claims blocked`);
     console.log(v.ship
       ? `\nSHIP. ${v.why}. V ${cand.V.toFixed(1)} vs ${current.V.toFixed(1)}.`
       : `\n${v.word}. ${v.why}. V ${cand.V.toFixed(1)} vs ${current.V.toFixed(1)}. The current config stays.`);
@@ -295,6 +335,7 @@ function main() {
   }
 }
 
-if (require.main === module) main();
+// Exported before main() runs: clean.cjs, required from main(), reads evOf off this module.
+module.exports = { score, ledgerWorlds, rewritePairs, evOf };
 
-module.exports = { score, ledgerWorlds };
+if (require.main === module) main();

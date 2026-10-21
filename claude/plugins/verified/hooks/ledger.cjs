@@ -149,10 +149,9 @@ const recentBlocks = (session) => readState(session).blocks || [];
 // hook never rewrites the ledger under another session's append.
 // Read in chunks: one readFileSync of the whole file threw ERR_STRING_TOO_LONG at 718 MB, and the
 // catch below turned that into "0 replayable nodes" for every replay and gold sample.
-function readLines(file) {
-  const lines = [];
+function eachLine(file, fn) {
   let fd;
-  try { fd = fs.openSync(file, 'r'); } catch { return lines; }
+  try { fd = fs.openSync(file, 'r'); } catch { return; }
   try {
     const decoder = new (require('node:string_decoder').StringDecoder)('utf8');
     const buf = Buffer.allocUnsafe(64 * 1024 * 1024);
@@ -161,12 +160,23 @@ function readLines(file) {
     while ((n = fs.readSync(fd, buf, 0, buf.length, null)) > 0) {
       const parts = (rest + decoder.write(buf.subarray(0, n))).split('\n');
       rest = parts.pop();
-      for (const l of parts) if (l) lines.push(l);
+      for (const l of parts) if (l) fn(l);
     }
     rest += decoder.end();
-    if (rest) lines.push(rest);
+    if (rest) fn(rest);
   } finally { fs.closeSync(fd); }
+}
+
+function readLines(file) {
+  const lines = [];
+  eachLine(file, (l) => lines.push(l));
   return lines;
+}
+
+// One parsed node at a time, resolve lines included, for reports that cannot hold the
+// whole ledger: read() on the 702 MB ledger of Oct 2026 needs a 9 GB heap.
+function each(fn) {
+  eachLine(ledgerPath(), (l) => { let n; try { n = JSON.parse(l); } catch { return; } fn(n); });
 }
 
 function read() {
@@ -198,4 +208,4 @@ function resolvePrevious(session, currentSpans) {
   writeState(session, state);
 }
 
-module.exports = { dir, ledgerPath, offsetsPath, getOffset, setOffset, readManifest, writeManifest, append, read, resolvePrevious, recentBlocks };
+module.exports = { dir, ledgerPath, offsetsPath, getOffset, setOffset, readManifest, writeManifest, append, read, each, resolvePrevious, recentBlocks };

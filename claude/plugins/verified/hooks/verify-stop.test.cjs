@@ -1004,3 +1004,101 @@ test('a URL inside a code span is a value, not a citation', () => {
   const fx2 = fixture();
   assert.ok(blocked(run(fx2, 'The docs at https://github.com/x/y say so.', [{ name: 'Bash', input: { command: 'ls' } }], 'u7')));
 });
+
+// ---- what happened after a block, and the clean set ----------------------------
+
+const node = (o) => JSON.stringify({ ts: '2026-10-14T14:05:00.000Z', session: 's', action: 'pass', claims: [], ...o,
+  evidence: { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 0, lastWrite: 0, ...(o.evidence || {}) } });
+const OUTCOMES = path.join(__dirname, 'outcomes.cjs');
+const CLEAN = path.join(__dirname, 'clean.cjs');
+
+test('the rewrite of a block is the next answer on its thread, not a side answer between them', () => {
+  const fx = fixture();
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), [
+    node({ ts: '2026-10-14T14:05:14Z', action: 'block', answer: 'Done, and the tests pass.', claims: [{ class: 'command-outcome', span: 'tests pass' }], resolved: true, evidence: { seq: 5, lastWrite: 4 } }),
+    // A prompt suggestion: recorded under the parent session with an empty manifest.
+    node({ ts: '2026-10-14T14:05:15Z', answer: 'push it' }),
+    node({ ts: '2026-10-14T14:05:31Z', answer: 'Done. `npm test` passes.', evidence: { seq: 6, commands: [{ cmd: 'npm test', ok: true, seq: 6 }] } }),
+  ].join('\n') + '\n');
+  process.env.VERIFIED_HOME = fx.home;
+  try {
+    const { ledgerWorlds } = require('./replay.cjs');
+    assert.strictEqual(ledgerWorlds()[0].nextAnswer, 'Done. `npm test` passes.');
+  } finally {
+    delete process.env.VERIFIED_HOME;
+  }
+});
+
+test('outcomes sorts each block by what the rewrite did', () => {
+  const fx = fixture();
+  const block = (o) => node({ action: 'block', ...o });
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), [
+    block({ session: 'ran', answer: 'The tests pass.', claims: [{ class: 'command-outcome', span: 'tests pass' }], evidence: { seq: 5, lastWrite: 4 } }),
+    node({ session: 'ran', answer: 'Re-ran them, all green.', evidence: { seq: 6, commands: [{ cmd: 'npm test', ok: true, seq: 6 }] } }),
+    block({ session: 'kept', answer: 'See https://example.com/docs.', claims: [{ class: 'url', span: 'https://example.com/docs' }], evidence: { seq: 5 } }),
+    node({ session: 'kept', answer: 'It is in https://example.com/docs.', evidence: { seq: 6 } }),
+    block({ session: 'dropped', answer: 'The tests pass.', claims: [{ class: 'command-outcome', span: 'tests pass' }], evidence: { seq: 5, lastWrite: 4 } }),
+    node({ session: 'dropped', answer: 'I changed the handler.', evidence: { seq: 6 } }),
+    block({ session: 'summary', answer: 'Earlier the tests pass.', claims: [{ class: 'command-outcome', span: 'tests pass' }], evidence: { seq: 0 } }),
+    block({ session: 'gone', answer: 'The tests pass.', claims: [{ class: 'command-outcome', span: 'tests pass' }], evidence: { seq: 5, lastWrite: 4 } }),
+  ].join('\n') + '\n');
+  const out = execFileSync('node', [OUTCOMES, '--since', '2026-01-01'], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+  assert.match(out, /^all\s+1\s+1\s+1\s+1\s+1$/m, out);
+  assert.match(out, /the rewrite ran the check: 1 of 5/);
+});
+
+test('the clean set counts claims a person confirmed fine that the gate still blocks', () => {
+  const fx = fixture();
+  const answer = 'The docs at https://example.com/docs say the limit is 10.';
+  const ev = { paths: [], commands: [], searches: [], urls: [], libLookup: false, seq: 3, lastWrite: 0 };
+  fs.writeFileSync(path.join(fx.home, 'clean.json'), JSON.stringify([
+    { id: 'a', class: 'url', span: 'https://example.com/docs', answer, evidence: ev, printed: [] },
+    { id: 'b', class: 'url', span: 'https://example.com/docs', answer, evidence: { ...ev, urls: ['example.com'] }, printed: [] },
+  ]));
+  const out = execFileSync('node', [CLEAN], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+  assert.match(out, /^1 of 2 known-clean claims blocked/);
+});
+
+test('replay rejects a candidate that blocks a known-clean claim, even when V holds', () => {
+  const fx = fixture();
+  const nodes = [];
+  for (let i = 0; i < 25; i += 1) nodes.push(node({ session: `s${i}`, answer: 'Nothing to check here.', evidence: { seq: 1 } }));
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), nodes.join('\n') + '\n');
+  fs.writeFileSync(path.join(fx.home, 'clean.json'), JSON.stringify([
+    // Blocked today, and the candidate lets it through: the count stays at one.
+    { id: 'a', class: 'url', span: 'https://example.com/docs', answer: 'The docs at https://example.com/docs say so.', evidence: { seq: 3 }, printed: [] },
+    // Let through today. The stored span keeps the trailing comma the candidate trims.
+    { id: 'b', class: 'url', span: 'https://example.com/b,', answer: 'CLEAN https://example.com/b, ok', evidence: { seq: 3, urls: ['example.com'] }, printed: [] },
+  ]));
+  const swap = path.join(fx.home, 'swap.cjs');
+  fs.writeFileSync(swap, 'module.exports={classify:(a)=>({unbacked:a.startsWith("CLEAN")?[{class:"url",span:"https://example.com/b",needs:"n"}]:[],residualText:""})};\n');
+  let out = '';
+  try {
+    execFileSync('node', [REPLAY, '--candidate', swap], { encoding: 'utf8', env: { ...process.env, VERIFIED_HOME: fx.home } });
+  } catch (e) {
+    out = e.stdout || '';
+  }
+  assert.match(out, /REJECT\. it blocks 1 known-clean claim the current config lets through/, out);
+});
+
+test('a block from before any tool call takes the next answer on its thread as its rewrite', () => {
+  const fx = fixture();
+  fs.writeFileSync(path.join(fx.home, 'ledger.jsonl'), [
+    node({ ts: '2026-10-01T10:00:00Z', action: 'block', answer: 'See https://example.com/x.', claims: [{ class: 'url', span: 'https://example.com/x' }], resolved: true }),
+    node({ ts: '2026-10-01T10:00:20Z', answer: 'I have not opened that page, so treat it as a guess.' }),
+    node({ ts: '2026-10-01T11:00:00Z', answer: 'An unrelated later turn.', evidence: { seq: 4 } }),
+  ].join('\n') + '\n');
+  process.env.VERIFIED_HOME = fx.home;
+  try {
+    const { ledgerWorlds } = require('./replay.cjs');
+    assert.strictEqual(ledgerWorlds()[0].nextAnswer, 'I have not opened that page, so treat it as a guess.');
+  } finally {
+    delete process.env.VERIFIED_HOME;
+  }
+});
+
+test('a clean set that does not parse stops replay instead of switching the veto off', () => {
+  const fx = fixture();
+  fs.writeFileSync(path.join(fx.home, 'clean.json'), '[{"id": "a",');
+  assert.throws(() => execFileSync('node', [CLEAN], { stdio: 'pipe', env: { ...process.env, VERIFIED_HOME: fx.home } }), /JSON/);
+});

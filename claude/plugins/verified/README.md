@@ -39,7 +39,7 @@ The score is `V = catches − false positives − 0.25 × blocked turns`. Sessio
 
 | Verdict | When |
 |---|---|
-| `REJECT` | V drops on train or on test |
+| `REJECT` | V drops on train or on test, or the candidate blocks a known-clean claim the current config lets through |
 | `SHIP` | no session scores differently, or both sides gain and the test gain's interval stays above zero |
 | `OVERFIT` | train gains and test stays flat, including when no test session is affected |
 | `NOISE` | test gains, but its interval reaches zero |
@@ -57,6 +57,37 @@ node hooks/gold.cjs --agreement   # labeller vs the hand labels, per class
 ```
 
 The page preselects each draft label. Change any you disagree with, download the file, and save it over `gold.json`. Both files carry answer text, so they stay in `~/.claude/verified/`.
+
+### What happened after each block
+
+`resolved` can't tell a right block from a wrong one, because the model always rewrites. `hooks/outcomes.cjs` sorts each block by what the rewrite did instead:
+
+```sh
+node hooks/outcomes.cjs --since 2026-10-08   # counts per class (default: the last 14 days)
+node hooks/outcomes.cjs --list               # each block and its rewrite, train sessions only
+```
+
+| Outcome | The rewrite |
+|---|---|
+| `checked` | ran the test or fetched the page the block asked for |
+| `kept` | still makes the claim with nothing new behind it |
+| `dropped` | left the claim out without checking it |
+| `side-summary` | doesn't apply: the block hit a compaction or away summary with no manifest |
+| `no-rewrite` | never came: the session didn't answer on that thread again |
+
+`checked` isn't precision: a model re-runs a test it already ran just to get past the gate. The rewrite is the next answer on the same thread, so prompt suggestions and progress lines recorded in between are skipped.
+
+### The clean set
+
+`~/.claude/verified/clean.json` holds claims a person confirmed were fine, each with the manifest it was judged against. Replay prints how many of them the current config still blocks, and rejects a candidate that blocks any it lets through.
+
+```sh
+node hooks/clean.cjs --add                    # copy the person-labelled false blocks from gold.json
+node hooks/clean.cjs                          # which clean claims the current config blocks
+node hooks/clean.cjs --candidate <file>       # the same for a forked claim-patterns.cjs
+```
+
+Run `--add` after each round of hand labels: `gold.cjs --sample` overwrites `gold.json`.
 
 Scores per commit, the scorer's blind spots and the gap to the best possible score are in `RESULTS.md`.
 

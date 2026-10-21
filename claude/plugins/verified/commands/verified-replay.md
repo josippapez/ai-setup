@@ -32,7 +32,8 @@ node "${CLAUDE_PLUGIN_ROOT}/hooks/replay.cjs" --pin
 
 Pinning is append-only: re-running admits new sessions and never drops old ones.
 
-The scorer prints one verdict: `SHIP`, `REJECT` (a split scores worse), `OVERFIT`
+The scorer prints one verdict: `SHIP`, `REJECT` (a split scores worse, or the
+candidate blocks a claim in `clean.json`, which a person confirmed was fine, that the current config lets through), `OVERFIT`
 (train gains, held-out test sessions stay flat) or `NOISE` (the test gain's 95%
 interval reaches zero). Report the verdict, the train and test deltas, and the
 interval. On anything but `SHIP`, do not apply the change: the current
