@@ -199,6 +199,26 @@ from those patterns:
 
 None lifted the two subagent-attributed blocks the regex lifts, so the regex ships and no model runs.
 
+## Baseline after the rewrite-pairing fix (2026-10-21)
+
+`7d79f4a` pairs a block with the next answer on its own thread, not the session's next ledger
+node: prompt suggestions and progress lines logged in between had been graded as the rewrite. That
+alone moved ledger V from -38.75 to -10.75, so compare later changes against these rows, not the
+ones above. Same config as 0.2.8.
+
+| source | V | blocks | train V | test V (95% CI) | outcome catch / fp | url catch / fp / unknown |
+|---|---|---|---|---|---|---|
+| ledger, 12971 nodes | -8.5 | 174 (1.3%) | -18.8 | 10.3 (-3.8 to 26.5) | 63 / 67 | 44 / 5 / 47 |
+| corpus, 3082 turns, 1370 worlds | 66.8 | 93 (3.0%) | 47.8 | 19.0 (5.3 to 38.0) | 56 / 0 | 43 / 9 / 15 |
+
+- Hand labels, now all 50 confirmed by a person: the labeller agrees on 40 (80%): path-missing
+  23/25, url 12/15, command-outcome 5/10.
+- Clean set (`hooks/clean.cjs`, 39 claims a person confirmed fine): the current config still blocks
+  4, 3 urls and a "build passed" recap.
+- What the rewrite did (`hooks/outcomes.cjs`, 70 blocked claims since 2026-10-08): 31 ran the check,
+  1 kept the claim, 22 dropped it, 16 hit a summary with no manifest. Running the check is not the
+  same as the block being right: a model re-runs a test just to get past the gate.
+
 ## Targets once live
 
 Precision (resolved blocks / all blocks) ≥ 0.9. Block rate ≤ 0.1. Replay puts
