@@ -67,12 +67,25 @@ node -e '
 cp "$SRC/package.json" "$DEST/package.json"
 
 for directory in agents commands plugins rules skills; do
-  # ${DEST:?} so an unset/empty DEST aborts instead of expanding to "/agents".
-  rm -rf "${DEST:?}/$directory"
+  # Replace only what this installer put there, listed in .ai-setup-owned: other tools install
+  # into these folders too, and wiping the whole folder deleted herdr's plugins/herdr-agent-state.js
+  # on every run. ${DEST:?} so an unset/empty DEST aborts instead of expanding to "/agents".
+  owned="${DEST:?}/$directory/.ai-setup-owned"
+  mkdir -p "$DEST/$directory"
+  if [ -f "$owned" ]; then
+    while IFS= read -r name; do
+      [ -n "$name" ] && rm -rf "${DEST:?}/$directory/$name"
+    done < "$owned"
+  fi
+  : > "$owned"
   if [ -d "$SRC/$directory" ]; then
-    cp -R "$SRC/$directory" "$DEST/$directory"
-  else
-    mkdir -p "$DEST/$directory"
+    for entry in "$SRC/$directory"/*; do
+      [ -e "$entry" ] || continue
+      name=$(basename "$entry")
+      rm -rf "${DEST:?}/$directory/$name"
+      cp -R "$entry" "$DEST/$directory/$name"
+      printf '%s\n' "$name" >> "$owned"
+    done
   fi
 done
 
