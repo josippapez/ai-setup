@@ -96,6 +96,31 @@ function recentlyBuilt(context) {
   try { return Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')) < BUILD_DEBOUNCE_MS; }
   catch { return false; }
 }
+function debounceLeftMs(context) {
+  try { return Math.max(0, BUILD_DEBOUNCE_MS - (Date.now() - Number(fs.readFileSync(stampPath(context), 'utf8')))); }
+  catch { return 0; }
+}
+
+// A skipped call (debounced or locked) used to drop its edit until some later trigger.
+// One trailing build per repo root stands in for every call skipped meanwhile. It is an
+// ordinary unforced build, so it skips again (and re-arms) if the window or lock is still
+// in the way. unref: it must not keep a CLI or a test process alive.
+const LOCK_RETRY_MS = 2000;
+const trailing = new Map();
+function scheduleTrailingBuild(context, delayMs) {
+  if (trailing.has(context.root)) return;
+  const timer = setTimeout(() => {
+    trailing.delete(context.root);
+    buildDocIndex(context).catch(() => {});
+  }, delayMs);
+  timer.unref();
+  trailing.set(context.root, timer);
+}
+// A trailing build that fires after shutdown() would start the embedder again and keep the process alive.
+function cancelTrailingBuilds() {
+  for (const timer of trailing.values()) clearTimeout(timer);
+  trailing.clear();
+}
 // saveRecords writes `<index>.tmp.<pid>` and renames it over the index; a server killed
 // mid-write leaves that file behind. Only the lock holder writes, so any left now is dead.
 function removeAbandonedTempFiles(context) {
@@ -161,9 +186,11 @@ async function buildDocIndex(context, { force = false } = {}) {
   if (!indexDirInRepo(context)) return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), refused: true };
   ensureGitignore(path.dirname(indexPath(context))); // dir must exist for the lock
   if (!force && recentlyBuilt(context)) {
+    scheduleTrailingBuild(context, debounceLeftMs(context) + 50);
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), debounced: true };
   }
   if (!acquireBuildLock(context)) {
+    scheduleTrailingBuild(context, LOCK_RETRY_MS);
     return { updated: 0, unchanged: 0, skipped: 0, cache: indexPath(context), locked: true };
   }
   removeAbandonedTempFiles(context);
@@ -244,7 +271,7 @@ async function runBuild(context) {
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
-module.exports = { buildDocIndex, indexPath, builtAtOtherHead, buildProgress };
+module.exports = { buildDocIndex, cancelTrailingBuilds, indexPath, builtAtOtherHead, buildProgress };
 
 if (require.main === module) {
   (async () => {

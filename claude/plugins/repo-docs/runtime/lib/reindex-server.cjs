@@ -60,4 +60,33 @@ async function startReindexServer(context, { build = buildDocIndex } = {}) {
   return (await attemptListen(server, sockPath)) ? server : null;
 }
 
-module.exports = { startReindexServer, reindexSocketPath };
+// startReindexServer once, and if another session holds the socket, keep trying while this
+// process runs: that session's exit removes the socket, and without a retry no session
+// would reindex edits again. Stops trying once it hosts. unref: never keeps the process alive.
+async function keepReindexServer(context, { build, intervalMs = Number(process.env.REPO_DOCS_REINDEX_RETRY_MS) || 30000, onServer = () => {} } = {}) {
+  const opts = build ? { build } : undefined;
+  let timer = null;
+  let stopped = false;
+  const stop = () => { stopped = true; if (timer) clearInterval(timer); timer = null; };
+  const attempt = async () => {
+    const server = await startReindexServer(context, opts);
+    if (!server) return null;
+    if (stopped) { server.close(); return null; }
+    stop();
+    onServer(server);
+    return server;
+  };
+  const first = await attempt();
+  if (!first && !stopped) {
+    let busy = false;
+    timer = setInterval(() => {
+      if (busy) return;
+      busy = true;
+      attempt().catch(() => {}).finally(() => { busy = false; });
+    }, intervalMs);
+    timer.unref();
+  }
+  return { server: first, stop };
+}
+
+module.exports = { startReindexServer, keepReindexServer, reindexSocketPath };

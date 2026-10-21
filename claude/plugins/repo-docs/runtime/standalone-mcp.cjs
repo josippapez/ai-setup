@@ -5,7 +5,7 @@ const readline = require('node:readline');
 const { createContext } = require('./lib/context.cjs');
 const { warmUp } = require('./lib/semantic-index.cjs');
 const { buildDocIndex } = require('./tools/build-semantic-index.cjs');
-const { startReindexServer } = require('./lib/reindex-server.cjs');
+const { keepReindexServer } = require('./lib/reindex-server.cjs');
 const { findDocsTool } = require('./tools/find-docs.cjs');
 const { listDocsTool } = require('./tools/list-docs.cjs');
 const { readDocTool } = require('./tools/read-doc.cjs');
@@ -68,7 +68,7 @@ async function handleRequest(message) {
     buildDocIndex(context).catch(() => {});
     // Host the mid-session reindex socket so the PostToolUse hook can re-embed
     // edited docs without a reconnect.
-    startReindexServer(context).catch(() => {});
+    keepReindexServer(context).catch(() => {});
     return;
   }
   if (method === 'shutdown') {

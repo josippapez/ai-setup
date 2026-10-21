@@ -16,7 +16,7 @@ const {
   manageMemoriesTool,
 } = require('./tools/manage-memories.cjs');
 const { ensureOpenCodeServer } = require('./lib/opencode-server.cjs');
-const { startReindexServer } = require('./lib/reindex-server.cjs');
+const { keepReindexServer } = require('./lib/reindex-server.cjs');
 
 const SERVER_INFO = { name: 'repo-docs', version: '0.5.0' };
 const SUPPORTED_PROTOCOL_VERSION = '2024-11-05';
@@ -92,8 +92,7 @@ async function handleRequest(message) {
     buildDocIndex(context).catch(() => {});
     // Reuse this process's warm model for incremental reindex requests from the
     // OpenCode plugin after Markdown edits.
-    startReindexServer(context)
-      .then((server) => { reindexServer = server; })
+    keepReindexServer(context, { onServer: (server) => { reindexServer = server; } })
       .catch(() => {});
     return;
   }

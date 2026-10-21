@@ -24,7 +24,7 @@ The MCP pre-embeds the repo's Markdown in the background when it connects (fire-
 
 The two models are shared between sessions. The first session to need one starts `runtime/lib/model-server.cjs`, a background process that listens on `~/.claude/models/model-server.sock`, holds the embedder and the reranker, and exits after 10 minutes with no request; every other session talks to it instead of loading its own copy (the reranker alone is about 250 MB, the embedder about 125 MB). A session's embedder worker then loads only the tokenizer. Index builds queue behind queries, so a build in one session does not stall `find_docs` in another. The server outlives the session that started it, and the SessionEnd reaper only touches `standalone-mcp.cjs`. If the server cannot be reached or runs another protocol version, each session loads its models itself as before. Set `MODEL_SERVER_DISABLE=1` to skip the server.
 
-At the end of a turn that touched a Markdown file, the mod in `hooks/reindex.ts` runs `hooks/reindex-on-edit.cjs`, which asks the running server, over a local socket (`.claude/repo-docs/inject.sock`), to re-embed changed docs, so mid-session doc edits are searchable without a reconnect.
+At the end of a turn that touched a Markdown file, the mod in `hooks/reindex.ts` runs `hooks/reindex-on-edit.cjs`, which asks the running server, over a local socket (`.claude/repo-docs/inject.sock`), to re-embed changed docs, so mid-session doc edits are searchable without a reconnect. A build skipped because another ran in the last 5 s or holds the lock is retried once afterwards, and a server that did not get the socket retries taking it every 30 s, so the edits still land when the session that hosted the socket exits.
 
 ## Removed in 0.3.0
 

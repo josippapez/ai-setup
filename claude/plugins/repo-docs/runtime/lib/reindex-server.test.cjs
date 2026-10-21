@@ -5,7 +5,7 @@ const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startReindexServer, reindexSocketPath } = require('./reindex-server.cjs');
+const { startReindexServer, keepReindexServer, reindexSocketPath } = require('./reindex-server.cjs');
 
 function ask(sockPath, req) {
   return new Promise((resolve, reject) => {
@@ -78,4 +78,28 @@ test('a later server can bind after the first one closes', async () => {
   const second = await startReindexServer(context, { build });
   assert.ok(second, 'a later server must be able to bind once the first is gone');
   await new Promise(r => second.close(r));
+});
+
+test('a server that lost the socket takes it over when the host closes, and then serves reindex requests', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reindex-'));
+  const context = { root, maxFileSizeBytes: 1e6 };
+  let hostBuilds = 0, standbyBuilds = 0, took = null;
+  const host = await startReindexServer(context, { build: async () => { hostBuilds += 1; return {}; } });
+  assert.ok(host);
+
+  const standby = await keepReindexServer(context, { build: async () => { standbyBuilds += 1; return {}; }, intervalMs: 100, onServer: (s) => { took = s; } });
+  assert.strictEqual(standby.server, null, 'the host still holds the socket');
+
+  await new Promise(r => host.close(r));
+  const deadline = Date.now() + 3000;
+  let res = null;
+  while (!res && Date.now() < deadline) {
+    res = await ask(reindexSocketPath(root), { op: 'reindex' }).catch(() => null);
+    if (!res) await new Promise(r => setTimeout(r, 50));
+  }
+  assert.ok(res && res.reindexed === true, 'the standby must host the socket within the retry interval');
+  assert.strictEqual(hostBuilds, 0);
+  assert.strictEqual(standbyBuilds, 1);
+  standby.stop();
+  await new Promise(r => took.close(r));
 });

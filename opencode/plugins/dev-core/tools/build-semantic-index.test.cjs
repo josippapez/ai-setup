@@ -10,8 +10,9 @@ const { CONFIG_DIR } = require('../lib/platform.cjs');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { createContext } = require('../lib/context.cjs');
-const { shutdown } = require('../lib/semantic-index.cjs');
-const { buildDocIndex, builtAtOtherHead } = require('./build-semantic-index.cjs');
+const { shutdown: shutdownEmbedder } = require('../lib/semantic-index.cjs');
+const { buildDocIndex, builtAtOtherHead, cancelTrailingBuilds } = require('./build-semantic-index.cjs');
+const shutdown = () => { cancelTrailingBuilds(); return shutdownEmbedder(); };
 const { skipWithoutRuntimeDeps } = require('../lib/test-runtime-deps.cjs');
 const skip = skipWithoutRuntimeDeps();
 
