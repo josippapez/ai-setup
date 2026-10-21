@@ -1,5 +1,8 @@
 'use strict';
 
+// These exercise the in-process embedder/reranker; the shared model server has its own tests.
+process.env.MODEL_SERVER_DISABLE = '1';
+
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
