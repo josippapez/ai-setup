@@ -1,4 +1,3 @@
-import { homedir } from 'node:os';
 import net from 'node:net';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
@@ -43,14 +42,9 @@ export default {
     }
     const openCodeServerUrl = process.env.OPENCODE_SERVER_URL || 'http://localhost:4096';
     /** @type {Record<string, string>} */
-    const environment = {
-      // OpenCode-namespaced model cache dir so bge-small/reranker download once
-      // under ~/.config/opencode (not claude's ~/.claude/repo-docs-models). The
-      // ported semantic-index.cjs/reranker.cjs honor this env var.
-      REPO_DOCS_MODELS_DIR:
-        process.env.REPO_DOCS_MODELS_DIR ||
-        join(homedir(), '.config', 'opencode', 'repo-docs-models'),
-    };
+    const environment = {};
+    // Models default to the folder Claude Code uses (lib/platform.cjs); an override still passes through.
+    if (process.env.REPO_DOCS_MODELS_DIR) environment.REPO_DOCS_MODELS_DIR = process.env.REPO_DOCS_MODELS_DIR;
     if (process.env.OPENCODE_SERVER_PASSWORD) {
       environment.OPENCODE_SERVER_PASSWORD = process.env.OPENCODE_SERVER_PASSWORD;
     }
