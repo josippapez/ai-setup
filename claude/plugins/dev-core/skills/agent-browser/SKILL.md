@@ -43,7 +43,8 @@ agent-browser read https://example.com/docs/api --max-output 8000
 1. `--outline` or `--llms index` to locate the exact page (skip if you already have the URL).
 2. `read` it, with `--filter` when you know the term you need.
 3. Quote the specific detail — option name, signature, version, number — and cite the URL you fetched.
-4. If the fetch fails or the page is ambiguous, say `unverified` in the same sentence as the claim. Never fall back silently to memory.
+4. If `read`, WebFetch or curl is refused or blocked (Reddit, X and other bot-blocking sites), switch to the real browser on your own: `agent-browser open <url> && agent-browser wait --load networkidle && agent-browser get text <selector>`, or the chrome-devtools tools when Chrome is running. Only if that fails too, say `unverified` in the same sentence as the claim. Never fall back silently to memory.
+5. Never send the user's email in a User-Agent, From or other header, even when the site's policy asks for contact info. Leave it out or use `noreply@example.com`.
 
 **Use it for:** current library versions and changelogs, API signatures and option names, CLI flags, config keys, spec wording, error-message meanings, pricing and limits, GitHub issues and release notes, upstream migration guides, anything dated after your training cutoff.
 
