@@ -181,6 +181,33 @@ test('a live build that started longer ago than the stale window keeps its lock'
   assert.strictEqual((await rival).locked, true, 'a rival must back off while the build still writes progress');
 });
 
+test('a build that dies partway keeps what it embedded for the next build', { skip }, async (t) => {
+  const root = makeRepo(33); // two embed rounds
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  const progress = path.join(root, CONFIG_DIR, 'repo-docs', 'index-build.progress');
+
+  // Round one runs past the checkpoint interval, then the embedder dies as round two starts.
+  let offset = 0;
+  const realNow = Date.now.bind(Date);
+  t.mock.method(Date, 'now', () => realNow() + offset);
+  let rounds = 0;
+  const realWrite = fs.writeFileSync.bind(fs);
+  t.mock.method(fs, 'writeFileSync', (file, ...rest) => {
+    if (file === progress && ++rounds === 1) offset = 2 * 60 * 1000;
+    if (file === progress && rounds === 2) shutdownEmbedder();
+    return realWrite(file, ...rest);
+  });
+  await assert.rejects(buildDocIndex(context, { force: true }), /no longer ready/);
+  t.mock.restoreAll();
+
+  const second = await buildDocIndex(context, { force: true });
+  assert.strictEqual(second.updated, 1, 'only the doc the first build never reached is embedded');
+  assert.strictEqual(second.unchanged, 32);
+  const names = fs.readdirSync(path.join(root, CONFIG_DIR, 'repo-docs'));
+  assert.ok(!names.some(n => n.includes('checkpoint')), 'a finished build removes its checkpoint');
+});
+
 test('a stale lock another server claims mid-takeover is not overwritten', { skip }, async (t) => {
   const root = makeRepo(1);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });

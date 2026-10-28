@@ -31,6 +31,10 @@ function stampPath(context) { return path.join(path.dirname(indexPath(context)),
 // "<done> <total>" while a build runs, for the status-line mod; removed with the lock.
 function headPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.head'); }
 function progressPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.progress'); }
+// A build saves what it has embedded here about once a minute, so one that stops partway
+// (its session closed) loses at most that much. Only builds read it; find_docs never sees a half-built index.
+function checkpointPath(context) { return path.join(path.dirname(indexPath(context)), `repo-docs-index.checkpoint-v${SCHEMA_VERSION}.json`); }
+const CHECKPOINT_MS = 60 * 1000;
 
 // A build that shows no sign of life for this long is treated as crashed or hung and
 // its lock is taken over. The progress file, rewritten every embed round, is that sign.
@@ -128,9 +132,9 @@ function cancelTrailingBuilds() {
 // mid-write leaves that file behind. Only the lock holder writes, so any left now is dead.
 function removeAbandonedTempFiles(context) {
   const dir = path.dirname(indexPath(context));
-  const prefix = `${path.basename(indexPath(context))}.tmp.`;
+  const prefixes = [indexPath(context), checkpointPath(context)].map(p => `${path.basename(p)}.tmp.`);
   try {
-    for (const name of fs.readdirSync(dir)) if (name.startsWith(prefix)) fs.rmSync(path.join(dir, name), { force: true });
+    for (const name of fs.readdirSync(dir)) if (prefixes.some(p => name.startsWith(p))) fs.rmSync(path.join(dir, name), { force: true });
   } catch {}
 }
 // The running build's progress, with the time left at the pace so far (null before the
@@ -160,23 +164,24 @@ function builtAtOtherHead(context) {
 // buildDocIndex can reuse cached chunks verbatim for files whose mtime or content is unchanged.
 async function loadPriorCache(context) {
   const byPath = new Map();
-  try {
-    const meta = JSON.parse(fs.readFileSync(metaPath(context), 'utf8'));
-    if (meta.schemaVersion !== SCHEMA_VERSION) return byPath;
-  } catch {
-    return byPath;
-  }
-  const records = await readRecords(indexPath(context));
-  if (!records) return byPath;
-  for (const rec of records) {
-    if (!rec || typeof rec.mtime !== 'number' || typeof rec.hash !== 'string' || typeof rec.path !== 'string') continue;
-    let group = byPath.get(rec.path);
-    if (!group) { group = { mtime: rec.mtime, hash: rec.hash, records: [] }; byPath.set(rec.path, group); }
-    // A path's records should all share one mtime and hash (written together per build).
-    // If they don't (corrupt/foreign index), force a rebuild for that path.
-    if (group.mtime !== rec.mtime) group.mtime = NaN;
-    if (group.hash !== rec.hash) group.hash = null;
-    group.records.push(rec);
+  let indexCurrent = false;
+  try { indexCurrent = JSON.parse(fs.readFileSync(metaPath(context), 'utf8')).schemaVersion === SCHEMA_VERSION; } catch {}
+  // A checkpoint is newer than the index, so its groups replace the index's.
+  for (const file of [indexCurrent && indexPath(context), checkpointPath(context)]) {
+    const records = file && await readRecords(file);
+    if (!records) continue;
+    const groups = new Map();
+    for (const rec of records) {
+      if (!rec || typeof rec.mtime !== 'number' || typeof rec.hash !== 'string' || typeof rec.path !== 'string') continue;
+      let group = groups.get(rec.path);
+      if (!group) { group = { mtime: rec.mtime, hash: rec.hash, records: [] }; groups.set(rec.path, group); }
+      // A path's records should all share one mtime and hash (written together per build).
+      // If they don't (corrupt/foreign index), force a rebuild for that path.
+      if (group.mtime !== rec.mtime) group.mtime = NaN;
+      if (group.hash !== rec.hash) group.hash = null;
+      group.records.push(rec);
+    }
+    for (const [p, group] of groups) byPath.set(p, group);
   }
   return byPath;
 }
@@ -242,6 +247,7 @@ async function runBuild(context) {
     }
     changed.push({ i, rel, content, mtime: stat.mtimeMs, hash });
   }
+  let checkpointedAt = Date.now();
   for (let start = 0; start < changed.length; start += DOCS_PER_ROUND) {
     try { writeFileNoFollow(progressPath(context), `${start} ${changed.length}`); } catch {}
     const round = changed.slice(start, start + DOCS_PER_ROUND);
@@ -259,6 +265,10 @@ async function runBuild(context) {
       }
       if (records.length) { slots[doc.i] = records; updated++; }
     });
+    if (Date.now() - checkpointedAt >= CHECKPOINT_MS) {
+      await saveRecords(slots.flat(), checkpointPath(context));
+      checkpointedAt = Date.now();
+    }
   }
   const all = slots.flat();
   const dir = path.dirname(indexPath(context));
@@ -271,6 +281,7 @@ async function runBuild(context) {
   // schemaVersion===current in meta is then guaranteed a complete matching index.
   await saveRecords(all, indexPath(context));
   writeFileNoFollow(metaPath(context), JSON.stringify({ model: MODEL_ID, dtype: MODEL_DTYPE, schemaVersion: SCHEMA_VERSION }));
+  fs.rmSync(checkpointPath(context), { force: true });
   return { updated, unchanged, skipped, cache: indexPath(context) };
 }
 
