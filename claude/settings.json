@@ -50,17 +50,6 @@
     ]
   },
   "model": "opus",
-  "modelSettings": {
-    "claude-opus-5": {
-      "effortLevel": "xhigh"
-    },
-    "claude-fable-5-1": {
-      "effortLevel": "high"
-    },
-    "claude-opus-5-5": {
-      "effortLevel": "medium"
-    }
-  },
   "env": {
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
   },
@@ -104,7 +93,7 @@
       }
     }
   },
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "skillListingBudgetFraction": 0.05,
   "tui": "fullscreen",
   "remoteControlAtStartup": true,
