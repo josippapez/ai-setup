@@ -32,8 +32,8 @@ function stampPath(context) { return path.join(path.dirname(indexPath(context)),
 function headPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.head'); }
 function progressPath(context) { return path.join(path.dirname(indexPath(context)), 'index-build.progress'); }
 
-// A build shouldn't outlast this; a lock older than it is treated as a crashed
-// build and taken over. Comfortably above a full cold rebuild of this corpus.
+// A build that shows no sign of life for this long is treated as crashed or hung and
+// its lock is taken over. The progress file, rewritten every embed round, is that sign.
 const BUILD_LOCK_STALE_MS = 15 * 60 * 1000;
 // Coalesce bursts of rebuild triggers (e.g. many reindex ops from rapid .md
 // edits, or several sessions connecting at once) into at most one build per window.
@@ -82,7 +82,10 @@ function acquireBuildLock(context) {
     try {
       owner = fs.readFileSync(lock, 'utf8');
       const dead = !isLockOwnerAlive(parseInt(owner, 10));
-      stale = dead || Date.now() - fs.statSync(lock).mtimeMs > BUILD_LOCK_STALE_MS;
+      // The lock's own mtime stays the build's start time, which buildProgress needs for the ETA.
+      let lastSign = fs.statSync(lock).mtimeMs;
+      try { lastSign = Math.max(lastSign, fs.statSync(progressPath(context)).mtimeMs); } catch {}
+      stale = dead || Date.now() - lastSign > BUILD_LOCK_STALE_MS;
     }
     catch { stale = true; } // lock vanished between the failed create and here
     if (!stale) return false;

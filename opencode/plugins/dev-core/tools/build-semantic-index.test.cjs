@@ -155,6 +155,32 @@ test('a lock owned by a dead pid is stale and gets taken over', { skip }, async 
   assert.strictEqual(res.updated, 2);
 });
 
+test('a live build that started longer ago than the stale window keeps its lock', { skip }, async (t) => {
+  const root = makeRepo(33); // two embed rounds
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
+  const lock = path.join(dir, 'index-build.lock');
+  const progress = path.join(dir, 'index-build.progress');
+
+  // As round one starts, date the lock 20 minutes back and start a rival build.
+  let rival;
+  const realWrite = fs.writeFileSync.bind(fs);
+  t.mock.method(fs, 'writeFileSync', (file, ...rest) => {
+    const out = realWrite(file, ...rest);
+    if (file === progress && !rival) {
+      const old = new Date(Date.now() - 20 * 60 * 1000);
+      fs.utimesSync(lock, old, old);
+      rival = buildDocIndex(context, { force: true });
+    }
+    return out;
+  });
+
+  const res = await buildDocIndex(context, { force: true });
+  assert.strictEqual(res.updated, 33);
+  assert.strictEqual((await rival).locked, true, 'a rival must back off while the build still writes progress');
+});
+
 test('a stale lock another server claims mid-takeover is not overwritten', { skip }, async (t) => {
   const root = makeRepo(1);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
