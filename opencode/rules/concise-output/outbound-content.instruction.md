@@ -16,10 +16,10 @@ The reader is on the other side of the network and did not see your session. You
 
 Cut these from posted text unless the user asked for them, or the reader cannot act without them:
 
-- **Design and ticket references** — Figma node ids and links, design file URLs, acceptance-criteria numbers (`AC5`), ticket ids the thread does not already carry, related work items nobody asked about.
-- **Machine detail** — absolute paths, branch and worktree names, volume names, session, job, or run ids, environment names, localhost URLs.
-- **Process narration** — what you tried first, which agent or tool did what, what you verified, how many files you touched.
-- **Extras riding along** — a next-steps list, a summary of the diff, caveats nobody asked about, a second topic bundled into a comment about the first.
+- **Design and ticket references.** Figma node ids and links, design file URLs, acceptance-criteria numbers (`AC5`), ticket ids the thread does not already carry, related work items nobody asked about.
+- **Machine detail.** Absolute paths, branch and worktree names, volume names, session, job, or run ids, environment names, localhost URLs.
+- **Process narration.** What you tried first, which agent or tool did what, what you verified, how many files you touched.
+- **Extras riding along.** A next-steps list, a summary of the diff, caveats nobody asked about, a second topic bundled into a comment about the first.
 
 ## Default in
 
