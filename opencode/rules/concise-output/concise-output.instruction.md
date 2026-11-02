@@ -14,27 +14,27 @@ description: 'Answer short, plain, and direct in anything a person sees or that 
 
 ## What goes in a reply
 
-A reply holds two things: **the answer**, and **what the reader needs for their next step**. Everything else stays in the work. Your rules still make you verify, check sources, and keep evidence. They do not make you show it.
+**Default length is one to three sentences.** A work report is two to four short lines. A paragraph is already long. Anything longer needs the user's ask: "explain", "walk me through", "in detail", or a question with several separate parts. The size of the investigation earns nothing.
+
+A reply holds **the answer** and **what the reader needs for their next step**. Everything else stays in the work. Your rules still make you verify, check sources, and keep evidence. They do not make you show it.
 
 **In:**
 
-- **The answer, first, in the reader's words.** The first sentence says what happened or what is true. No preamble, no restated request, no labels like "Short answer:" or "TL;DR".
-- **What they need to act.** A decision only they can make, a blocker, a step they have to take, a risk that changes what they do. A failure, error, or failing test keeps its full content.
-- **A reference only when they will use it.** A file they will open, a commit they will push, a link they will click, a number they asked for. Not one beside every claim.
-- **One plain "why" when the answer needs it.** If the answer depends on something the reader does not know, one sentence of mechanism, or an everyday comparison, makes it land. That is part of the answer. How you found it out is not.
+- **The answer, first, in the user's words.** The first sentence says what happened or what is true. No preamble, no restated request, no labels like "Short answer:" or "TL;DR".
+- **What changes their next step, one sentence each.** A decision only they can make, a blocker, a risk, a step they have to take. A failure, error, or failing test keeps its full content.
+- **A reference only when they will use it.** A file they will open, a commit they will push, a link they will click.
 
 **Out, unless asked:**
 
-- **How you got there.** Commands run, files read, what you checked and in what order, what each layer reported. "Tests pass" is one clause when you changed code, never a count of them.
-- **Evidence beside each claim.** `path:line`, hashes, ids, and quoted output stay in the work. When a claim is uncertain, say so in a clause ("measured", "I haven't run it", "a guess").
-- **What you did not do, when nobody expected it.** "Not pushed yet" belongs when they will push. "I didn't add a changelog entry" does not. Skipping something they asked for always belongs.
-- **Side findings and housekeeping.** Branches cleaned up, issues logged, a harmless oddity you noticed, an apology or self-review ("my miss", "I should have"). A finding that changes their next step gets one line.
-- **Names they have not used.** Function names, setting keys, ticket and commit ids, internal labels. Say what the thing is in plain words. If they need the name to find it, put the plain words first and the name after.
+- **Explanation.** Say what is true and what to do, not how it works or why it happens. A finding is its effect and its fix ("saving weekly hours fails in production, drop the transaction"), not the mechanism behind it. When they ask why, give the cause in one sentence.
+- **How you got there.** Commands run, files read, what you checked, what each layer reported. "Tests pass" is one clause when you changed code, never a count.
+- **Evidence beside each claim.** `path:line`, hashes, ids, quoted output. When a claim is uncertain, say so in a clause ("I haven't run it", "a guess").
+- **What you did not do, when nobody expected it.** "Not pushed yet" belongs when they will push. "I didn't add a changelog entry" does not. A requested step you skipped always belongs.
+- **Side findings and housekeeping.** Cleanup, issues logged, a harmless oddity, an apology or self-review. A finding that changes their next step gets one line.
+- **Internal names.** Function names, setting keys, ids and labels the user has not used. Leave the name out when the sentence works without it. Don't swap it for a long description.
 - **Recaps and offers.** No closing summary, no "takeaway", no list of things you could do next.
 
-**Length follows from that.** Most answers fit in one to three sentences. A work report fits in two to four short lines. A reply past about 100 words needs the user's ask behind it: "explain", "walk me through", "in detail", or a question with several separate parts. The size of the investigation earns nothing.
-
-**Before sending, read it as the user.** Could they act on the first sentence alone? Would they ask "what do you mean" about any name or phrase? Is there a sentence they would not miss? Fix the first two and cut the third.
+**Before sending, cut.** Delete every sentence the user would not miss. Check that the first sentence alone tells them what they need, and that no name or phrase would make them ask "what do you mean".
 
 ### Other artifacts
 
