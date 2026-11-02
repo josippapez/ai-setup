@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { contentOf, hintFor, labelFor, previewLines, rowsFor } from '../hooks/register'
+import { contentOf, hintFor, labelFor, rowsFor } from '../hooks/register'
 
 const props = (isExpanded: boolean) => ({
   isActive: false,
@@ -74,13 +74,13 @@ describe('content preview', () => {
     expect(contentOf(done('Bash', { command }, { stdout: '', stderr: '', interrupted: false }))).toEqual({ size: 'no output, wrote 3 lines', lines: ['## 2026-10-06', '- event'] })
   })
 
-  test('the folded group draws the first lines under the hint', async ($, on) => {
+  test('the folded group draws one line per call and none of its output', async ($, on) => {
     on('ui.render', () => ({ type: 'Text', props: {}, children: ['Read 1 file'] }) as never)
     on('session.cwd', () => ({ value: '/repo' }))
     const calls = [done('Read', { file_path: '/repo/a.md' }, { type: 'text', file: { filePath: '/repo/a.md', content: '## 2026-10-06\n- event', numLines: 2, startLine: 1, totalLines: 2 } })]
     const ui = await $.ui.mount({ plugin: 'tool-group-hints', surface: 'terminal', component: 'ToolGroup', requestId: 'g3', props: { isActive: false, isExpanded: false, calls } })
     expect(await ui.find({ type: 'Text', text: /Read a\.md {2}· 2 lines/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /│ ## 2026-10-06/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /## 2026-10-06/ })).toBeUndefined()
     await ui.unmount()
   })
 })
@@ -105,13 +105,6 @@ describe('Codex and Pi borrowed layout', () => {
 
   test('a running shell call says Running', () => {
     expect(hintFor({ ...ok('Bash', { command: 'sleep 5' }), isRunning: true })).toBe('Running sleep 5')
-  })
-
-  test('long previews keep head and tail around a count', () => {
-    const lines = ['1', '2', '3', '4', '5', '6', '7']
-    expect(previewLines(lines, 5)).toEqual(['1', '2', '… +3 lines', '6', '7'])
-    expect(previewLines(lines, 2)).toEqual(['1', '… +6 lines'])
-    expect(previewLines(['1', '2'], 5)).toEqual(['1', '2'])
   })
 
   test('the bullet is green for success and red for failure', async ($, on) => {

@@ -1,8 +1,6 @@
 import type { Register, ToolGroupCall } from 'claude-code'
 
 const MAX_HINTS = 6
-// Lines of content shown under the hints, shared by the group's calls.
-const PREVIEW_LINES = 10
 
 export function labelFor(tool: string): string {
   const mcp = /^mcp__(.+?)__(.+)$/.exec(tool)
@@ -123,18 +121,6 @@ export function rowsFor(calls: readonly ToolGroupCall[]): Row[] {
   return rows.map(row => ({ ...row, text: row.parts.map(part => part.text).join('') }))
 }
 
-// Long previews keep their head and tail around a `… +N lines` marker.
-export function previewLines(lines: string[], budget: number): string[] {
-  if (lines.length <= budget) {
-    return lines
-  }
-
-  const head = Math.ceil((budget - 1) / 2)
-  const tail = budget - 1 - head
-
-  return [...lines.slice(0, head), `… +${lines.length - head - tail} lines`, ...(tail > 0 ? lines.slice(-tail) : [])]
-}
-
 function statusColor(calls: ToolGroupCall[]): string {
   if (calls.some(c => c.isErrored)) return 'red'
   if (calls.some(c => c.isInterrupted)) return 'yellow'
@@ -187,7 +173,6 @@ export const register: Register = on => {
     const rows = rowsFor(e.props.calls)
     const shown = rows.slice(0, MAX_HINTS)
     const rest = rows.length - shown.length
-    const perRow = Math.max(2, Math.floor(PREVIEW_LINES / shown.length))
 
     // A path reads by its file name: the directory stays quiet, the name stands out.
     const drawPart = (part: Part) => {
@@ -240,24 +225,13 @@ export const register: Register = on => {
             const content = row.calls.length === 1 ? contentOf(row.calls[0]!) : undefined
             const size = content ? `  · ${content.size}` : ''
 
+            // One line per call. The output stays behind ctrl+o, so the agent's text is what shows.
             return (
-              <Box flexDirection="column">
-                <Text wrap="truncate-end">
-                  <Text color={statusColor(row.calls)}>{'• '}</Text>
-                  {fit(row.parts, width - size.length).map(drawPart)}
-                  <Text dimColor italic>{size}</Text>
-                </Text>
-                {previewLines(content?.lines ?? [], perRow).map(line =>
-                  /^… \+\d+ lines$/.test(line) ? (
-                    <Text dimColor italic>{`  ┆ ${line}`}</Text>
-                  ) : (
-                    <Text wrap="truncate-end">
-                      <Text color="gray">{'  │ '}</Text>
-                      <Text dimColor>{clip(line, width - 4)}</Text>
-                    </Text>
-                  ),
-                )}
-              </Box>
+              <Text wrap="truncate-end">
+                <Text color={statusColor(row.calls)}>{'• '}</Text>
+                {fit(row.parts, width - size.length).map(drawPart)}
+                <Text dimColor italic>{size}</Text>
+              </Text>
             )
           })}
           {rest > 0 ? <Text dimColor italic>{`… ${rest} more`}</Text> : null}

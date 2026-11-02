@@ -1,7 +1,7 @@
 {
   "name": "tool-group-hints",
-  "version": "0.4.0",
-  "description": "Shows a one-line hint per call under folded tool-group lines (Searched for 1 pattern, ran 2 shell commands), so you can see what ran without expanding it.",
+  "version": "0.5.0",
+  "description": "Shows a one-line hint per call under folded tool-group lines (Searched for 1 pattern, ran 2 shell commands), so you can see what ran without expanding it. The output itself stays behind ctrl+o.",
   "author": {
     "name": "Personal AI Setup"
   },
