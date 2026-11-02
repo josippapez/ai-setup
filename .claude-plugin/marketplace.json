@@ -131,6 +131,24 @@
       },
       "category": "development",
       "source": "./claude/plugins/journal"
+    },
+    {
+      "name": "quiet-tools",
+      "description": "Shows each tool call as one dim line and hides its output, so the agent's text stands out. ctrl+o still shows everything.",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/quiet-tools"
+    },
+    {
+      "name": "replay-theater",
+      "description": "Step through the file edits Claude made in the last turn, one diff at a time (/replay, or r after a turn).",
+      "author": {
+        "name": "Claude Code DevRel"
+      },
+      "category": "development",
+      "source": "./claude/plugins/replay-theater"
     }
   ]
 }
