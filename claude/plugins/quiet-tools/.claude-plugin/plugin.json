@@ -1,6 +1,6 @@
 {
   "name": "quiet-tools",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Shows each tool call, and each group of calls, as one dim line; click a line to unfold it. The agent's text stands out, and ctrl+o still shows everything.",
   "author": {
     "name": "Personal AI Setup"

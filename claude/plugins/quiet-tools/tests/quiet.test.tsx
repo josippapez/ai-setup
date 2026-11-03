@@ -46,6 +46,23 @@ describe('quiet tools', () => {
     await ui.unmount()
   })
 
+  test('a skill call is bold magenta, not dim', async ($, on) => {
+    on('ui.render', engineRow('row'))
+    const props = { ...bash(false), tool: 'Skill', input: { skill: 'validate-work-item' } }
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't2', props })
+    const row = await ui.find({ type: 'Text', text: /· Skill validate-work-item/ })
+    expect([row?.props?.color, row?.props?.bold, row?.props?.dimColor]).toEqual(['magenta', true, false])
+    await ui.unmount()
+  })
+
+  test('a failed skill call stays red', async ($, on) => {
+    on('ui.render', engineRow('row'))
+    const props = { ...bash(false), tool: 'Skill', input: { skill: 'x' }, isErrored: true }
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't3', props })
+    expect((await ui.find({ type: 'Text', text: /✗ Skill x/ }))?.props?.color).toBe('error')
+    await ui.unmount()
+  })
+
   test('file tools name their file', () => {
     expect(summary('Edit', { file_path: '/repo/a.ts', old_string: 'x' })).toBe('Edit /repo/a.ts')
     expect(summary('TodoWrite', {})).toBe('TodoWrite')

@@ -75,9 +75,11 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const { tool_use_id, tool, input, isRunning, isErrored, isInterrupted } = e.props
     const mark = isErrored ? '✗' : isInterrupted ? '⊘' : isRunning ? '…' : '·'
+    // A skill is the one call worth spotting at a glance, so it is not dim.
+    const isSkill = tool === 'Skill' && !isErrored
     const line = (
       <Button key={`call-${tool_use_id}`} plain onPress={() => toggle($, tool_use_id)}>
-        <Text dimColor={!isErrored && !open.has(tool_use_id)} bold={open.has(tool_use_id)} color={isErrored ? 'error' : undefined} wrap="truncate-end">
+        <Text dimColor={!isErrored && !isSkill && !open.has(tool_use_id)} bold={isSkill || open.has(tool_use_id)} color={isErrored ? 'error' : isSkill ? 'magenta' : undefined} wrap="truncate-end">
           {mark} {summary(tool, input)}
         </Text>
       </Button>
