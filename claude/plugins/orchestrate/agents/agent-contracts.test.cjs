@@ -1,5 +1,4 @@
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -9,7 +8,8 @@ const repo = path.resolve(__dirname, '../../../..');
 const claudeAgents = path.join(repo, 'claude/plugins/orchestrate/agents');
 const openCodeAgents = path.join(repo, 'opencode/agents');
 const claudeSkill = path.join(repo, 'claude/plugins/orchestrate/skills/orchestrate');
-const openCodeSkill = path.join(repo, 'opencode/skills/orchestrate');
+// OpenCode's markdown orchestrate skill is retired to retired/markdown-orchestration/; only Claude ships it.
+const retiredOpenCodeSkill = path.join(repo, 'opencode/skills/orchestrate');
 
 const requiredAgents = [
   'repo-scout', 'solution-reuse-scout', 'md-worker', 'test-specialist',
@@ -55,8 +55,13 @@ test('standards checker stays narrow', () => {
   }
 });
 
+test('OpenCode no longer ships the retired orchestrate skill or command', () => {
+  assert.ok(!fs.existsSync(retiredOpenCodeSkill), retiredOpenCodeSkill);
+  assert.ok(!fs.existsSync(path.join(repo, 'opencode/commands/orchestrate.md')));
+});
+
 test('progressive references and canonical templates exist', () => {
-  for (const directory of [claudeSkill, openCodeSkill]) {
+  for (const directory of [claudeSkill]) {
     for (const file of ['routing.md', 'store-protocol.md', 'intake-design.md', 'execution.md', 'platform.md']) {
       assert.ok(fs.existsSync(path.join(directory, 'references', file)), `${directory}: ${file}`);
     }
@@ -67,7 +72,7 @@ test('progressive references and canonical templates exist', () => {
 });
 
 test('compact skills deterministically load references and stay between 1200 and 1999 words', () => {
-  for (const directory of [claudeSkill, openCodeSkill]) {
+  for (const directory of [claudeSkill]) {
     const skill = fs.readFileSync(path.join(directory, 'SKILL.md'), 'utf8');
     const words = skill.trim().split(/\s+/).length;
     assert.ok(words >= 1200 && words < 2000, `${directory}: ${words} words`);
@@ -79,14 +84,10 @@ test('compact skills deterministically load references and stay between 1200 and
 
 test('dispatchers resolve bundled resources from an absolute skillRoot', () => {
   const claude = fs.readFileSync(path.join(claudeSkill, 'SKILL.md'), 'utf8');
-  const openCode = fs.readFileSync(path.join(openCodeSkill, 'SKILL.md'), 'utf8');
   assert.ok(claude.includes('skillRoot = "${CLAUDE_SKILL_DIR}"'));
   assert.ok(claude.includes('Every Read call for a bundled resource MUST use an absolute `${skillRoot}/...` path'));
-  assert.ok(openCode.includes('capture the absolute **Base directory**'));
-  assert.ok(openCode.includes('search the configured OpenCode skill paths **once**'));
-  assert.ok(openCode.includes('STOP with a clear resource-resolution error'));
 
-  for (const [directory, skill] of [[claudeSkill, claude], [openCodeSkill, openCode]]) {
+  for (const [directory, skill] of [[claudeSkill, claude]]) {
     const named = [...skill.matchAll(/\$\{skillRoot\}\/((?:references|templates)\/[A-Za-z0-9.-]+\.md)/g)]
       .map((match) => match[1]);
     assert.ok(named.length >= 8, `${directory}: expected all references/templates to be named`);
@@ -108,16 +109,7 @@ test('recursive install/package layouts preserve progressive resources', (t) => 
   const marketplace = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin/marketplace.json'), 'utf8'));
   assert.equal(marketplace.plugins.find((plugin) => plugin.name === 'orchestrate')?.source, './claude/plugins/orchestrate');
 
-  const stagedOpenCode = path.join(temp, 'opencode');
-  fs.mkdirSync(stagedOpenCode);
-  execFileSync('cp', ['-R', path.join(repo, 'opencode/skills'), path.join(stagedOpenCode, 'skills')]);
-  const openCodeInstaller = fs.readFileSync(path.join(repo, 'opencode/install.sh'), 'utf8');
-  assert.ok(openCodeInstaller.includes('cp -R "$SRC/$directory" "$DEST/$directory"'));
-
-  const installedRoots = [
-    path.join(stagedClaudePlugin, 'skills/orchestrate'),
-    path.join(stagedOpenCode, 'skills/orchestrate'),
-  ];
+  const installedRoots = [path.join(stagedClaudePlugin, 'skills/orchestrate')];
   for (const directory of installedRoots) {
     for (const relative of [
       'SKILL.md',
@@ -131,7 +123,7 @@ test('recursive install/package layouts preserve progressive resources', (t) => 
 });
 
 test('routing matrix is the sole workflow predicate authority', () => {
-  for (const directory of [claudeSkill, openCodeSkill]) {
+  for (const directory of [claudeSkill]) {
     const skill = fs.readFileSync(path.join(directory, 'SKILL.md'), 'utf8');
     assert.ok(skill.includes('Routing predicates live only in `${skillRoot}/references/routing.md`'));
     const workflowFiles = [
@@ -143,30 +135,8 @@ test('routing matrix is the sole workflow predicate authority', () => {
   }
 });
 
-test('Claude and OpenCode references are semantically aligned', () => {
-  const commonFiles = ['store-protocol.md', 'intake-design.md', 'execution.md'];
-  const headings = (text) => text.split('\n').filter((line) => /^#{1,3} /.test(line));
-  for (const file of commonFiles) {
-    const claude = fs.readFileSync(path.join(claudeSkill, 'references', file), 'utf8');
-    const openCode = fs.readFileSync(path.join(openCodeSkill, 'references', file), 'utf8');
-    assert.deepEqual(headings(claude), headings(openCode), file);
-  }
-  for (const token of [
-    'applicable_documented_standards', 'owning_docs', 'non_test_quality_commands',
-    'test_surface', 'solution_reuse_signals', 'solution-reuse-scout',
-    'quality-gates-checker', 'implementation-quality-reviewer',
-    'skipped: <reason>',
-  ]) {
-    for (const directory of [claudeSkill, openCodeSkill]) {
-      const allReferences = fs.readdirSync(path.join(directory, 'references'))
-        .map((file) => fs.readFileSync(path.join(directory, 'references', file), 'utf8')).join('\n');
-      assert.ok(allReferences.includes(token), `${directory}: ${token}`);
-    }
-  }
-});
-
 test('workflow surfaces contain no contradictory status or landing language', () => {
-  for (const directory of [claudeSkill, openCodeSkill]) {
+  for (const directory of [claudeSkill]) {
     const files = [path.join(directory, 'SKILL.md')];
     for (const child of ['references', 'templates']) {
       files.push(...fs.readdirSync(path.join(directory, child)).map((file) => path.join(directory, child, file)));
@@ -180,7 +150,7 @@ test('workflow surfaces contain no contradictory status or landing language', ()
 });
 
 test('no stale standards-checker discovery or tooling responsibility remains', () => {
-  const roots = [path.join(repo, 'claude/plugins/orchestrate'), path.join(repo, 'opencode/skills/orchestrate')];
+  const roots = [path.join(repo, 'claude/plugins/orchestrate')];
   const markdown = [];
   const visit = (directory) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
