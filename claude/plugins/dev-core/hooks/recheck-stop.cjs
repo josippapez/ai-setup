@@ -4,10 +4,10 @@
 // often as high and above (2.1% vs 1.0% of turns), and fixed themselves once pushed.
 const fs = require('node:fs');
 
-const NUDGE = 'Before you finish: name the claim in your answer the user is most likely to question with "are you sure?". ' +
-  'If no tool result from this turn backs it, open the source now (the linked item or its comments, the other repo, ' +
-  'a real run of the path) and send the corrected answer. If every claim already holds, end the turn with no further text: ' +
-  'no confirmation, no recap.';
+const NUDGE = 'Before you finish, recheck your whole answer as if the user replied "are you sure?". ' +
+  'For every claim that no tool result from this turn backs, open the source now (the linked item or its comments, ' +
+  'the other repo, a real run of the path) and send the corrected answer. If every claim holds, end the turn with ' +
+  'no further text: no confirmation, no recap.';
 
 function toolCallsThisTurn(transcriptPath) {
   let lines;
