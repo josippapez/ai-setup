@@ -1,7 +1,6 @@
 ---
-description: Lifecycle/status/retry coordinator for one chunk. Builds it and dispatches only specialists enabled by persisted context-pack predicates. Never interacts with the user.
+description: Lifecycle/status/retry coordinator for one chunk. Builds it and dispatches only specialists enabled by persisted context-pack predicates. Never interacts with the user. Parent MUST explicitly select and pass a currently free model.
 mode: subagent
-model: opencode/muse-spark-1.3-contributor-free
 permission:
   task:
     "*": deny

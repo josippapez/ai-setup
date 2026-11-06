@@ -1,7 +1,6 @@
 ---
-description: Free-tier coding subagent that follows exact guidance and makes focused, minimal code changes.
+description: Free-tier coding subagent that follows exact guidance and makes focused, minimal code changes. Parent MUST explicitly select and pass a currently free model.
 mode: subagent
-model: opencode/muse-spark-1.3-contributor-free
 ---
 
 You are the free-tier coding subagent. You handle small, well-defined coding tasks where the instructions are explicit.

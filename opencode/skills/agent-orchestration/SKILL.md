@@ -20,7 +20,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 5. After follow-up, the main agent MAY relaunch at most one new agent for that same unresolved objective.
 6. The main agent MUST NOT create recursive new-agent spawning loops for the same unresolved objective. This does not forbid one bounded review layer: an orchestration worker may use OpenCode's native `task` tool to dispatch checkers/reviewers for the distinct review objective. If `task` is unavailable to that worker, it must relay the review request to the orchestrator rather than retrying or pretending review passed.
 7. If no meaningful progress remains after allowed attempts, the main agent MUST stop delegating, execute directly, validate, and report why.
-8. Markdown orchestration MUST follow its canonical skill's persisted predicates: solution research only when signaled; standards, non-test commands, and owning-doc gates only for non-empty supplied lists; implementation-quality review only for substantive source. Empty predicates are recorded skips, never fake passes.
+8. Agents MUST use Wings tasks for tracking and MUST NOT create a parallel `.orchestration/`, `PROJECT.md`, `EPIC.md`, or Markdown issue store.
 
 ## Model-tier-aware routing
 
@@ -36,6 +36,15 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
   - `free-tier-explorer` — exploration, research, and low-priority background tasks.
 - Prefer the native `task` tool for spawning subagents in a TUI session so they appear in the subagent UI and can be switched to.
 - Prefer free-tier subagents (`free-tier-coder`, `free-tier-explorer`) whenever they can handle the task satisfactorily. Only escalate to paid tiers when the task requires stronger reasoning, complex multi-file changes, or the free agent fails after retry.
+
+### Free model selection
+
+For `free-tier-coder`, `free-tier-maintainer`, `free-tier-explorer`, `repo-scout`, `docs-maintainer`, and `md-worker-free`:
+
+1. Once per session, the parent MUST check the native models tool for provider `opencode` with current metadata and the [official model pricing/privacy docs](https://opencode.ai/v2/docs/console/models/). Refresh on availability, pricing, or quota errors.
+2. Select only available models with zero input/output/cache prices. Match tools, context, task capabilities, and approved privacy handling. Choose the best task fit supported by fetched metadata and known evidence, not recency, names, or unsupported rankings.
+3. The parent MUST pass the exact resolved `provider/model` explicitly at dispatch within tool/harness authorization. Unconfigured subagents [inherit the parent model](https://opencode.ai/v2/docs/agents/), so inherited/default dispatch is forbidden for these roles. If explicit selection is unavailable or no eligible model is usable, stop and report it.
+4. Free-quota exhaustion remains a blocker. Do not try every free model against shared quota or silently change billing/provider. Private client data MUST use approved provider handling, not trial data-collection defaults.
 
 ## Exceptions — do NOT apply tier-aware routing
 
@@ -86,5 +95,3 @@ Domain specialists:
 - `agents/wcag-a11y-aa-specialist.md` — WCAG 2.2 A/AA audit and remediation.
 - `agents/docs-maintainer.md` — keep owning docs/rules/skills aligned.
 - `agents/self-improve-specialist.md` — durable guidance changes across rules + skills.
-
-- `skills/orchestrate/SKILL.md` — authoritative specialist routing predicates.

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Installs this source-owned OpenCode configuration into ~/.config/opencode.
-# It is idempotent. Claude-equivalent orchestration assets are manually ported
-# and source-owned in this directory.
+# It is idempotent. Skills and agents are source-owned in this directory.
+# Wings owns task tracking.
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
@@ -101,5 +101,5 @@ fi
 echo "Installed OpenCode config to $DEST:"
 echo "  - base config, plugins, rules, skills, and agents"
 echo "  - background subagents enabled for new shell sessions"
-echo "  - Markdown orchestration skills, commands, and OpenCode-compatible agents"
+echo "  - Model-tier routing skills and OpenCode-compatible agents"
 echo "  - Repository-docs MCP server plus the interactive question tool for subagents"
