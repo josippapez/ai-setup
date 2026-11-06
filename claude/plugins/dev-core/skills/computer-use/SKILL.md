@@ -30,6 +30,8 @@ Anything with no API and no DOM behind it:
 - **Seeing what is on screen.** A real screenshot to check what rendered, what has focus, or which window is in front, instead of inferring it.
 - **Cross-application work**: copy from one app and paste into another, drag a file onto a window.
 
+**Check the user is not at the machine first.** Keystrokes go to whatever app is in front at that moment, so driving the screen while the user works can type into their apps. Before the first input action, check that the screen is not locked (a long idle time usually means locked, not free), then check which app is in front and how long the user has been idle. When they are active, look with `screencapture -l <windowid>` instead of raising the window, and ask them to click through steps that need real input. Launching an app also steals focus, so keep any launch short and quit it straight away.
+
 Prefer keyboard over clicking: `key` with a shortcut is faster and lands more reliably than hunting for coordinates. For anything inside a web page use `chrome-devtools`, which reads the DOM and clicks by uid.
 
 ## Unblocking a stuck chrome-devtools call

@@ -67,30 +67,29 @@ one carve-out below.
 
 The main session runs on Opus. Any subagent dispatched without a `model`
 inherits it, and `general-purpose` has no model of its own, so an omitted
-`model` is an Opus run. The default for coding is the mid tier, not the high
-tier. Pick from this table:
+`model` is an Opus run. The default for coding is the high tier: Opus costs
+more per token, but it usually finishes with fewer tokens, retries, and
+follow-ups, so it is cheaper per finished task. Pick from this table:
 
 | Work | Dispatch |
 |---|---|
-| Implementing a feature, fix, refactor, plugin, or conversion, even across many files, once the approach is clear | `mid-tier-coder` (sonnet). **The default coder.** |
+| Implementing a feature, fix, refactor, plugin, port, or conversion | `high-tier-coder` (opus). **The default coder.** |
+| Routine, fully specified work where the plan already names every change (a written step list, a pattern copied across files) | `mid-tier-coder` (sonnet) |
 | One file or a few explicit edits, renames, lint or type fixes, config tweaks, running tests | `low-tier-fast` (haiku) |
 | Batch extraction, summarising, classifying, or checking items against a stated rule | `general-purpose` with `model: "haiku"`, or `"sonnet"` when the judgement is subtle |
 | Read-only search across many files | `Explore` |
-| Work whose approach is still undecided, security- or safety-critical changes, or a retry after the mid tier failed its follow-up | `high-tier-coder` (opus) |
 | Architecture, design trade-offs, deep debugging, adversarial review | `top-tier-reasoner` (opus) |
 
 Rules that go with the table:
 
-- **The high tier needs a named reason.** Before dispatching `high-tier-coder`
-  or an Opus `general-purpose`, state which row above put it there. Size,
-  "multiple files", or "it matters" is not a reason. Plan the approach in the
-  main session, then hand the plan to `mid-tier-coder`.
+- **The mid tier needs a fully written plan.** Hand work to `mid-tier-coder`
+  only when the prompt spells out every change, so the agent makes no design
+  decisions. When in doubt, use `high-tier-coder`.
 - **Always pass `model` to `general-purpose`.** Use `"sonnet"` for
   implementation and research, `"haiku"` for mechanical batches. Omit it only
   when the row above calls for Opus.
-- **Escalate one step at a time.** If `mid-tier-coder` fails, continue it once
-  with a sharper prompt, then relaunch on `high-tier-coder`. Do not start high
-  to be safe.
+- **Escalate on failure.** If `mid-tier-coder` fails, continue it once with a
+  sharper prompt, then relaunch on `high-tier-coder`.
 - **The user overrides all of this.** When the user names a model or agent,
   use it for that task.
 
@@ -197,10 +196,10 @@ agent's frontmatter `model` is only a fallback default.
 
 - `top-tier-reasoner` (opus) — architecture, complex design, ambiguity,
   safety-/security-critical.
-- `high-tier-coder` (opus) — only for the reasons in the tier table: open
-  approach, security- or safety-critical, or a mid-tier retry.
-- `mid-tier-coder` (sonnet) — the default coder for any implementation work,
-  including multi-file features and refactors.
+- `high-tier-coder` (opus) — the default coder for implementation work of any
+  size.
+- `mid-tier-coder` (sonnet) — routine work whose plan already names every
+  change.
 - `low-tier-fast` (haiku) — small explicit edits, lint and type fixes, test runs.
 - `free-tier-coder` (haiku) — small, explicit, well-defined coding tasks.
 - `free-tier-maintainer` (haiku) — docs, hygiene, config tweaks, lightweight sync.

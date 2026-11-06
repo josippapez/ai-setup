@@ -1,6 +1,6 @@
 ---
 name: mid-tier-coder
-description: The default coding agent. Use for implementation work of any size once the approach is clear, including multi-file features, refactors, plugins, and conversions.
+description: Sonnet coding agent for routine, fully specified work where the prompt already names every change, such as a written step list or one pattern applied across files. Use high-tier-coder for anything that needs design decisions.
 model: sonnet
 ---
 

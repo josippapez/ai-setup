@@ -77,6 +77,12 @@ These are the patterns that make a comment read bot-written. If a draft has any 
 - Restating the obvious context back at the author before getting to the point.
 - References the reader did not ask for: Figma node links, acceptance-criteria numbers, ticket ids the thread already carries, local paths, branch names. See Outbound content in the `concise-output` style.
 
+## What never goes in posted text
+
+- No commit hashes in review replies. Say what changed in prose. The PR already links its commits, and some hosts cannot edit a posted comment.
+- No "Verified: ..." line or "I ran X and it passed" in a PR description or commit body. The hooks and CI already run the checks, and the claim goes stale. Report verification in chat.
+- No AI attribution: no "Generated with Claude Code", co-author trailer, or session link.
+
 ## Examples
 
 Real ones, good:
