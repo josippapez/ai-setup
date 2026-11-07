@@ -1,6 +1,5 @@
 import type { Register } from 'claude-code'
 
-import { registerBlastRadius } from './blast-radius'
 import { registerEmailGuard } from './email-guard'
 import { registerMvGuard } from './mv-guard'
 import { registerPinnedTools } from './pin-tools'
@@ -10,7 +9,6 @@ import { registerScreenshots } from './screenshots'
 export const register: Register = on => {
   registerMvGuard(on)
   registerEmailGuard(on)
-  registerBlastRadius(on)
   registerRuleCards(on)
   registerScreenshots(on)
   registerPinnedTools(on)
