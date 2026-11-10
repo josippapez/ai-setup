@@ -97,24 +97,6 @@
       "source": "./claude/plugins/feedback"
     },
     {
-      "name": "prompt-timeline",
-      "description": "Draws your own prompts as a distinct card in the transcript, keeps a strip of your recent prompts above the prompt box, and adds /timeline to jump to any earlier prompt.",
-      "author": {
-        "name": "Personal AI Setup"
-      },
-      "category": "development",
-      "source": "./claude/plugins/prompt-timeline"
-    },
-    {
-      "name": "tool-group-hints",
-      "description": "Shows a one-line hint per call under folded tool-group lines, so you can see which files, patterns and commands ran without expanding the group.",
-      "author": {
-        "name": "Personal AI Setup"
-      },
-      "category": "development",
-      "source": "./claude/plugins/tool-group-hints"
-    },
-    {
       "name": "scope",
       "description": "Stop-hook scope note: snapshots the working tree at each prompt, diffs it when the answer stops, and shows which changed files neither the request nor the answer names, skipping lockfiles and version bumps.",
       "author": {

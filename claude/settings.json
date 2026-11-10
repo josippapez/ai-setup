@@ -76,8 +76,6 @@
     "feedback@ai-setup": true,
     "scope@ai-setup": true,
     "journal@ai-setup": true,
-    "prompt-timeline@ai-setup": false,
-    "tool-group-hints@ai-setup": false,
     "quiet-tools@ai-setup": true,
     "replay-theater@ai-setup": true
   },
