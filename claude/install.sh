@@ -79,7 +79,7 @@ if have claude; then
   claude plugin uninstall markdown-orchestration@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall markdown-orchestration-nightly@ai-setup >/dev/null 2>&1 || true
 
-  # Install or update repo-docs first: dev-core and orchestrate both depend
+  # Install or update repo-docs first: dev-core depends
   # on its MCP tools (mcp__plugin_repo-docs_repo-docs__*) rather than bundling their own copy.
   if claude plugin list 2>/dev/null | grep -q "repo-docs@ai-setup"; then
     claude plugin update "repo-docs@ai-setup"
@@ -96,15 +96,9 @@ if have claude; then
     fi
   done
 
-  # Install or update the orchestrate plugin and its experimental nightly fork
-  # (nightly reuses stable's companion skills, so stable goes first).
-  for plugin in orchestrate orchestrate-nightly; do
-    if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
-      claude plugin update "$plugin@ai-setup"
-    else
-      claude plugin install "$plugin@ai-setup" --scope user
-    fi
-  done
+  # orchestrate and orchestrate-nightly were removed from the marketplace.
+  claude plugin uninstall orchestrate@ai-setup >/dev/null 2>&1 || true
+  claude plugin uninstall orchestrate-nightly@ai-setup >/dev/null 2>&1 || true
 
   # Re-adding the marketplace re-enables every plugin it installs, so turn the
   # ones settings.json ships as false back off.
@@ -138,8 +132,6 @@ if have claude; then
   echo "  - rules-index@ai-setup plugin"
   echo "  - better-design@ai-setup plugin"
   echo "  - fundamentals@ai-setup plugin"
-  echo "  - orchestrate@ai-setup plugin"
-  echo "  - orchestrate-nightly@ai-setup plugin (experimental)"
 else
   echo "  - plugins NOT installed (no 'claude' CLI on PATH)"
 fi

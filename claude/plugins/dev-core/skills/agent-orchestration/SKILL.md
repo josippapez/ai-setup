@@ -222,13 +222,6 @@ agent's frontmatter `model` is only a fallback default.
 - `self-improve-specialist` (sonnet) — durable behavior/guidance changes across
   rules + skills.
 
-`test-specialist` and `docs-maintainer` also exist under the `orchestrate` and
-`orchestrate-nightly` plugins with the same short name and a narrower,
-workflow-bound brief. Outside one of those workflows, dispatch the `dev-core:`
-one.
-
-The `orchestrate` plugin's workflow skill is authoritative for its specialists: precomputed non-empty slices dispatch standards/quality/docs gates, solution-reuse research is conditional and pre-worker, and implementation-quality review blocks only substantive source changes. Empty predicates are recorded skips, never fabricated passes.
-
 Also available: the built-in generic subagents — `Explore` (read-only fan-out
 search), `Plan` (architecture/implementation plans), `general-purpose`
 (multi-step research or edits), `claude-code-guide` (Claude Code / SDK / API

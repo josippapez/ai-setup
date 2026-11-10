@@ -1,8 +1,8 @@
 # repo-docs
 
-Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Split out of `dev-core` so `dev-core` and `orchestrate` share one MCP server and one tool namespace instead of each bundling an identical copy.
+Local semantic doc search, installed-package lookup and JS/TS file-impact tools for one repository. Split out of `dev-core` so other plugins can share one MCP server and one tool namespace.
 
-**Any plugin that uses its tools must declare `repo-docs` as a dependency in its own README/skill and tell the user to install it if `mcp__plugin_repo-docs_repo-docs__*` is not callable.** `claude/install.sh` installs it automatically alongside `dev-core` and `orchestrate`.
+**Any plugin that uses its tools must declare `repo-docs` as a dependency in its own README/skill and tell the user to install it if `mcp__plugin_repo-docs_repo-docs__*` is not callable.** `claude/install.sh` installs it automatically alongside `dev-core`.
 
 ## Layout
 
