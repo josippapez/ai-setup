@@ -1,7 +1,7 @@
 {
   "name": "quiet-tools",
-  "version": "0.3.1",
-  "description": "Shows each tool call, and each group of calls, as one dim line; click a line to unfold it. The agent's text stands out, and ctrl+o still shows everything.",
+  "version": "0.4.0",
+  "description": "Shows skill calls (magenta) and MCP calls (cyan) as one bold line you can click open. Every other tool keeps Claude Code's own display.",
   "author": {
     "name": "Personal AI Setup"
   },

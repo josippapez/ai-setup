@@ -1,108 +1,74 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { groupLine, summary } from '../hooks/register'
+import { summary } from '../hooks/register'
 
 const engineRow = (text: string) => () => ({ type: 'Text', props: {}, children: [text] }) as never
 
-const bash = (isExpanded: boolean) => ({
+const call = (tool: string, input: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   tool_use_id: 't1',
-  tool: 'Bash',
-  input: { command: 'git status\necho hi' },
+  tool,
+  input,
   isRunning: false,
   isErrored: false,
   isInterrupted: false,
-  isExpanded,
+  isExpanded: false,
   output: { stdout: 'M a.ts\n', stderr: '', interrupted: false },
+  ...extra,
 })
 
 describe('quiet tools', () => {
-  test('a tool call draws one line naming it', async ($, on) => {
+  test('a Bash call keeps the engine row', async ($, on) => {
     on('ui.render', engineRow('Bash(git status) full row'))
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't1', props: bash(false) })
-    expect(await ui.find({ type: 'Text', text: /· \$ git status/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /full row/ })).toBeUndefined()
-    await ui.unmount()
-  })
-
-  test('its output is hidden', async ($, on) => {
-    on('ui.render', engineRow('M a.ts'))
-    const { output, tool_use_id, tool } = bash(false)
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolResult', requestId: 't1', props: { tool_use_id, tool, output, isErrored: false, isExpanded: false } })
-    expect(await ui.find({ type: 'Text', text: /M a\.ts/ })).toBeUndefined()
-    await ui.unmount()
-  })
-
-  test('ctrl+o shows the full row and output', async ($, on) => {
-    on('ui.render', engineRow('Bash(git status) full row'))
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't1', props: bash(true) })
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't1', props: call('Bash', { command: 'git status' }) })
     expect(await ui.find({ type: 'Text', text: /full row/ })).toBeDefined()
     await ui.unmount()
   })
 
-  test('a failed call is marked', async ($, on) => {
-    on('ui.render', engineRow('row'))
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't1', props: { ...bash(false), isErrored: true } })
-    expect(await ui.find({ type: 'Text', text: /✗ \$ git status/ })).toBeDefined()
-    await ui.unmount()
+  test('a Bash call keeps its output', async ($, on) => {
+    on('ui.render', engineRow('M a.ts'))
+    const result = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolResult', requestId: 't1', props: { tool_use_id: 't1', tool: 'Bash', output: {}, isErrored: false, isExpanded: false } })
+    expect(await result.find({ type: 'Text', text: /M a\.ts/ })).toBeDefined()
+    await result.unmount()
   })
 
-  test('a skill call is bold magenta, not dim', async ($, on) => {
+  test('a skill call is one bold magenta line', async ($, on) => {
     on('ui.render', engineRow('row'))
-    const props = { ...bash(false), tool: 'Skill', input: { skill: 'validate-work-item' } }
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't2', props })
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't2', props: call('Skill', { skill: 'validate-work-item' }) })
     const row = await ui.find({ type: 'Text', text: /· Skill validate-work-item/ })
-    expect([row?.props?.color, row?.props?.bold, row?.props?.dimColor]).toEqual(['magenta', true, false])
+    expect([row?.props?.color, row?.props?.bold]).toEqual(['magenta', true])
     await ui.unmount()
   })
 
-  test('a failed skill call stays red', async ($, on) => {
+  test('an MCP call is one bold cyan line naming the server', async ($, on) => {
     on('ui.render', engineRow('row'))
-    const props = { ...bash(false), tool: 'Skill', input: { skill: 'x' }, isErrored: true }
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't3', props })
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't3', props: call('mcp__plugin_repo-docs_repo-docs__find_docs', { query: 'install' }) })
+    const row = await ui.find({ type: 'Text', text: /· repo-docs › find_docs install/ })
+    expect(row?.props?.color).toBe('cyan')
+    await ui.unmount()
+  })
+
+  test('a failed skill call is red', async ($, on) => {
+    on('ui.render', engineRow('row'))
+    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't4', props: call('Skill', { skill: 'x' }, { isErrored: true }) })
     expect((await ui.find({ type: 'Text', text: /✗ Skill x/ }))?.props?.color).toBe('error')
     await ui.unmount()
   })
 
-  test('file tools name their file', () => {
-    expect(summary('Edit', { file_path: '/repo/a.ts', old_string: 'x' })).toBe('Edit /repo/a.ts')
-    expect(summary('TodoWrite', {})).toBe('TodoWrite')
+  test('summary names skill and MCP calls', () => {
+    expect(summary('Skill', { skill: 'opensrc' })).toBe('Skill opensrc')
+    expect(summary('mcp__wings__tasks__log', { key: 'AIS-1', text: 'a\nb' })).toBe('wings › tasks__log AIS-1')
   })
 
-  test('clicking a call opens its full row and output', async ($, on) => {
-    on('ui.render', engineRow('Bash(git status) full row'))
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't1', props: bash(false) })
-    await ui.press({ key: 'call-t1' })
-    expect(await ui.find({ type: 'Text', text: /full row/ })).toBeDefined()
-    await ui.unmount()
-  })
-
-  test('a finished group is one line, and a click unfolds it', async ($, on) => {
-    on('ui.render', ($, e) => ({ type: 'Text', props: {}, children: [(e.props as { isExpanded?: boolean }).isExpanded ? 'engine rows' : 'engine line'] }) as never)
-    const calls = [{ tool_use_id: 'c1', tool: 'Bash', input: { command: 'ls' }, isRunning: false, isErrored: false, isInterrupted: false }, { tool_use_id: 'c2', tool: 'Read', input: { file_path: '/a' }, isRunning: false, isErrored: false, isInterrupted: false }]
-    const ui = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolGroup', requestId: 'g1', props: { calls, isActive: false, isExpanded: false, isCallsOnly: true } })
-    expect(await ui.find({ type: 'Text', text: /▸ Ran 1 shell command, read 1 file/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /engine/ })).toBeUndefined()
-    await ui.press({ key: 'group-g1' })
-    expect(await ui.find({ type: 'Text', text: /engine rows/ })).toBeDefined()
-    await ui.press({ key: 'fold-g1' })
-    expect(await ui.find({ type: 'Text', text: /engine rows/ })).toBeUndefined()
-    await ui.unmount()
-  })
-
-  test('group lines name MCP servers and plurals', () => {
-    const c = (tool: string) => ({ tool, input: {}, isRunning: false, isErrored: false, isInterrupted: false })
-    expect(groupLine([c('Grep'), c('Glob'), c('mcp__plugin_wings_wings__tasks__log')])).toBe('Searched for 2 patterns, called wings')
-  })
-
-  test('an opened call shows its output with a fold bar under it', async ($, on) => {
-    on('ui.render', engineRow('M a.ts'))
-    const { output, tool_use_id, tool } = bash(false)
-    const row = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't9', props: { ...bash(false), tool_use_id: 't9' } })
+  test('clicking an MCP call opens its output with a fold bar', async ($, on) => {
+    on('ui.render', engineRow('hit list'))
+    const tool = 'mcp__wings__tasks__list'
+    const row = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolUse', requestId: 't9', props: call(tool, {}, { tool_use_id: 't9' }) })
+    const result = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolResult', requestId: 't9', props: { tool_use_id: 't9', tool, output: {}, isErrored: false, isExpanded: false } })
+    expect(await result.find({ type: 'Text', text: /hit list/ })).toBeUndefined()
     await row.press({ key: 'call-t9' })
-    const result = await $.ui.mount({ plugin: 'quiet-tools', surface: 'terminal', component: 'ToolResult', requestId: 't9', props: { tool_use_id: 't9', tool, output, isErrored: false, isExpanded: false } })
-    expect(await result.find({ type: 'Text', text: /M a\.ts/ })).toBeDefined()
+    expect(await result.find({ type: 'Text', text: /hit list/ })).toBeDefined()
     await result.press({ key: 'fold-t9' })
-    expect(await result.find({ type: 'Text', text: /M a\.ts/ })).toBeUndefined()
+    expect(await result.find({ type: 'Text', text: /hit list/ })).toBeUndefined()
     await row.unmount()
     await result.unmount()
   })
