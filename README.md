@@ -43,10 +43,9 @@ Notes:
 
 - The Claude plugins install only when the `claude` CLI is on `PATH`; without it the
   config files still land and the script says so. Install Claude Code, then re-run.
-- `rtk` prebuilds have a glibc floor (the arm64 Linux build needs 2.39+). The
-  installer runs the downloaded binary once and removes it if it can't start, since a
-  broken `rtk` on `PATH` would fail the PreToolUse hook on every Bash call. Use
-  Homebrew or the `.deb`/`.rpm` on older distros.
+- The Linux `rtk` downloads are static builds, so any glibc works. The installer
+  still runs the downloaded binary once and removes it if it can't start, since a
+  broken `rtk` on `PATH` would fail the PreToolUse hook on every Bash call.
 - Windows isn't supported natively (the installers are bash and assume POSIX paths).
   WSL2 works and behaves exactly like the Linux path; `rtk` itself does publish a
   Windows build if you want it outside this setup.

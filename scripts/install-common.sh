@@ -201,7 +201,7 @@ install_rtk_release() {
   case "$(ai_setup_os)/$(ai_setup_arch)" in
     macos/arm64) asset="rtk-aarch64-apple-darwin.tar.gz" ;;
     macos/x86_64) asset="rtk-x86_64-apple-darwin.tar.gz" ;;
-    linux/arm64) asset="rtk-aarch64-unknown-linux-gnu.tar.gz" ;;
+    linux/arm64) asset="rtk-aarch64-unknown-linux-musl.tar.gz" ;;
     linux/x86_64) asset="rtk-x86_64-unknown-linux-musl.tar.gz" ;;
     *)
       warn "no prebuilt rtk for $(uname -s)/$(uname -m); install it manually (https://www.rtk-ai.app)."
@@ -243,8 +243,7 @@ install_rtk_release() {
   chmod +x "$bin_dir/rtk"
   rm -rf "$tmp_dir"
 
-  # Prebuilt binaries carry a glibc floor (the arm64 Linux build needs 2.39+), so
-  # prove it runs before leaving it on PATH. A broken rtk is worse than none: the
+  # Prove the prebuilt binary runs before leaving it on PATH. A broken rtk is worse than none: the
   # PreToolUse hook shells out to it on every Bash call.
   if ! "$bin_dir/rtk" --version >/dev/null 2>&1; then
     # `|| true`: this command is EXPECTED to fail, and under `set -e` an
