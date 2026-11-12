@@ -39,7 +39,7 @@ Use this skill to make model-tier-aware delegation decisions. The main agent rem
 
 ### Free model selection
 
-For `free-tier-coder`, `free-tier-maintainer`, `free-tier-explorer`, `repo-scout`, `docs-maintainer`, and `md-worker-free`:
+For `free-tier-coder`, `free-tier-maintainer`, `free-tier-explorer`, and `docs-maintainer`:
 
 1. Once per session, the parent MUST check the native models tool for provider `opencode` with current metadata and the [official model pricing/privacy docs](https://opencode.ai/v2/docs/console/models/). Refresh on availability, pricing, or quota errors.
 2. Select only available models with zero input/output/cache prices. Match tools, context, task capabilities, and approved privacy handling. Choose the best task fit supported by fetched metadata and known evidence, not recency, names, or unsupported rankings.

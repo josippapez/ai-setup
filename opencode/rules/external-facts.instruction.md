@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 name: external-facts
-description: Any fact that is not in this repo or in files you actually read MUST be fetched from a live external source before you use it. Never answer, plan, or build on recalled or inferred external knowledge. Covers library APIs, versions, standards, error messages, pricing, config keys, CLI flags, and anything else outside the codebase.
+description: A fact that is not in this repo or in files you read comes from a source you fetched this session (installed source, a docs tool, or the live web), not from memory. When no source settles it, label it unverified. Covers library APIs, versions, standards, error messages, pricing, config keys, CLI flags, and anything else outside the codebase.
 ---
 
 # External facts come from the web, not from memory

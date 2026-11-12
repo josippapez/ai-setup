@@ -27,20 +27,20 @@ npx opensrc path github:<owner>/<repo>  # GitHub repo
 Returns a local path like `~/.opensrc/repos/github.com/<owner>/<repo>/<version>/`.
 Second call is instant (cached).
 
-## Common patterns for this repo
+## Common patterns (example packages)
 
 ```bash
 # Browse storybook addon source (exact installed version)
 ls $(npx opensrc path @storybook/addon-vitest 2>/dev/null)
 
 # Find how an option is handled in TanStack Table
-grep -r "getCoreRowModel" $(npx opensrc path @tanstack/react-table 2>/dev/null)/src
+rg "getCoreRowModel" $(npx opensrc path @tanstack/react-table 2>/dev/null)/src
 
 # Read MSW handler types
 cat $(npx opensrc path msw 2>/dev/null)/src/core/handlers/RequestHandler.ts
 
 # Check TanStack Router's Link props
-grep -r "LinkProps" $(npx opensrc path @tanstack/react-router 2>/dev/null)/src | head -20
+rg "LinkProps" $(npx opensrc path @tanstack/react-router 2>/dev/null)/src | head -20
 
 # Inspect vitest browser config options
 ls $(npx opensrc path @vitest/browser 2>/dev/null)
@@ -50,5 +50,5 @@ ls $(npx opensrc path @vitest/browser 2>/dev/null)
 
 - Always suppress the npx install noise with `2>/dev/null` when using in subshell `$()`
 - Use the path as a read-only root — do not write to the cache
-- After fetching a path, prefer `grep -r`, `find`, or `cat` over spawning a full Explore agent (source is already local)
+- After fetching a path, prefer `rg`, `find`, or `cat` over spawning a full Explore agent (source is already local)
 - If the package is a monorepo, the path points to the specific sub-package, not the repo root

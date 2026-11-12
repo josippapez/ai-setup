@@ -104,8 +104,8 @@ the words of a multi-word value is put back where you typed it, so
 `search-wcag contrast --understanding ratio` searches `contrast ratio`.
 
 The one thing that does not work is a value starting with `--` — it is read as a
-flag. The CLI now names the token when that happens (`--foo was read as a flag,
-not a value`) instead of only reporting the missing argument. A single leading
+flag. The CLI names the token when that happens (`--foo was read as a flag,
+not a value`). A single leading
 dash is fine: `search-wcag -webkit` searches for `-webkit`.
 
 ## Examples
@@ -236,8 +236,9 @@ Two entry points, and only the second is trusted for focus indicators:
    background when the bind is refused, and the audit then measures something other than what you
    shipped. Delete `$SERVE` and stop the server when you are done.
 
-   An empty `$AXE` means the plugin's install hook has not run in this session yet; the harness
-   falls back to the same pinned version on the CDN, and says so in `axeFrom`.
+   An empty `$AXE` means no Claude Code dev-core install has put `axe-core` on this machine (the
+   OpenCode setup does not install it); the harness falls back to the same pinned version on the
+   CDN, and says so in `axeFrom`.
 
 2. **Inject it** with `evaluate_script`: append a `<script src="http://127.0.0.1:4398/a11y-audit.js">`
    and resolve the promise on `onload`. Chrome treats `127.0.0.1` as a trustworthy origin, so this
@@ -255,10 +256,9 @@ Two entry points, and only the second is trusted for focus indicators:
 
 ### Where axe comes from
 
-`axe.min.js` served next to the harness, which is the plugin's own pinned copy
-(`axe-core` in the plugin `package.json`, installed into the plugin data dir by a SessionStart
-hook). No network needed. If that file is not being served, the harness falls back to the same
-version on jsDelivr.
+`axe.min.js` served next to the harness, when the Claude Code dev-core plugin has installed its
+pinned copy into its data dir; OpenCode installs none. If that file is not being served, the
+harness falls back to the same version on jsDelivr, which needs the network.
 
 The result reports both: `axeVersion` is what actually ran, `axeFrom` is where it came from. Trust
 those over the pin, because the harness reuses a `window.axe` that is already on the page and a

@@ -35,10 +35,10 @@ ls "$PKG/src"
 cat "$PKG/src/types.ts" | head -50
 
 # Search for a specific option or function
-grep -r "safeParse" $(npx opensrc path zod 2>/dev/null)/src | head -20
+rg "safeParse" "$(npx opensrc path zod 2>/dev/null)/src" | head -20
 
 # Find how an event is typed
-grep -r "RequestHandler" $(npx opensrc path msw 2>/dev/null)/src
+rg "RequestHandler" "$(npx opensrc path msw 2>/dev/null)/src"
 
 # List all exports of a sub-package
 ls $(npx opensrc path @tanstack/react-table 2>/dev/null)/src

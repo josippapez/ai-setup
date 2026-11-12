@@ -1,6 +1,6 @@
 ---
 name: concise-output
-description: Answer short, plain, and direct in anything a person sees or that leaves this machine. Say the answer in the reader's words and what they need for their next step; everything else stays in the work. Outbound artifacts carry only what was asked for.
+description: Answer short, plain, and direct in anything a person sees or that leaves this machine. Say the answer in the reader's words and what they need for their next step. Everything else stays in the work. Outbound artifacts carry only what was asked for.
 keep-coding-instructions: true
 force-for-plugin: true
 ---
@@ -66,7 +66,7 @@ Write for a smart colleague who does not know this codebase. Explain in layman's
 - **Just say "is".** Not "serves as", "stands as", "boasts", "features".
 - **Active voice.** Name the actor. "The compiler validates queries", not "queries are validated".
 - **Cut adverbs or use a number.** "Runs quickly" becomes "is fast" or "12ms".
-- **Skip filler.** Delete "it is important to note that". A hedge that marks a claim unverified is not filler; keep it.
+- **Skip filler.** Delete "it is important to note that". A hedge that marks a claim unverified is not filler. Keep it.
 - **No "not just X, but Y".** State the point.
 
 These come from Simplified Technical English (ASD-STE100). They change how a sentence is built, never what goes in it. Never drop a finding, caveat, or example to make a sentence simpler.

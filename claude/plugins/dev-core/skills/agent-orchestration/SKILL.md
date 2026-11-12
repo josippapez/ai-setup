@@ -1,7 +1,7 @@
 ---
 name: agent-orchestration
 description: 'Route tasks to the right subagent or Claude model tier based on task type, scope, and cost. The main agent stays orchestrator and prompt-loop owner throughout.'
-when_to_use: 'Any moment you are about to use the Agent tool, or are deciding whether a task should be delegated at all — the decision, not the user''s wording, is the trigger, since delegation is your own call and a user rarely phrases it explicitly. Use it to decide whether to hand coding, refactoring, file generation, tests, research, or validation to a faster or cheaper subagent, when planning, design, or risk work needs a stronger model, and when choosing between generic subagents (Explore/Plan/general-purpose), repo custom agents (tier and coder agents, domain specialists like docs-maintainer or wcag-a11y-aa-specialist), and background subagents. Skip only when a more specific routing authority already governs the dispatch (e.g. a tracked orchestration epic''s own routing.md). Triggers include: "delegate this", "spawn a subagent", "run in background", "use a cheaper model", "which model for this", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", "explore the codebase", "run these in parallel".'
+when_to_use: 'Any moment you are about to use the Agent tool, or are deciding whether a task should be delegated at all — the decision, not the user''s wording, is the trigger, since delegation is your own call and a user rarely phrases it explicitly. Use it to decide whether to hand coding, refactoring, file generation, tests, research, or validation to a faster or cheaper subagent, when planning, design, or risk work needs a stronger model, and when choosing between generic subagents (Explore/Plan/general-purpose), repo custom agents (tier and coder agents, domain specialists like docs-maintainer or wcag-a11y-aa-specialist), and background subagents. Skip only when a more specific routing authority already governs the dispatch (e.g. a skill or workflow that names its own agents and tiers). Triggers include: "delegate this", "spawn a subagent", "run in background", "use a cheaper model", "which model for this", "plan this out", "complex architecture decision", "safety-critical change", "model tier routing", "explore the codebase", "run these in parallel".'
 ---
 
 # agent-orchestration
@@ -46,17 +46,13 @@ one carve-out below.
    same unresolved objective. This bans re-spawning against the SAME
    unresolved objective — it does NOT forbid a bounded, single-level
    delegation where a spawned subagent dispatches its own reviewers/checkers
-   for a DIFFERENT objective (e.g. an orchestration worker spawning its own
-   code-standards-checker + reviewer to review what it built). **Whether a
-   subagent CAN spawn depends on config, not on the objective:** as of Claude
-   Code v2.1.217 nested spawning is **OFF by default** — a subagent does not
-   receive the `Agent` tool unless `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` is set
-   (this repo sets it to `2` in `settings.json`, which is what lets a worker
-   spawn its reviewers; when enabled, nesting is capped at depth 5). So: with
-   the env var set, a spawned worker CAN spawn its reviewers; if it's unset, the
-   subagent genuinely lacks the spawn tool (only `TaskStop`/`SendMessage`/
-   `EnterWorktree` surface) and must relay the work to the orchestrator rather
-   than retry — that's the real platform default, not a bug.
+   for a DIFFERENT objective (e.g. a subagent dispatching its own reviewers
+   for the code it wrote). **Whether a
+   subagent CAN spawn depends on its depth, not on the objective:** a subagent
+   can spawn its own subagents down to the layer limit in
+   `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` (Claude Code's default is 3; this repo
+   sets it to `2` in `settings.json`). A subagent at the limit has no `Agent`
+   tool, so it relays the work to the orchestrator rather than retrying.
 7. If no meaningful progress remains after allowed attempts, the main agent
    MUST stop delegating, execute directly, validate, and report why.
 8. For independent work that can run while the main loop continues, the main
@@ -107,7 +103,8 @@ Rules that go with the table:
 ## Context forwarding
 
 Subagents run in separate sessions and do NOT inherit the main session's
-injected context (plugin-bundled rules, doc hints, the prompt-loop reminder).
+conversation or its per-prompt injected context (doc hints, the rules digest).
+They do load the always-on rules, and CLAUDE.md except for Explore and Plan.
 When delegating, copy whatever the subagent needs into its prompt:
 
 1. Any relevant doc paths surfaced this session (e.g. from the repo-grounding
@@ -201,9 +198,8 @@ agent's frontmatter `model` is only a fallback default.
   approach, security- or safety-critical, or a mid-tier retry.
 - `mid-tier-coder` (sonnet) — the default coder for any implementation work,
   including multi-file features and refactors.
-- `low-tier-fast` (haiku) — small explicit edits, lint and type fixes, test runs.
-- `free-tier-coder` (haiku) — small, explicit, well-defined coding tasks.
-- `free-tier-maintainer` (haiku) — docs, hygiene, config tweaks, lightweight sync.
+- `low-tier-fast` (haiku) — small explicit edits, lint and type fixes, docs and
+  config tweaks, test runs.
 - `free-tier-explorer` (haiku) — exploration, research, background context.
 
 **Domain specialists:**

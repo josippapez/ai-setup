@@ -1,7 +1,6 @@
 ---
 name: self-improve
-description: 'Turn a correction or a failure from this session into a skill: update the skill that should have caught it, or write a new one. Covers finding the owning file, writing the description so the skill actually triggers, and mirroring the change to the other adapters.'
-when_to_use: 'Triggers: "you keep doing X", "stop doing that", "remember this for next time", "make this stick", "add a skill for this", "update that skill", "why did you not follow the rule", "that skill did not fire", "this instruction is wrong", "close that loophole". Also on your own initiative, unasked, the first time the user corrects something a skill or rule owns, or when a skill that should have fired did not or gave wrong guidance. A memory does not replace fixing the owning skill. Use the always-on rules for what must hold on every turn; use a skill for what applies to a kind of task.'
+description: 'Turn a correction or a failure from this session into a skill: update the skill that should have caught it, or write a new one. Covers finding the owning file, writing the description so the skill actually triggers, and mirroring the change to the other adapters. Triggers: "you keep doing X", "stop doing that", "remember this for next time", "make this stick", "add a skill for this", "update that skill", "why did you not follow the rule", "that skill did not fire", "this instruction is wrong", "close that loophole". Also on your own initiative, unasked, the first time the user corrects something a skill or rule owns, or when a skill that should have fired did not or gave wrong guidance. A memory does not replace fixing the owning skill. Use the always-on rules for what must hold on every turn; use a skill for what applies to a kind of task.'
 ---
 
 # self-improve
@@ -30,7 +29,7 @@ Adding to the always-on rules costs every session and every subagent spawn, so a
 
 ## Writing a description that triggers
 
-The `description` and `when_to_use` fields are the only thing the model sees when deciding whether to load a skill. A weak one means the skill never runs, which looks identical to the skill not existing.
+The `description` field is the only thing the model sees when deciding whether to load a skill: OpenCode lists only each skill's id, name, and description, so a `when_to_use` field never reaches the model. A weak one means the skill never runs, which looks identical to the skill not existing.
 
 - Open with what the skill does, in one clause.
 - Then the concrete situations: "Use when …".
@@ -41,7 +40,7 @@ The `description` and `when_to_use` fields are the only thing the model sees whe
 ## Done when
 
 - The owning file is updated or created, and no second file now says the same thing.
-- The opencode mirror matches.
+- The Claude Code mirror matches.
 - The description names the trigger that was missed this session.
 - You can state the before and after behavior in one sentence each.
 

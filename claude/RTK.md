@@ -25,7 +25,7 @@ its own recovery command, `rtk recall <hash>` or a `tail` of a saved log. Run it
 instead of re-running the original command. Re-run as `rtk bypass <cmd>` only when the result is
 unusable: empty when output was clearly expected, contradicting its exit code, or garbled.
 
-## ⚠️ Never `grep -r` from Bash — write `rg`
+## ⚠️ Write `rg` from Bash, never `grep -r`
 
 `rtk grep` does **not** respect `.gitignore` and does **not** cap line length, so a long line in a
 generated file comes through whole. Measured in this repo (rtk 1.2.0): `rtk grep -rn <pat> .`
@@ -36,7 +36,7 @@ Bash call.
 - From Bash, write `rg`, never `grep -r`. `rg` is rewritten to `rtk rg` and stays gitignore-aware,
   so a Bash-first session needs nothing else.
 - The dedicated **Grep tool** is the same ripgrep and equally safe; it just never goes through rtk.
-  Either one is fine — this section is about `grep -r`, not about which tool to reach for.
+  Either one is fine. This section is about `grep -r`, not about which tool to reach for.
 - If you must use `grep -r`, scope it to a path or pass `--exclude-dir=repo-docs`.
 
 ## Meta Commands (always use rtk directly)

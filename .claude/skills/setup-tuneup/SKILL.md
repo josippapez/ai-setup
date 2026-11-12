@@ -32,7 +32,7 @@ Follow `dev-core:find-improvements` for the loop. This file only adds what is pa
 | `claude/hooks/scripts/*` | copying the file to `~/.claude/hooks/scripts/` |
 | `opencode/*` | `bash opencode/install.sh` |
 
-Mirror a changed dev-core skill or rule into `opencode/skills/` or `opencode/rules/`. Contract tests pin agent wording (`agent-contracts.test.cjs`). Update them only when the user approved the policy change.
+Mirror a changed dev-core skill or rule into `opencode/skills/` or `opencode/rules/`.
 
 ## Decided here, do not revisit
 

@@ -5,7 +5,7 @@ description: 'The bar a pull request has to clear to merge with no review commen
 
 # pr-standard
 
-A PR gets "nothing to change" when every hunk has an observed case and every PR-level property below holds. The hunk-level properties are the `evidence-first` Gate 2 kernel rule plus the `writing-code` rule card, which the plugin injects when you are about to edit a file. This skill adds the properties that exist only at the PR level, and the procedure for scoring a PR.
+A PR gets "nothing to change" when every hunk has an observed case and every PR-level property below holds. The hunk-level properties are the `evidence-first` Gate 2 kernel rule plus the always-on `writing-code` rule. This skill adds the properties that exist only at the PR level, and the procedure for scoring a PR.
 
 **The one thing that most often costs a PR its sign-off: a hunk nobody asked for and no test covers.** If you cannot name the observed case for a hunk, delete it.
 
@@ -53,6 +53,6 @@ When the standard is new to a team, score the last three merged PRs. Each `fail`
 
 ## References
 
-- `writing-code` rule card — the hunk-level half of this bar
+- `writing-code` rule — the hunk-level half of this bar
 - `evidence-first` — observed case; `writing-code` — YAGNI, surgical changes, root cause
 - [exhaustive-code-review](../exhaustive-code-review/SKILL.md) — the bug hunt, when that is the question

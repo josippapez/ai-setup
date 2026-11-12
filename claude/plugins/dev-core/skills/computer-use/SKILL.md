@@ -36,7 +36,7 @@ Prefer keyboard over clicking: `key` with a shortcut is faster and lands more re
 
 ## Unblocking a stuck chrome-devtools call
 
-One specific rescue worth knowing. Chrome 144+ shows a native "Allow remote debugging?" dialog on the first connection after a Chrome restart, and it blocks every chrome-devtools tool until dismissed. Retrying never clears it, and nothing cuts the call short: `chrome-devtools` sets no per-server `timeout` and an unset `MCP_TOOL_TIMEOUT` defaults to 28 hours. Control comes back through automatic backgrounding, which moves a main-conversation MCP call to a background task after two minutes. Then:
+One specific rescue worth knowing. Chrome 144+ shows a native "Allow remote debugging?" dialog on the first connection after a Chrome restart, and it blocks every chrome-devtools tool until dismissed. Retrying never clears it, and only the idle timeout cuts the call short: `chrome-devtools` sets no per-server `timeout`, so the call waits out the 30-minute stdio default of `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT` (`MCP_TOOL_TIMEOUT` itself defaults to about 28 hours). Control comes back through automatic backgrounding, which moves a main-conversation MCP call to a background task after two minutes. Then:
 
 1. `get_screenshot` and look for the dialog.
 2. `left_click` Allow at its coordinates.

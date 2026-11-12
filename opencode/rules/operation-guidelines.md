@@ -10,7 +10,7 @@ These guidelines apply to all operations.
 
 ## Tier-aware orchestration
 
-The agent MUST consult the `agent-orchestration` skill and the `custom-orchestrator` agent for implementation and operation guidelines.
+Load the `agent-orchestration` skill before delegating. It holds the routing table, the follow-up limits, and free-model selection.
 
 - Implementation and execution work (coding, refactoring, file generation, running tests, lint fixes) MUST be delegated to lower-tier/faster/cheaper agents or models when a suitable one exists.
 - Planning, architecture, complex reasoning, ambiguity resolution, and safety-critical decisions SHOULD be routed to higher-tier/more expensive reasoning models.
@@ -29,7 +29,7 @@ The agent MUST NOT apply tier-aware routing in these cases:
 
 ## Context-efficient grounding
 
-The agent MUST rely heavily on the `repo-docs` plugin tools to ground answers in repo conventions without loading large amounts of source code into context:
+Use the `repo-docs` plugin tools for repo conventions, docs, and dependency questions, where they answer without loading large amounts of source code into context:
 
 - Repo docs: `repo-docs_find_docs`, `repo-docs_list_docs`, `repo-docs_read_doc`
 - Package versions: `repo-docs_find_libs`

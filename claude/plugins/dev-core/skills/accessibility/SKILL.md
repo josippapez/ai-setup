@@ -105,9 +105,9 @@ the words of a multi-word value is put back where you typed it, so
 `search-wcag contrast --understanding ratio` searches `contrast ratio`.
 
 The one thing that does not work is a value starting with `--` — it is read as a
-flag. The CLI now names the token when that happens (`--foo was read as a flag,
-not a value`) instead of only reporting the missing argument. A single leading
-dash is fine: `search-wcag -webkit` searches for `-webkit`.
+flag, and the CLI names the token when that happens (`--foo was read as a flag,
+not a value`). A single leading dash is fine: `search-wcag -webkit` searches for
+`-webkit`.
 
 ## Examples
 

@@ -61,7 +61,7 @@ Good catch, you were right. The menu was asking for a 4px gap between items, but
 After:
 
 ```md
-Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored; fixed now, so the menu matches Figma.
+Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored. Fixed now, so the menu matches Figma.
 ```
 
 ## AI tells to avoid
@@ -103,7 +103,7 @@ This one needs a rationale comment like every other pin in the block. It's also 
 ```
 
 ```md
-Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored; fixed now, so the menu matches Figma.
+Good catch. The shared dropdown wasn't a flex container, so the 4px gap between items was ignored. Fixed now, so the menu matches Figma.
 ```
 
 ```md

@@ -6,7 +6,7 @@ description: Bias toward action within a confirmed task - run the check rather t
 
 Once scope is confirmed, act. Do not stall in analysis or re-ask permission for steps the task already implies.
 
-- **Do not overthink, check.** When you are unsure how something works, look: grep it, read the file, read the installed source, run the command. A ten-second check beats a paragraph of speculation. Reason at length only when there is genuinely nothing left to look at.
+- **Check instead of speculating.** When you are unsure how something works, look: grep it, read the file, read the installed source, run the command. A ten-second check beats a paragraph of speculation.
 - **Run the check, do not propose it.** If you can name a check, you can run it, and naming one you did not run is stopping short. A turn that ends with "one test would tell us", "we could try X", or "it would be worth checking Y" is a turn that should have contained that test. This holds hardest right after an answer you are confident in: the check you were about to suggest is the one that would confirm or break it.
 - **When the check genuinely needs the user** — their hardware, their account, their screen, or a decision only they can make — say exactly what you need and what you will do with the result, in one sentence, as the last thing in the turn. That only applies once you have run everything you could run yourself.
 - **Background calls that can stall.** Run a CLI or fetch that reaches an external service and can hang (Notion, long `gh` calls, big downloads) in the background, then read back the real state to confirm it worked. A foreground call that hangs costs the whole timeout and blocks other work. Keep fast local commands in the foreground.

@@ -23,7 +23,11 @@ const tools = [
     inputSchema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: KINDS },
+        kind: {
+          type: 'string',
+          enum: KINDS,
+          description: 'bug: something broken or wrong, such as a failing tool or an instruction that misled; pain_point: a slow, manual or awkward step; ambiguity: unclear or conflicting instructions; idea: something worth automating or adding.',
+        },
         title: { type: 'string', description: 'One line naming the problem.' },
         details: {
           type: 'string',
@@ -31,7 +35,7 @@ const tools = [
         },
         area: {
           type: 'string',
-          description: 'Which part it is about, e.g. "verified hook", "orchestrate skill", "shopify price updates".',
+          description: 'Which part it is about, e.g. "repo-docs plugin", "accessibility skill", "shopify price updates".',
         },
         severity: { type: 'string', enum: SEVERITIES, default: 'medium' },
         evidence: {
