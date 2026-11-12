@@ -1,6 +1,6 @@
 ---
 name: high-tier-coder
-description: The default coding agent (Opus). Use for implementation work of any size: features, fixes, refactors, plugins, ports, and conversions. Cheaper per finished task than mid-tier-coder because it needs fewer retries.
+description: Opus coding agent, used only when the approach is still undecided, the change is security- or safety-critical, mid-tier-coder already failed, or the user asks for it. Size or file count alone does not qualify; use mid-tier-coder for that.
 model: opus
 ---
 
