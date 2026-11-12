@@ -1,0 +1,17 @@
+[
+ {"id": "off-01", "q": "best pizza in new york", "kind": "unrelated"},
+ {"id": "off-02", "q": "kubernetes pod restart", "kind": "unrelated"},
+ {"id": "off-03", "q": "pandas dataframe merge", "kind": "unrelated"},
+ {"id": "off-04", "q": "football world cup results", "kind": "unrelated"},
+ {"id": "off-05", "q": "how to bake bread", "kind": "unrelated"},
+ {"id": "off-06", "q": "angular rxjs observable unsubscribe", "kind": "unrelated"},
+ {"id": "off-07", "q": "sqlalchemy session commit", "kind": "unrelated"},
+ {"id": "off-08", "q": "stock market prices", "kind": "unrelated"},
+ {"id": "off-09", "q": "weather forecast for tomorrow", "kind": "unrelated"},
+ {"id": "off-10", "q": "how do I train for a marathon", "kind": "unrelated"},
+ {"id": "off-11", "q": "postgres vacuum autovacuum tuning", "kind": "near-miss"},
+ {"id": "off-12", "q": "terraform state lock error aws s3 backend", "kind": "near-miss"},
+ {"id": "off-13", "q": "graphql schema stitching apollo federation", "kind": "near-miss"},
+ {"id": "off-14", "q": "rust borrow checker lifetime error", "kind": "near-miss"},
+ {"id": "off-15", "q": "nginx reverse proxy ssl certificate renewal", "kind": "near-miss"}
+]

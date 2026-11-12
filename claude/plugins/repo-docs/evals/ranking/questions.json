@@ -1,0 +1,264 @@
+[
+ {
+  "id": "ai-01",
+  "q": "How do I check that a tweak to what the stop-time claim checker flags won't make it perform worse before I ship it?",
+  "expected": [
+   "claude/plugins/verified/README.md",
+   "claude/plugins/verified/commands/verified-replay.md"
+  ]
+ },
+ {
+  "id": "ai-02",
+  "q": "Why didn't we use a model to catch the bad answers that the regex patterns let through?",
+  "expected": [
+   "claude/plugins/verified/README.md"
+  ]
+ },
+ {
+  "id": "ai-03",
+  "q": "After I edit a doc mid-session, how come I can search for the new text without restarting anything?",
+  "expected": [
+   "claude/plugins/repo-docs/README.md"
+  ]
+ },
+ {
+  "id": "ai-04",
+  "q": "I keep finding leftover background search-server processes from old sessions; what is supposed to clean them up?",
+  "expected": [
+   "claude/plugins/repo-docs/README.md"
+  ]
+ },
+ {
+  "id": "ai-05",
+  "q": "What does an external issue tracker have to be given by this setup so it hears what each turn changed?",
+  "expected": [
+   "claude/plugins/journal/README.md"
+  ]
+ },
+ {
+  "id": "ai-06",
+  "q": "The hook that lists files I touched but did not mention in my answer used to interrupt me; why does it no longer do that?",
+  "expected": [
+   "claude/plugins/scope/README.md"
+  ]
+ },
+ {
+  "id": "ai-07",
+  "q": "How does the model find out at session start that a guidance file exists which only loads when a matching file is read?",
+  "expected": [
+   "claude/plugins/rules-index/README.md"
+  ]
+ },
+ {
+  "id": "ai-08",
+  "q": "Which survives a context compaction untouched: instructions in the system prompt, or text a hook injected earlier?",
+  "expected": [
+   "claude/plugins/concise-output/README.md"
+  ]
+ },
+ {
+  "id": "ai-09",
+  "q": "Why does the assistant slip back into a forbidden punctuation habit deep into long conversations, and what was measured to fix it?",
+  "expected": [
+   "claude/plugins/concise-output/README.md"
+  ]
+ },
+ {
+  "id": "ai-12",
+  "q": "How do I install all of this on a new laptop without cloning the repo first?",
+  "expected": [
+   "README.md"
+  ]
+ },
+ {
+  "id": "ai-13",
+  "q": "A shell search command I ran produced tens of megabytes of output and stalled the call; what should I have typed instead?",
+  "expected": [
+   "claude/RTK.md",
+   "opencode/rules/rtk.instruction.md"
+  ]
+ },
+ {
+  "id": "ai-14",
+  "q": "The same sandbox-setup code is copied across three flows and a bug fix only landed in one of them. Where should logic like that live?",
+  "expected": [
+   "claude/plugins/dev-core/skills/code-structure/SKILL.md",
+   "opencode/skills/code-structure/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-15",
+  "q": "How many hand-written lines can a change be before a reviewer will tell me to split it up?",
+  "expected": [
+   "claude/plugins/dev-core/skills/pr-standard/SKILL.md",
+   "opencode/skills/pr-standard/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-16",
+  "q": "How should I flag a deliberate shortcut in code so the next reader knows its limits and the upgrade path?",
+  "expected": [
+   "claude/plugins/dev-core/rule-cards/writing-code.md",
+   "opencode/rules/writing-code.instruction.md"
+  ]
+ },
+ {
+  "id": "ai-17",
+  "q": "I need to see how a dependency behaves internally for the exact version we have installed; how do I get its source locally?",
+  "expected": [
+   "claude/plugins/dev-core/rule-cards/reading-libraries.md",
+   "claude/plugins/dev-core/skills/opensrc/SKILL.md",
+   "opencode/skills/opensrc/SKILL.md",
+   "opencode/rules/opensrc.instruction.md"
+  ]
+ },
+ {
+  "id": "ai-19",
+  "q": "How does the agent get nudged to record that a doc or rule it relied on turned out wrong or stale?",
+  "expected": [
+   "claude/plugins/feedback/README.md"
+  ]
+ },
+ {
+  "id": "ai-20",
+  "q": "I changed one of our plugin's server scripts; how do I get the running session to pick it up?",
+  "expected": [
+   ".claude/skills/setup-tuneup/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-21",
+  "q": "Why does a second round of code review keep turning up problems that were already there the first time?",
+  "expected": [
+   "claude/plugins/dev-core/skills/exhaustive-code-review/SKILL.md",
+   "opencode/skills/exhaustive-code-review/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-22",
+  "q": "I want a lesson from a mistake to stick; how do I decide whether it becomes always-loaded guidance, a tool-triggered note, or an on-demand how-to?",
+  "expected": [
+   "claude/plugins/dev-core/skills/self-improve/SKILL.md",
+   "opencode/skills/self-improve/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-23",
+  "q": "The browser automation tools hang right after Chrome restarted and retrying does nothing; what unblocks it?",
+  "expected": [
+   "claude/plugins/dev-core/skills/computer-use/SKILL.md",
+   "opencode/skills/computer-use/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-24",
+  "q": "Our screenshots of a lazy-loading, scroll-animated page come out mostly blank or gray; how should I capture it properly?",
+  "expected": [
+   "claude/plugins/better-design/library/stitched-full-page-capture/SKILL.md",
+   "opencode/skills/better-design/library/stitched-full-page-capture/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-25",
+  "q": "When I nest a rounded card inside a padded rounded container, how do I pick the outer corner radius so the curves line up?",
+  "expected": [
+   "claude/plugins/better-design/library/make-interfaces-feel-better/surfaces.md",
+   "opencode/skills/better-design/library/make-interfaces-feel-better/surfaces.md",
+   "claude/plugins/better-design/library/make-interfaces-feel-better/SKILL.md",
+   "opencode/skills/better-design/library/make-interfaces-feel-better/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-26",
+  "q": "How do I stop a single stranded word from sitting alone on the last line of paragraph text in CSS?",
+  "expected": [
+   "claude/plugins/better-design/library/make-interfaces-feel-better/typography.md",
+   "opencode/skills/better-design/library/make-interfaces-feel-better/typography.md"
+  ]
+ },
+ {
+  "id": "ai-27",
+  "q": "Why shouldn't a button's hover style tell the browser to animate every property that could change?",
+  "expected": [
+   "claude/plugins/better-design/library/make-interfaces-feel-better/performance.md",
+   "opencode/skills/better-design/library/make-interfaces-feel-better/performance.md"
+  ]
+ },
+ {
+  "id": "ai-28",
+  "q": "What exact utility classes give a card soft layered depth without a coloured glow?",
+  "expected": [
+   "claude/plugins/better-design/library/beautiful-shadows/SKILL.md",
+   "opencode/skills/better-design/library/beautiful-shadows/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-29",
+  "q": "How can content under a fixed page header fade smoothly into blur as it scrolls beneath it?",
+  "expected": [
+   "claude/plugins/better-design/library/progressive-blur/SKILL.md",
+   "opencode/skills/better-design/library/progressive-blur/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-30",
+  "q": "What is the right way to run GSAP animations inside a React component so they get cleaned up on unmount?",
+  "expected": [
+   "claude/plugins/better-design/library/gsap-react/SKILL.md",
+   "opencode/skills/better-design/library/gsap-react/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-31",
+  "q": "Where should we write down that two words mean the same thing in our project's vocabulary?",
+  "expected": [
+   "opencode/skills/domain-modeling/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-32",
+  "q": "The agent used to keep asking whether I was satisfied after every delivery; where did that behaviour go and how would I bring it back?",
+  "expected": [
+   "retired/prompt-loop/README.md"
+  ]
+ },
+ {
+  "id": "ai-33",
+  "q": "dev-core link-rules.cjs: what does it do on SessionStart with the rules/ folder?",
+  "expected": [
+   "claude/plugins/dev-core/README.md"
+  ]
+ },
+ {
+  "id": "ai-34",
+  "q": "git-move rule: relocating a tracked file with git mv instead of mv",
+  "expected": [
+   "opencode/rules/git-move.instruction.md",
+   "claude/plugins/dev-core/README.md"
+  ]
+ },
+ {
+  "id": "ai-38",
+  "q": "baseline-ui: never use h-screen, use h-dvh",
+  "expected": [
+   "claude/plugins/better-design/library/baseline-ui/SKILL.md",
+   "opencode/skills/better-design/library/baseline-ui/SKILL.md"
+  ]
+ },
+ {
+  "id": "ai-39",
+  "q": "git-commit rule card: never pass --no-verify",
+  "expected": [
+   "claude/plugins/dev-core/rule-cards/git-commit.md",
+   "opencode/rules/git-commit.instruction.md"
+  ]
+ },
+ {
+  "id": "ai-40",
+  "q": "rtk bypass versus rtk run escape hatches",
+  "expected": [
+   "claude/RTK.md",
+   "opencode/rules/rtk.instruction.md"
+  ]
+ }
+]
