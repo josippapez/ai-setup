@@ -6,13 +6,16 @@ set -euo pipefail
 #   scripts/rtk-proxy.sh on|off|status [settings.json ...]
 #
 # on:     installs the rtk-proxy binary next to rtk, writes the proxy pipeline, runs the proxy as a
-#         login service, and points Claude Code at it (env.ANTHROPIC_BASE_URL in settings.json).
-# off:    removes that base URL and the login service, and leaves the proxy running until logout
-#         so sessions opened while it was on keep working. The binary and the pipeline file stay;
-#         the pipeline's proxy rules do nothing while the proxy is off.
-# status: shows the service and which settings files point at the proxy.
+#         login service, and installs `claude-rtk` next to rtk: Claude Code pointed at the proxy for
+#         that one session. Plain `claude` stays direct, because Claude Code turns Remote Control
+#         off whenever ANTHROPIC_BASE_URL points at a host other than api.anthropic.com.
+# off:    removes `claude-rtk` and the login service, and leaves the proxy running until logout
+#         so sessions started with `claude-rtk` keep working. The binary and the pipeline file
+#         stay; the pipeline's proxy rules do nothing while the proxy is off.
+# status: shows the service and whether `claude-rtk` is installed.
 #
-# Settings files default to ${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json.
+# on and off also remove this proxy's env.ANTHROPIC_BASE_URL from the settings files, where earlier
+# versions put it. Settings files default to ${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=install-common.sh
@@ -98,27 +101,43 @@ use  = ["ccr"]
 EOF
 }
 
-# set_base_url <settings.json> <url|"">: an empty url removes the key, but only when it points at
-# this proxy, so a base URL the user set for another gateway is never touched.
-set_base_url() {
+# clear_base_url <settings.json>: removes env.ANTHROPIC_BASE_URL, but only when it points at this
+# proxy, so a base URL the user set for another gateway is never touched.
+clear_base_url() {
   node -e '
     const fs = require("fs");
-    const [file, url, ...ours] = process.argv.slice(1);
+    const [file, ...ours] = process.argv.slice(1);
     const s = JSON.parse(fs.readFileSync(file, "utf8"));
-    const current = s.env && s.env.ANTHROPIC_BASE_URL;
-    if (url) {
-      if (current && !ours.includes(current)) {
-        console.error(`${file}: ANTHROPIC_BASE_URL is already ${current}; not changing it.`);
-        process.exit(1);
-      }
-      s.env = { ...(s.env || {}), ANTHROPIC_BASE_URL: url };
-    } else if (ours.includes(current)) {
-      delete s.env.ANTHROPIC_BASE_URL;
-    } else {
-      process.exit(0);
-    }
+    if (!s.env || !ours.includes(s.env.ANTHROPIC_BASE_URL)) process.exit(0);
+    delete s.env.ANTHROPIC_BASE_URL;
     fs.writeFileSync(file, JSON.stringify(s, null, 2) + "\n");
-  ' "$1" "$2" "$URL" "$OLD_URL"
+    console.log(`${file}: removed the proxy base URL, so sessions there go direct again`);
+  ' "$1" "$URL" "$OLD_URL"
+}
+
+wrapper_path() {
+  printf '%s/claude-rtk\n' "$(dirname "$(command -v rtk)")"
+}
+
+is_our_wrapper() {
+  [ -f "$1" ] && grep -qF "$MARKER" "$1"
+}
+
+install_wrapper() {
+  wrapper="$(wrapper_path)"
+  if [ -e "$wrapper" ] && ! is_our_wrapper "$wrapper"; then
+    die "$wrapper exists and is not ours; move it, then run this again."
+  fi
+  [ -w "$(dirname "$wrapper")" ] || die "$(dirname "$wrapper") is not writable."
+  cat > "$wrapper" <<EOF
+#!/bin/sh
+$MARKER
+# Claude Code through the rtk proxy for this session only. Plain claude stays direct, which
+# Remote Control needs.
+export ANTHROPIC_BASE_URL=$URL
+exec claude "\$@"
+EOF
+  chmod +x "$wrapper"
 }
 
 case "$action" in
@@ -137,32 +156,37 @@ case "$action" in
       sleep 1
     done
     rtk llm-proxy status --bind "$BIND" >/dev/null 2>&1 || die "the proxy service did not come up; see: rtk llm-proxy service logs"
+    install_wrapper
     for settings in "$@"; do
-      [ -f "$settings" ] || die "$settings does not exist."
-      set_base_url "$settings" "$URL"
-      printf 'Claude Code (%s) now goes through %s\n' "$settings" "$URL"
+      if [ -f "$settings" ]; then clear_base_url "$settings"; fi
     done
-    echo "Open Claude Code sessions may switch to it right away; new ones always do."
+    printf 'Start Claude Code with claude-rtk to go through %s. Plain claude stays direct and keeps Remote Control.\n' "$URL"
     ;;
   off)
     for settings in "$@"; do
-      [ -f "$settings" ] && set_base_url "$settings" ""
+      if [ -f "$settings" ]; then clear_base_url "$settings"; fi
     done
+    wrapper="$(wrapper_path)"
+    if is_our_wrapper "$wrapper"; then rm -f "$wrapper"; fi
     rtk llm-proxy service uninstall >/dev/null 2>&1 || true
     # A Claude Code session that was open while the proxy was on keeps its address until it
     # restarts, and fails with ECONNREFUSED if nothing answers there. So keep a plain daemon up
     # (no login service, gone after logout) instead of stopping the proxy under it.
     RTK_PROXY_RELAY_BORROWING=false rtk llm-proxy start --bind "$BIND" >/dev/null 2>&1 || true
-    echo "rtk proxy off for new sessions. It keeps running until you log out, so open sessions keep"
-    echo "working; restart them, then 'rtk llm-proxy stop' ends it now."
+    echo "rtk proxy off and claude-rtk removed. The proxy keeps running until you log out, so open"
+    echo "claude-rtk sessions keep working; restart them, then 'rtk llm-proxy stop' ends it now."
     ;;
   status)
     rtk llm-proxy service status 2>&1 || true
+    wrapper="$(wrapper_path)"
+    if is_our_wrapper "$wrapper"; then
+      printf 'claude-rtk: on (%s)\n' "$wrapper"
+    else
+      echo "claude-rtk: off"
+    fi
     for settings in "$@"; do
-      if [ -f "$settings" ] && grep -qF "\"ANTHROPIC_BASE_URL\": \"$URL\"" "$settings"; then
-        printf '%s: on\n' "$settings"
-      else
-        printf '%s: off\n' "$settings"
+      if [ -f "$settings" ] && grep -qE "\"ANTHROPIC_BASE_URL\": \"($URL|$OLD_URL)\"" "$settings"; then
+        printf '%s sends every session through the proxy, which turns Remote Control off. Run scripts/rtk-proxy.sh on to move it to claude-rtk.\n' "$settings"
       fi
     done
     ;;

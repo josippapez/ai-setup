@@ -20,11 +20,15 @@ install_rtk
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"
 cp "$SRC/RTK.md" "$DEST/RTK.md"
 
-# The rtk proxy toggle lives in the deployed settings.json (env.ANTHROPIC_BASE_URL), which the copy
-# below overwrites. Without --rtk-proxy or --no-rtk-proxy, keep whatever it was.
+# The rtk proxy is on when the claude-rtk launcher sits next to rtk. Earlier versions put
+# env.ANTHROPIC_BASE_URL in the deployed settings.json instead, which the copy below overwrites, so
+# that still counts as on. Without --rtk-proxy or --no-rtk-proxy, keep whatever it was.
 rtk_proxy="${AI_SETUP_RTK_PROXY:-}"
-if [ -z "$rtk_proxy" ] && grep -qE '"ANTHROPIC_BASE_URL": "http://127\.0\.0\.1:(8787|8080)"' "$DEST/settings.json" 2>/dev/null; then
-  rtk_proxy=on
+if [ -z "$rtk_proxy" ]; then
+  if grep -qF "Managed by ai-setup scripts/rtk-proxy.sh" "$(dirname "$(command -v rtk)")/claude-rtk" 2>/dev/null \
+    || grep -qE '"ANTHROPIC_BASE_URL": "http://127\.0\.0\.1:(8787|8080)"' "$DEST/settings.json" 2>/dev/null; then
+    rtk_proxy=on
+  fi
 fi
 
 # Copy settings.json as-is. No secret reconcile is needed: MCP servers — the only
