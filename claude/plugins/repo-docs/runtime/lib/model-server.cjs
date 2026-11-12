@@ -210,7 +210,7 @@ function handleRerank(conn, msg) {
     priority, job,
     run(impl) {
       unit.pending = impl.score(query, texts).then((scores) => {
-        job.result = { order: scores.map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map((x) => x.i) };
+        job.result = { order: scores.map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map((x) => x.i), scores };
         job.remaining--;
         job.finish(null);
       });

@@ -31,6 +31,12 @@ function addChunks(o, db, records) {
   o.insertMultiple(db, records);
 }
 
+// Cosine similarity of the closest chunk; Orama's hybrid score blends BM25 and is not comparable across queries.
+function topCosine(o, db, { vector, property = 'embedding' }) {
+  const res = o.search(db, { mode: 'vector', vector: { value: vector, property }, similarity: 0, limit: 1 });
+  return res.hits[0]?.score ?? 0;
+}
+
 function hybridSearch(o, db, { term, vector, property = 'embedding', limit = 30 }) {
   const res = o.search(db, {
     mode: 'hybrid',
@@ -105,6 +111,7 @@ module.exports = {
   createIndex: () => orama().then(createIndex),
   addChunks: (db, records) => orama().then(o => addChunks(o, db, records)),
   hybridSearch: (db, args) => orama().then(o => hybridSearch(o, db, args)),
+  topCosine: (db, args) => orama().then(o => topCosine(o, db, args)),
   saveRecords: async (records, filePath) => saveRecords(records, filePath),
   readRecords,
   loadIndex: async (filePath) => {

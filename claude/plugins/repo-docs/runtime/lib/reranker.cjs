@@ -50,19 +50,20 @@ const IDLE_MS = Number(process.env.REPO_DOCS_RERANK_IDLE_MS) > 0 ? Number(proces
 async function score(query, texts) {
   const m = await load();
   if (!m) return null;
-  const scored = [];
+  const scores = [];
   for (let i = 0; i < texts.length; i++) {
     const inputs = m.tokenizer(query, { text_pair: texts[i], padding: true, truncation: true });
     const { logits } = await m.model(inputs);
-    scored.push({ i, s: logits.data[0] });
+    scores.push(logits.data[0]);
   }
-  scored.sort((a, b) => b.s - a.s);
-  return scored.map(x => x.i);
+  return scores;
 }
+
+const orderOf = scores => scores.map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(x => x.i);
 
 if (require.main === module) {
   process.on('message', ({ id, query, texts }) => {
-    score(query, texts).catch(() => null).then(order => process.send({ id, order }));
+    score(query, texts).catch(() => null).then(scores => process.send({ id, scores }));
   });
   process.on('disconnect', () => process.exit(0));
 }
@@ -74,7 +75,7 @@ function ensureChild() {
   if (child) return child;
   const { fork } = require('node:child_process');
   child = fork(__filename, [], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-  child.on('message', ({ id, order }) => { pending.get(id)?.(order); pending.delete(id); });
+  child.on('message', ({ id, scores }) => { pending.get(id)?.(scores); pending.delete(id); });
   child.on('exit', () => {
     child = null;
     for (const done of pending.values()) done(null);
@@ -83,11 +84,12 @@ function ensureChild() {
   return child;
 }
 
-// Reorder candidates best-first. The CALLER decides whether to rerank (via a
+// Reorder candidates best-first, with the cross-encoder's raw score per candidate
+// (null when it could not score them). The CALLER decides whether to rerank (via a
 // per-call flag or isRerankEnabled()); this function does not re-gate on the env
 // so a per-call `rerank:true` works even when RERANK_ENABLED is unset.
-async function rerank(query, candidates) {
-  const identity = candidates.map((_, i) => i);
+async function rerankWithScores(query, candidates) {
+  const identity = { order: candidates.map((_, i) => i), scores: null };
   if (candidates.length === 0) return identity;
   const texts = candidates.map(c => String(c.text).slice(0, 2000));
   // The shared model server first: its one copy of the 1.2 GB model serves every session.
@@ -101,17 +103,22 @@ async function rerank(query, candidates) {
       cacheDir: process.env.REPO_DOCS_MODELS_DIR || require('./platform.cjs').MODELS_DIR,
     },
   });
-  if (shared) return Array.isArray(shared.order) && shared.order.length === candidates.length ? shared.order : identity;
+  if (shared) {
+    const ok = Array.isArray(shared.order) && shared.order.length === candidates.length;
+    return ok ? { order: shared.order, scores: Array.isArray(shared.scores) ? shared.scores : null } : identity;
+  }
   const proc = ensureChild();
   const id = ++nextId;
-  const order = await new Promise(done => {
+  const scores = await new Promise(done => {
     pending.set(id, done);
     proc.send({ id, query, texts });
   });
   clearTimeout(idle);
   idle = setTimeout(() => child?.kill(), IDLE_MS);
   idle.unref();
-  return Array.isArray(order) && order.length === candidates.length ? order : identity;
+  return Array.isArray(scores) && scores.length === candidates.length ? { order: orderOf(scores), scores } : identity;
 }
 
-module.exports = { isRerankEnabled, rerank, RERANKER_ID };
+const rerank = async (query, candidates) => (await rerankWithScores(query, candidates)).order;
+
+module.exports = { isRerankEnabled, rerank, rerankWithScores, RERANKER_ID };

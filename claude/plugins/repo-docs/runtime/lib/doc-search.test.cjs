@@ -11,10 +11,19 @@ const { CONFIG_DIR, REINDEX_COMMAND } = require('./platform.cjs');
 
 // Stub the cross-encoder so these tests never load it; record how it is called.
 const rerankCalls = [];
+let rerankScore = 2;
 const rerankerPath = require.resolve('./reranker.cjs');
 require.cache[rerankerPath] = {
   id: rerankerPath, filename: rerankerPath, loaded: true,
-  exports: { isRerankEnabled: () => true, rerank: async (q, candidates) => { rerankCalls.push(candidates.length); return candidates.map((_, i) => i).reverse(); } },
+  exports: {
+    isRerankEnabled: () => true,
+    // Order only, as the old interface returned it, so the cutoff test fails on behaviour against old code.
+    rerank: async (q, candidates) => candidates.map((_, i) => i).reverse(),
+    rerankWithScores: async (q, candidates) => {
+      rerankCalls.push(candidates.length);
+      return { order: candidates.map((_, i) => i).reverse(), scores: candidates.map(() => rerankScore) };
+    },
+  },
 };
 
 const { warmUp, waitUntilReady, embedDocument, shutdown } = require('./semantic-index.cjs');
@@ -131,4 +140,19 @@ test('rankDocs resolves null when no index exists, so find_docs can fall back', 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
   assert.strictEqual(await rankDocs({ root, maxFileSizeBytes: 1e6 }, { query: 'anything', rerank: false }), null);
   assert.deepStrictEqual(await rankDocs({ root, maxFileSizeBytes: 1e6 }, { query: '   ' }), []);
+});
+
+test('rankDocs returns no files when the cross-encoder scores even its best candidate below the floor', { skip }, async (t) => {
+  warmUp();
+  assert.ok(await waitUntilReady(), 'embedder must warm up');
+  t.after(() => { rerankScore = 2; shutdown(); });
+  const context = await makeIndex([
+    { path: 'docs/auth.md', heading: 'Auth', content: '# Auth\nLogin and token refresh.' },
+    { path: 'docs/build.md', heading: 'Build', content: '# Build\nWebpack bundling and CI pipeline stages.' },
+  ]);
+  rerankScore = -3;
+  assert.strictEqual((await rankDocs(context, { query: 'best pizza in new york', limit: 5 })).length, 0);
+  assert.strictEqual((await rankDocs(context, { query: 'best pizza in new york', limit: 5, rerank: false })).length, 2, 'without the cross-encoder there is no signal to cut on');
+  rerankScore = 2;
+  assert.strictEqual((await rankDocs(context, { query: 'login token refresh', limit: 5 })).length, 2);
 });

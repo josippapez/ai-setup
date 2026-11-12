@@ -70,7 +70,7 @@ test('embed and rerank round-trip through a server the client starts', async (t)
   const res = await h.client.embed(embedOpts(['abc', 'de']));
   assert.deepStrictEqual(res, { vectors: [[3, 1], [2, 1]] });
   const ranked = await h.client.rerank({ model: 'r', query: 'q', texts: ['a', 'abc', 'ab'], load: LOAD });
-  assert.deepStrictEqual(ranked, { order: [1, 2, 0] });
+  assert.deepStrictEqual(ranked, { order: [1, 2, 0], scores: [1, 3, 2] });
 });
 
 test('two clients starting at once end up with one server process', async (t) => {

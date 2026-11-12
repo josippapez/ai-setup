@@ -1,9 +1,9 @@
 'use strict';
 
 const fs = require('node:fs');
-const { loadIndex, hybridSearch } = require('./doc-index.cjs');
+const { loadIndex, hybridSearch, topCosine } = require('./doc-index.cjs');
 const { waitUntilReady, embedderStatus, embedQuery } = require('./semantic-index.cjs');
-const { rerank } = require('./reranker.cjs');
+const { rerankWithScores } = require('./reranker.cjs');
 const { indexPath, buildDocIndex, builtAtOtherHead, buildProgress } = require('../tools/build-semantic-index.cjs');
 const { REINDEX_COMMAND } = require('./platform.cjs');
 
@@ -12,6 +12,10 @@ const { REINDEX_COMMAND } = require('./platform.cjs');
 const CAND = 200;
 const RERANK_TOP = 10;
 const RRF_K = 60;
+// Below this top cross-encoder logit nothing in the index answers the query. On the ranking
+// eval (evals/ranking) every on-topic question that finds its doc scores above -1.31 and every
+// off-topic query below -1.52; the cutoff sits between. The rerank:false path has no such signal.
+const RERANK_FLOOR = -1.4;
 // The embedder loads in 252-504 ms once its model is on disk, so a query that finds it
 // not loaded yet (a fresh server, or a retry after a failed load) waits for it instead
 // of answering with keyword search. Past this, find_docs falls back and says when to retry.
@@ -67,7 +71,7 @@ function fuseRankings(lists) {
 // paraphrased questions up without moving any query down.
 // Resolves null when semantic search is unavailable (model not ready, no index
 // yet), so the caller can fall back to keyword search; [] means no match.
-async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: withRerank = true } = {}) {
+async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: withRerank = true, withSignals = false } = {}) {
   const q = String(query || '').trim();
   if (!q) return [];
   if (!(await waitUntilReady(QUERY_WAIT_MS))) return null;
@@ -82,14 +86,22 @@ async function rankDocs(context, { query, limit = 12, threshold = 0, rerank: wit
   const plain = await ranked('embedding');
   const withContext = await ranked('ctxEmbedding');
   let files = fuseRankings([plain, withContext]);
+  const signals = { rerank: null };
+  if (withSignals) Object.assign(signals, { cosine: await topCosine(db, { vector }), hybrid: plain[0]?.score });
   if (withRerank && files.length > 1) {
     const top = files.slice(0, RERANK_TOP);
-    const order = await rerank(q, top.map(h => ({ text: h.content })));
+    const { order, scores } = await rerankWithScores(q, top.map(h => ({ text: h.content })));
+    if (scores) {
+      signals.rerank = Math.max(...scores);
+      if (signals.rerank < RERANK_FLOOR) return Object.assign([], { signals });
+    }
     const inTop = new Set(top.map(h => h.path));
     const voted = fuseRankings([plain, withContext, order.map(i => top[i])]).filter(h => inTop.has(h.path));
     files = [...voted, ...files.slice(RERANK_TOP)];
   }
-  return files.slice(0, limit);
+  const out = files.slice(0, limit);
+  out.signals = signals;
+  return out;
 }
 
 const secs = ms => Math.max(1, Math.ceil(ms / 1000));
