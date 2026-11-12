@@ -18,8 +18,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=install-common.sh
 . "$ROOT/scripts/install-common.sh"
 
-BIND="127.0.0.1:8080"
+# rtk's default port, 8080, is also the usual dev-server port, and a backend on it then answers
+# the proxy's calls or the proxy answers the browser's. OLD_URL is that earlier setting, still
+# recognised as ours so `on` and `off` can move a settings file off it.
+BIND="127.0.0.1:8787"
 URL="http://$BIND"
+OLD_URL="http://127.0.0.1:8080"
 MARKER="# Managed by ai-setup scripts/rtk-proxy.sh"
 
 action="${1:-status}"
@@ -99,22 +103,22 @@ EOF
 set_base_url() {
   node -e '
     const fs = require("fs");
-    const [file, url, ours] = process.argv.slice(1);
+    const [file, url, ...ours] = process.argv.slice(1);
     const s = JSON.parse(fs.readFileSync(file, "utf8"));
     const current = s.env && s.env.ANTHROPIC_BASE_URL;
     if (url) {
-      if (current && current !== url) {
+      if (current && !ours.includes(current)) {
         console.error(`${file}: ANTHROPIC_BASE_URL is already ${current}; not changing it.`);
         process.exit(1);
       }
       s.env = { ...(s.env || {}), ANTHROPIC_BASE_URL: url };
-    } else if (current === ours) {
+    } else if (ours.includes(current)) {
       delete s.env.ANTHROPIC_BASE_URL;
     } else {
       process.exit(0);
     }
     fs.writeFileSync(file, JSON.stringify(s, null, 2) + "\n");
-  ' "$1" "$2" "$URL"
+  ' "$1" "$2" "$URL" "$OLD_URL"
 }
 
 case "$action" in
