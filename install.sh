@@ -7,6 +7,8 @@ set -euo pipefail
 #   ./install.sh              # install both adapters
 #   ./install.sh --claude     # Claude Code config only
 #   ./install.sh --opencode   # OpenCode config only
+#   ./install.sh --rtk-proxy      # also route Claude Code through the rtk LLM proxy
+#   ./install.sh --no-rtk-proxy   # stop routing Claude Code through it
 #
 # Env: AI_SETUP_SKIP_RTK=1 skips the rtk install, AI_SETUP_BIN_DIR overrides
 # where the Linux rtk binary lands (default ~/.local/bin).
@@ -20,11 +22,14 @@ want_opencode=0
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--claude] [--opencode] [--help]
+Usage: ./install.sh [--claude] [--opencode] [--rtk-proxy | --no-rtk-proxy] [--help]
 
-  (no flags)   install both the Claude Code and OpenCode configuration
-  --claude     install the Claude Code configuration only
-  --opencode   install the OpenCode configuration only
+  (no flags)      install both the Claude Code and OpenCode configuration
+  --claude        install the Claude Code configuration only
+  --opencode      install the OpenCode configuration only
+  --rtk-proxy     route Claude Code through the rtk LLM proxy (a local login service)
+  --no-rtk-proxy  stop routing Claude Code through it
+                  Without either flag, the current choice is kept.
 
 Environment:
   AI_SETUP_SKIP_RTK=1   skip installing rtk
@@ -36,6 +41,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --claude) want_claude=1 ;;
     --opencode) want_opencode=1 ;;
+    --rtk-proxy) export AI_SETUP_RTK_PROXY=on ;;
+    --no-rtk-proxy) export AI_SETUP_RTK_PROXY=off ;;
     -h | --help)
       usage
       exit 0
