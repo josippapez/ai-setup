@@ -172,6 +172,59 @@ test('links that do not point into the plugin data dir are never touched', () =>
   assert.strictEqual(fs.readlinkSync(mine), elsewhere);
 });
 
+// Runs `body` in a separate node process until `stop` exists, so it overlaps the
+// hook runs in this one. Returns once the loop has started.
+function loopInBackground(fx, body, args) {
+  const ready = path.join(fx.home, `ready-${Math.random()}`);
+  const stop = path.join(fx.home, `stop-${Math.random()}`);
+  const child = require('node:child_process').spawn('node', ['-e', `
+    const fs = require('node:fs');
+    const [ready, stop, ...args] = process.argv.slice(1);
+    let n = 0;
+    fs.writeFileSync(ready, '');
+    while (!fs.existsSync(stop)) { ${body} }
+    process.stdout.write(String(n));
+  `, ready, stop, ...args], { stdio: ['ignore', 'pipe', 'inherit'] });
+  let out = '';
+  child.stdout.on('data', (d) => { out += d; });
+  while (!fs.existsSync(ready)) execFileSync('sleep', ['0.01']);
+  return () => new Promise((resolve) => {
+    child.on('exit', () => resolve(Number(out)));
+    fs.writeFileSync(stop, '');
+  });
+}
+
+test('a sibling deleting and recreating its link during the sweep does not crash the hook', async () => {
+  const fx = fixture({});
+  const sibling = published(fx, 'sibling');
+  const target = fs.readlinkSync(sibling);
+  const stop = loopInBackground(fx, 'try { fs.unlinkSync(args[0]); } catch {} fs.symlinkSync(args[1], args[0]);', [sibling, target]);
+  try {
+    for (let i = 0; i < 25; i += 1) run(fx, { env: { FAKE_PLUGIN_LIST: list([['sibling@mkt', true]]) } });
+  } finally {
+    await stop();
+  }
+});
+
+test('republishing replaces the link in one step, so it is never missing', async () => {
+  const fx = fixture({ 'a.md': 'x' });
+  run(fx);
+  const stop = loopInBackground(fx, 'try { fs.lstatSync(args[0]); } catch { n += 1; }', [fx.link]);
+  try {
+    fs.symlinkSync(fx.root, `${fx.link}.elsewhere`);
+    for (let i = 0; i < 25; i += 1) {
+      fs.renameSync(`${fx.link}.elsewhere`, fx.link); // points the link away, so the hook has to republish it
+      fs.symlinkSync(fx.root, `${fx.link}.elsewhere`);
+      run(fx, { session: `s${i + 2}` });
+    }
+  } finally {
+    assert.strictEqual(await stop(), 0, 'the link was missing while the hook republished it');
+  }
+  fs.unlinkSync(`${fx.link}.elsewhere`);
+  assert.strictEqual(fs.readlinkSync(fx.link), path.join(fx.data, 'rules'));
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(fx.link)), ['probe']);
+});
+
 test('a plugin with no rules of its own still sweeps', () => {
   const fx = fixture({});
   fs.rmSync(path.join(fx.root, 'rules'), { recursive: true });

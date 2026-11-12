@@ -92,7 +92,8 @@ function sweep() {
   for (const e of entries) {
     if (!e.isSymbolicLink()) continue;
     const p = path.join(rulesHome, e.name);
-    const target = fs.readlinkSync(p);
+    let target;
+    try { target = fs.readlinkSync(p); } catch { continue; } // gone since the listing: a sibling is republishing it
     if (!target.startsWith(dataHome + path.sep)) continue; // not published by this mechanism
     const id = target.slice(dataHome.length + 1).split(path.sep)[0];
     if (!fs.existsSync(target)) { fs.unlinkSync(p); continue; } // uninstalled: the data dir is gone
@@ -127,8 +128,11 @@ function publish() {
     if (!files.includes(f)) fs.rmSync(path.join(dest, f), { recursive: true, force: true });
   }
   fs.mkdirSync(rulesHome, { recursive: true });
-  try { fs.unlinkSync(link); } catch { /* nothing there yet */ }
-  fs.symlinkSync(dest, link);
+  // Swapped in by rename, never deleted first: a sibling's sweep that listed
+  // ~/.claude/rules during that gap crashed reading the missing link.
+  const tmp = `${link}.${process.pid}.tmp`;
+  fs.symlinkSync(dest, tmp);
+  fs.renameSync(tmp, link);
 }
 
 if (event === 'SessionStart' && shard === 0) {
