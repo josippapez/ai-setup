@@ -11,7 +11,7 @@ References:
 
 - WCAG 2.2: <https://www.w3.org/TR/WCAG22/>
 - The **`accessibility` skill** — the bundled `@rawwee/wcag-cli`, run over Bash
-  (`npx @rawwee/wcag-cli <command>`, or global `wcag <command>`) for criteria,
+  (`npx @rawwee/wcag-cli@latest <command>`, or global `wcag <command>`) for criteria,
   techniques, failures, and glossary terms. Read that skill for the command list.
   Prefer it over recalling criterion text from memory.
 
