@@ -79,12 +79,20 @@ for f in "$SRC"/agents/*; do
 done
 
 # Register or refresh the local plugin marketplace (root-level .claude-plugin/marketplace.json).
-# Re-add from the repo root so a moved/renamed source path is always picked up.
 # Skipped when the CLI is absent (e.g. a fresh machine where the config lands
 # before Claude Code itself) — the copied files above are still valid.
 if have claude; then
-  claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
-  claude plugin marketplace add "$REPO_ROOT"
+  # Removing a marketplace uninstalls its plugins and deletes their data directories, which
+  # wiped repo-docs' node_modules on every install. So refresh it in place, and remove and
+  # re-add it only when it points at another folder (the repo moved).
+  marketplace_path="$(claude plugin marketplace list --json 2>/dev/null \
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const m=JSON.parse(s).find(m=>m.name==="ai-setup");process.stdout.write(m&&m.path||"")}catch{}})')"
+  if [ "$marketplace_path" = "$REPO_ROOT" ]; then
+    claude plugin marketplace update ai-setup
+  else
+    claude plugin marketplace remove ai-setup >/dev/null 2>&1 || true
+    claude plugin marketplace add "$REPO_ROOT"
+  fi
 
   # Remove pre-rename plugins if still installed (linear-orchestration -> markdown-orchestration,
   # interactive-mcp -> dev-core, markdown-orchestration(-nightly) -> orchestrate(-nightly)).
@@ -129,9 +137,13 @@ if have claude; then
   claude plugin uninstall orchestrate@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall orchestrate-nightly@ai-setup >/dev/null 2>&1 || true
 
-  # Re-adding the marketplace re-enables every plugin it installs, so turn the
-  # ones settings.json ships as false back off.
-  for plugin in $(node -e 'const p=require(process.argv[1]).enabledPlugins;for(const k in p)if(p[k]===false&&k.endsWith("@ai-setup"))console.log(k)' "$SRC/settings.json"); do
+  # Installing or re-adding enables a plugin, so turn the ones settings.json ships as false
+  # back off. Only enabled ones: disabling a plugin that is already off is an error.
+  for plugin in $(claude plugin list --json 2>/dev/null | node -e '
+    const off = require(process.argv[1]).enabledPlugins;
+    let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+      for (const p of JSON.parse(s)) if (p.enabled && off[p.id] === false && p.id.endsWith("@ai-setup")) console.log(p.id);
+    });' "$SRC/settings.json"); do
     claude plugin disable "$plugin" --scope user >/dev/null
   done
 else
