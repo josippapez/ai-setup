@@ -26,6 +26,27 @@ function getSourceFiles(context) {
   return files;
 }
 
+// mtime of every source file, so a later call can tell whether files were
+// added, removed or edited since the graph was built. A walk with a stat per
+// file took 15 ms on a 958-file repo whose full build took 900 ms.
+function sourceMtimes(files) {
+  const mtimes = new Map();
+  for (const file of files) {
+    try {
+      mtimes.set(file, fs.statSync(file).mtimeMs);
+    } catch {
+      // Removed since the walk; the count no longer matches, which reads as stale.
+    }
+  }
+  return mtimes;
+}
+
+function sameMtimes(a, b) {
+  if (a.size !== b.size) return false;
+  for (const [file, mtime] of a) if (b.get(file) !== mtime) return false;
+  return true;
+}
+
 // Names of tsconfig files to look at for `compilerOptions.paths`, in priority
 // order. Nx repos keep the alias map in tsconfig.base.json.
 const TSCONFIG_CANDIDATES = ['tsconfig.base.json', 'tsconfig.json'];
@@ -139,12 +160,23 @@ function loadAliasConfig(context) {
   return config;
 }
 
+// TypeScript's file extension substitution: a specifier ending in .js may name a
+// .ts source (NodeNext style, `import './a.js'` with only a.ts on disk).
+const TS_SUBSTITUTES = {
+  '.js': ['.ts', '.tsx', '.d.ts'],
+  '.mjs': ['.mts', '.d.mts'],
+  '.cjs': ['.cts', '.d.cts'],
+};
+
 // Resolves a bare specifier (module target) that already points at an absolute
 // filesystem base to the first existing source file — trying the path as-is,
-// then with each source extension, then as a directory index.
+// then its TypeScript substitutes, then with each source extension, then as a
+// directory index.
 function resolveFileTarget(context, base) {
+  const baseExt = path.extname(base);
   const candidates = [
     base,
+    ...(TS_SUBSTITUTES[baseExt] || []).map((sub) => `${base.slice(0, -baseExt.length)}${sub}`),
     ...Array.from(SOURCE_EXTENSIONS, (ext) => `${base}${ext}`),
     ...Array.from(SOURCE_EXTENSIONS, (ext) => path.join(base, `index${ext}`)),
   ];
@@ -276,7 +308,7 @@ function parseDependencies(context, filePath) {
   const edges = [];
   const rel = relativePath(context.root, filePath);
   const matcher =
-    /(?:import\s+(?:[^'";]+?\s+from\s+)?|export\s+[^'";]+?\s+from\s+|require\s*\()\s*['"]([^'"]+)['"]/g;
+    /(?:import\s+(?:[^'";]+?\s+from\s+)?|import\s*\(|export\s+[^'";]+?\s+from\s+|require\s*\()\s*['"]([^'"]+)['"]/g;
   for (const match of content.matchAll(matcher)) {
     const specifier = match[1];
     edges.push({
@@ -324,6 +356,8 @@ async function buildDependencyIndex(context) {
   const generation = state.generation || 0;
   const isCurrent = () => (state.generation || 0) === generation;
   const sourceFiles = getSourceFiles(context);
+  // Taken before parsing, so an edit made while the build runs reads as stale.
+  const mtimes = sourceMtimes(sourceFiles);
   state.status = 'building';
   state.processed = 0;
   state.total = sourceFiles.length;
@@ -354,6 +388,7 @@ async function buildDependencyIndex(context) {
     dependenciesByFile,
     dependentsByFile,
     edgeCount,
+    mtimes,
   };
   if (isCurrent()) {
     context.dependencyIndex = index;
@@ -385,7 +420,12 @@ function startDependencyIndex(context) {
 }
 
 // Async accessor for the dependency tools — awaits the in-flight/started build.
+// A cached graph is rebuilt when a source file was added, removed or edited
+// since it was built, so a check after a move or rename sees the new imports.
 function ensureDependencyIndex(context) {
+  const index = context.dependencyIndex;
+  if (index && !sameMtimes(index.mtimes, sourceMtimes(getSourceFiles(context))))
+    invalidateDependencyIndex(context);
   return startDependencyIndex(context);
 }
 

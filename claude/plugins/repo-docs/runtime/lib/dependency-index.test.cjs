@@ -159,21 +159,56 @@ test('workspace consumers reach a barrel-re-exported leaf via blast radius', asy
   );
 });
 
-test('invalidateDependencyIndex forces the next call to pick up new files', async () => {
+test('invalidateDependencyIndex forces the next call to rebuild', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-invalidate-'));
   writeFile(root, 'src/index.ts', "import helper from './helper';");
   writeFile(root, 'src/helper.ts', 'export default 1;');
   const context = createContext(root);
   const first = await ensureDependencyIndex(context);
 
-  writeFile(root, 'src/late.ts', "import helper from './helper';");
   const cached = await ensureDependencyIndex(context);
-  assert.strictEqual(cached, first, 'without invalidation the cached graph is reused');
+  assert.strictEqual(cached, first, 'with no source change the cached graph is reused');
 
   invalidateDependencyIndex(context);
   const rebuilt = await ensureDependencyIndex(context);
   assert.notStrictEqual(rebuilt, first);
-  assert.strictEqual(rebuilt.dependenciesByFile.get('src/late.ts')[0].to, 'src/helper.ts');
+});
+
+test('the next call picks up a source file added, edited or removed after the graph was built', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-stale-'));
+  writeFile(root, 'src/index.ts', "import helper from './helper';");
+  writeFile(root, 'src/helper.ts', 'export default 1;');
+  writeFile(root, 'src/other.ts', 'export default 2;');
+  const context = createContext(root);
+  await ensureDependencyIndex(context);
+  // A later mtime than the build saw, even on a filesystem with coarse timestamps.
+  const later = new Date(Date.now() + 10000);
+
+  writeFile(root, 'src/late.ts', "import helper from './helper';");
+  const added = await ensureDependencyIndex(context);
+  assert.strictEqual(added.dependenciesByFile.get('src/late.ts')[0].to, 'src/helper.ts');
+
+  writeFile(root, 'src/index.ts', "import other from './other';");
+  fs.utimesSync(path.join(root, 'src/index.ts'), later, later);
+  const edited = await ensureDependencyIndex(context);
+  assert.strictEqual(edited.dependenciesByFile.get('src/index.ts')[0].to, 'src/other.ts');
+
+  fs.rmSync(path.join(root, 'src/late.ts'));
+  const removed = await ensureDependencyIndex(context);
+  assert.ok(!removed.dependenciesByFile.has('src/late.ts'));
+});
+
+test('resolves dynamic import() and a .js specifier that names a .ts source', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'depidx-nodenext-'));
+  writeFile(root, 'src/a.ts', 'export const a = 1;');
+  writeFile(root, 'src/b.ts', "import { a } from './a.js';");
+  writeFile(root, 'src/c.ts', "export const load = () => import('./a');");
+  writeFile(root, 'src/util.mts', 'export const u = 1;');
+  writeFile(root, 'src/d.mts', "export { u } from './util.mjs';");
+  const index = await ensureDependencyIndex(createContext(root));
+  const importers = (rel) => (index.dependentsByFile.get(rel) || []).map((e) => e.from).sort();
+  assert.deepStrictEqual(importers('src/a.ts'), ['src/b.ts', 'src/c.ts']);
+  assert.deepStrictEqual(importers('src/util.mts'), ['src/d.mts']);
 });
 
 test('an in-flight build superseded by invalidation does not commit a stale graph', async () => {

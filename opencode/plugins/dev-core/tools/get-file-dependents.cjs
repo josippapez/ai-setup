@@ -1,11 +1,12 @@
 'use strict';
 
+const path = require('node:path');
 const { ensureDependencyIndex } = require('../lib/dependency-index.cjs');
 
 const definition = {
   name: 'get_file_dependents',
   description:
-    "List the direct (one-hop) importers of a JS/TS file from the prebuilt repo import graph — every source file that imports it. ALWAYS run this before you rename, move, delete, or change the exports/signature of a module: it is the fast, authoritative way to answer 'who imports this' / 'what breaks if I change this file', and it beats grep because it resolves relative imports, tsconfig `paths` aliases and workspace-package names (e.g. @scope/pkg) — alias importers a text search would miss are included. Input is a repo-relative path; returns one line per importing file with its import specifier, or 'none'. Bare third-party imports are not resolved. THIS IS ONE HOP ONLY: 'none', or a result whose importers are all barrel/index files, does NOT mean the file is unused — real consumers usually import the package or barrel that re-exports it. Before concluding nothing uses a file, follow up with get_blast_radius and grep its exported symbol names.",
+    "List the direct (one-hop) importers of a JS/TS file from the repo import graph — every source file that imports it through a static import, export-from, require() or dynamic import() whose specifier is a string literal (a specifier built from a variable or template literal is not followed). The graph is rebuilt on the next call after a JS/TS source file is added, removed or edited. ALWAYS run this before you rename, move, delete, or change the exports/signature of a module: it is the fast, authoritative way to answer 'who imports this' / 'what breaks if I change this file', and it beats grep because it resolves relative imports (a './a.js' specifier also finds a.ts, as TypeScript does), tsconfig `paths` aliases and workspace-package names (e.g. @scope/pkg) — alias importers a text search would miss are included. Input is a repo-relative path; returns one line per importing file with its import specifier, or 'none'; a path with no JS/TS source file in the graph (a typo, a non-JS/TS file) returns 'not in the import graph' instead. Bare third-party imports are not resolved. THIS IS ONE HOP ONLY: 'none', or a result whose importers are all barrel/index files, does NOT mean the file is unused — real consumers usually import the package or barrel that re-exports it. Before concluding nothing uses a file, follow up with get_blast_radius and grep its exported symbol names.",
   inputSchema: {
     type: 'object',
     properties: {
@@ -30,9 +31,12 @@ function reachedOnlyThroughBarrels(edges) {
 }
 
 async function execute(args, context) {
-  const rel = String(args.path || '').trim();
-  if (!rel) return 'Please provide a non-empty path.';
+  const input = String(args.path || '').trim();
+  if (!input) return 'Please provide a non-empty path.';
+  const rel = path.posix.normalize(input);
   const index = await ensureDependencyIndex(context);
+  if (!index.dependenciesByFile.has(rel))
+    return `repo ${context.root}\nfile ${rel}\nnot in the import graph: no JS/TS source file at this repo-root-relative path (a typo, a non-JS/TS file, or a skipped folder such as node_modules or dist), so its importers are unknown, not none.`;
   const edges = index.dependentsByFile.get(rel) || [];
   const header = `repo ${context.root}\nfile ${rel}\ndependents`;
   if (edges.length === 0)

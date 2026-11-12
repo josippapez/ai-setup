@@ -51,11 +51,22 @@ function relativePath(root, filePath) {
   return path.relative(root, filePath).split(path.sep).join('/');
 }
 
+function isInside(root, target) {
+  return target === root || target.startsWith(`${root}${path.sep}`);
+}
+
 function resolveInsideRoot(root, relPath) {
   const resolved = path.resolve(root, String(relPath || ''));
-  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`))
-    return null;
-  return resolved;
+  if (!isInside(root, resolved)) return null;
+  // A cloned repo can ship a link that points outside it, so check where the
+  // path really leads, not only how it is spelled.
+  let real;
+  try {
+    real = fs.realpathSync(resolved);
+  } catch {
+    return resolved; // Does not exist: the caller reports it as not found.
+  }
+  return isInside(fs.realpathSync(root), real) ? real : null;
 }
 
 // The index folder sits inside a checkout, and a cloned repo can ship a link

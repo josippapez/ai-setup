@@ -5,6 +5,7 @@ const { loadIndex, hybridSearch } = require('./doc-index.cjs');
 const { waitUntilReady, embedderStatus, embedQuery } = require('./semantic-index.cjs');
 const { rerank } = require('./reranker.cjs');
 const { indexPath, buildDocIndex, builtAtOtherHead, buildProgress } = require('../tools/build-semantic-index.cjs');
+const { REINDEX_COMMAND } = require('./platform.cjs');
 
 // Chunk hits per vector search: deep enough that both file rankings reach well
 // past the candidates the cross-encoder votes on.
@@ -101,7 +102,7 @@ function unavailableReason(context, err) {
   if (status.state === 'failed') return `embedding model failed to load (${status.error}); retry find_docs in ${secs(status.retryInMs)}s`;
   if (status.state === 'loading') return `embedding model still loading after ${secs(status.forMs)}s; retry find_docs in 30s`;
   const build = buildProgress(context);
-  if (!build) return 'semantic index not built yet; run /repo-docs:reindex, then retry find_docs';
+  if (!build) return `semantic index not built yet; run ${REINDEX_COMMAND}, then retry find_docs`;
   const eta = build.etaMs === null ? '' : `, about ${secs(build.etaMs)}s left`;
   return `semantic index building (${build.done} of ${build.total} docs embedded${eta}); retry find_docs when it finishes`;
 }

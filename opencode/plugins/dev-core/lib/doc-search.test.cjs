@@ -7,7 +7,7 @@ const assert = require('node:assert');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { CONFIG_DIR } = require('./platform.cjs');
+const { CONFIG_DIR, REINDEX_COMMAND } = require('./platform.cjs');
 
 // Stub the cross-encoder so these tests never load it; record how it is called.
 const rerankCalls = [];
@@ -109,7 +109,8 @@ test('unavailableReason says when a retry gets semantic results', { skip }, asyn
   t.after(() => shutdown());
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docsearch-'));
   const context = { root, maxFileSizeBytes: 1e6 };
-  assert.match(unavailableReason(context), /not built yet; run \/repo-docs:reindex, then retry find_docs/);
+  // Each harness names its own command: /repo-docs:reindex in Claude Code, /reindex in OpenCode.
+  assert.ok(unavailableReason(context).includes(`not built yet; run ${REINDEX_COMMAND}, then retry find_docs`));
   const dir = path.join(root, CONFIG_DIR, 'repo-docs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index-build.lock'), String(process.pid));

@@ -43,6 +43,23 @@ test('does not warn when a real consumer imports the file', async () => {
   assert.doesNotMatch(out, /^note\t/m);
 });
 
+test('accepts a path written with a leading ./', async () => {
+  const out = await fileDependentsTool.execute(
+    { path: './libs/web-lib/src/index.ts' },
+    createContext(makeRepo()),
+  );
+  assert.match(out, /^import\tapps\/web\/src\/App\.tsx\t/m);
+});
+
+test('a path that is not in the import graph says so instead of answering none', async () => {
+  const out = await fileDependentsTool.execute(
+    { path: 'libs/web-lib/src/indx.ts' },
+    createContext(makeRepo()),
+  );
+  assert.match(out, /^not in the import graph/m);
+  assert.doesNotMatch(out, /^none$/m);
+});
+
 test('an empty result says so instead of implying the file is unused', async () => {
   const root = makeRepo();
   writeFile(root, 'libs/web-lib/src/orphan.ts', 'export const orphan = 1;');
