@@ -3,7 +3,7 @@
 // into skills/, and records the resolved commit plus a sha256 per file so a
 // later run can tell "upstream changed" from "we edited it locally".
 //
-// It writes the OpenCode mirror (opencode/skills/) from the same fetch rather
+// It writes the OpenCode mirror (opencode/skills/better-design/library/) from the same fetch rather
 // than leaving it to a hand copy: every existing hand-ported skill has drifted
 // from its Claude source, and OpenCode reads the same name/description/license
 // frontmatter, so there is nothing to port.
@@ -22,8 +22,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const lockPath = join(root, "skills-lock.json");
 // Both trees get the identical files. root is claude/plugins/better-design.
 const targets = [
-  join(root, "skills"),
-  resolve(root, "../../../opencode/skills"),
+  join(root, "library"),
+  resolve(root, "../../../opencode/skills/better-design/library"),
 ];
 const check = process.argv.includes("--check");
 

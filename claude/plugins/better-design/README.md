@@ -1,8 +1,12 @@
 # better-design
 
-39 vendored web design, motion, and 3D skills. Nothing here is written by this repo: every
-`skills/<name>/` folder is a verbatim copy of an upstream SKILL.md (plus its markdown references),
-pinned by commit and sha256 in `skills-lock.json`.
+39 vendored web design, motion, and 3D skills. Every `library/<name>/` folder is a verbatim copy
+of an upstream SKILL.md (plus its markdown references), pinned by commit and sha256 in
+`skills-lock.json`.
+
+Claude Code only lists the one skill this repo writes, `skills/better-design/SKILL.md`. It is a
+router: a short description plus an index of the 39 library skills, and Claude reads the ones that
+fit the task. The library folders sit outside `skills/` so they are not listed one by one.
 
 The starting set is the 25 skills used in `dj-blog`. The additions are cross-cutting picks from
 [aura.build/skills](https://www.aura.build/skills) — things that apply to any UI work rather than
@@ -40,13 +44,15 @@ node scripts/sync-skills.mjs            # re-fetch everything, rewrite both tree
 node scripts/sync-skills.mjs --check    # report drift only, exit 1 if anything moved
 ```
 
-Both trees means `skills/` here and the OpenCode mirror at `opencode/skills/`, written from the same
+Both trees means `library/` here and the OpenCode mirror at `opencode/skills/better-design/library/`
+(behind the same router skill, `opencode/skills/better-design/SKILL.md`), written from the same
 fetch. OpenCode reads the same `name` / `description` / `license` frontmatter, so the files are
 byte-identical and there is nothing to port; `--check` fails if either tree stops matching. The
 other skills under `opencode/skills/` are hand-ported and have drifted from their Claude sources —
 these 39 are kept out of that by construction.
 
-Add a skill by appending an entry (repo, ref, dir) and running the script. It vendors markdown only:
+Add a skill by appending an entry (repo, ref, dir) and running the script, then add its line to
+the index in `skills/better-design/SKILL.md`. Claude only finds a library skill through that index. It vendors markdown only:
 upstream folders also carry `demo/` pages with multi-megabyte images and `agents/openai.yaml` files
 for other harnesses, none of which Claude Code reads.
 
@@ -55,5 +61,6 @@ The anonymous GitHub API allows 60 requests/hour and a full sync needs two per r
 
 ## Cost
 
-39 skill descriptions is roughly 12.7 KB of frontmatter, about 3.2k tokens in every session's skill
-listing. Disable the plugin in `settings.json` when you are not doing UI work.
+Listing the 39 skills one by one cost about 4.2k tokens in every session (`/context` Skills row,
+measured 2026-11-12). The router costs about 200, so the plugin ships enabled. Its index loads only
+when design work comes up.

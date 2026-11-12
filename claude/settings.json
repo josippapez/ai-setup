@@ -70,7 +70,7 @@
     "security-guidance@claude-plugins-official": true,
     "claude-hud@claude-hud": true,
     "context-mode@context-mode": true,
-    "better-design@ai-setup": false,
+    "better-design@ai-setup": true,
     "fundamentals@ai-setup": true,
     "verified@ai-setup": false,
     "feedback@ai-setup": true,

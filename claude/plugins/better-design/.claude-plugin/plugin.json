@@ -1,6 +1,6 @@
 {
   "name": "better-design",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vendored web design, motion, and 3D skills: the set used in dj-blog (MengTo/Skills, CloudAI-X threejs-skills) plus cross-cutting picks from aura.build/skills — Vercel's web interface guidelines, Emil Kowalski's design-engineering set, ibelick's UI skills, and GreenSock's official GSAP skills.",
   "author": {
     "name": "Personal AI Setup"
