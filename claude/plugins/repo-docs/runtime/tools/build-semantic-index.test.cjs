@@ -107,6 +107,32 @@ test('a pre-v2 (mtime-less) index triggers a full rebuild instead of crashing', 
   assert.strictEqual(second.unchanged, 0);
 });
 
+test('a version 8 index with Float32 vectors is reused and rewritten as version 9 int8', { skip }, async (t) => {
+  const { unpackVector } = require('../lib/doc-index.cjs');
+  const root = makeRepo(2);
+  t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });
+  const context = createContext(root);
+  await buildDocIndex(context, { force: true });
+
+  // Rewrite it the way a version 8 build left it: plain base64 Float32 vectors.
+  const dir = path.join(root, CONFIG_DIR, 'repo-docs');
+  const file = path.join(dir, 'repo-docs-index.json');
+  const f32 = v => Buffer.from(Float32Array.from(unpackVector(v)).buffer).toString('base64');
+  const lines = fs.readFileSync(file, 'utf8').trim().split('\n').map(line => {
+    const rec = JSON.parse(line);
+    return JSON.stringify({ ...rec, embedding: f32(rec.embedding), ctxEmbedding: f32(rec.ctxEmbedding) });
+  });
+  fs.writeFileSync(file, lines.join('\n') + '\n');
+  const meta = path.join(dir, 'repo-docs-index.meta.json');
+  fs.writeFileSync(meta, JSON.stringify({ ...JSON.parse(fs.readFileSync(meta, 'utf8')), schemaVersion: 8 }));
+
+  const second = await buildDocIndex(context, { force: true });
+  assert.strictEqual(second.updated, 0, 'version 8 vectors are reused, not re-embedded');
+  assert.strictEqual(second.unchanged, 2);
+  assert.strictEqual(JSON.parse(fs.readFileSync(meta, 'utf8')).schemaVersion, 9);
+  assert.ok(fs.readFileSync(file, 'utf8').includes('"embedding":"i8:'), 'rewritten as int8');
+});
+
 test('a rapid unforced rebuild is debounced (no re-embed)', { skip }, async (t) => {
   const root = makeRepo(2);
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); shutdown(); });

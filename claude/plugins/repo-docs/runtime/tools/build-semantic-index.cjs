@@ -22,7 +22,11 @@ const MAX_FILE_BYTES = 1_000_000;
 // Bumped 6 -> 7 when the index became one line per record with packed vectors,
 // and the embedder moved to 8-bit weights.
 // Bumped 7 -> 8 when records gained a content hash, so a checkout with new mtimes reuses unchanged chunks.
-const SCHEMA_VERSION = 8;
+// Bumped 8 -> 9 when vectors became int8. An 8 build reused "i8:" lines as Float32 and wrote
+// 97-number garbage vectors that no version could load; the bump makes it re-embed instead.
+const SCHEMA_VERSION = 9;
+// Version 8 indexes hold Float32 vectors that this version still reads, so they are reused.
+const REUSABLE_SCHEMA_VERSIONS = new Set([8, SCHEMA_VERSION]);
 
 function indexPath(context) { return path.join(context.root, CONFIG_DIR, 'repo-docs', 'repo-docs-index.json'); }
 function metaPath(context) { return path.join(path.dirname(indexPath(context)), 'repo-docs-index.meta.json'); }
@@ -165,7 +169,7 @@ function builtAtOtherHead(context) {
 async function loadPriorCache(context) {
   const byPath = new Map();
   let indexCurrent = false;
-  try { indexCurrent = JSON.parse(fs.readFileSync(metaPath(context), 'utf8')).schemaVersion === SCHEMA_VERSION; } catch {}
+  try { indexCurrent = REUSABLE_SCHEMA_VERSIONS.has(JSON.parse(fs.readFileSync(metaPath(context), 'utf8')).schemaVersion); } catch {}
   // A checkpoint is newer than the index, so its groups replace the index's.
   for (const file of [indexCurrent && indexPath(context), checkpointPath(context)]) {
     const records = file && await readRecords(file);

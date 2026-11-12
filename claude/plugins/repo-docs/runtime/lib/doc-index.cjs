@@ -56,13 +56,30 @@ function hybridSearch(o, db, { term, vector, property = 'embedding', limit = 30 
 }
 
 // The index file holds the chunk records, one JSON line each, with both vectors as
-// base64 Float32. Orama's own JSON export wrote every float as text plus its search
+// base64. Orama's own JSON export wrote every float as text plus its search
 // trees: a 4 MB doc set became a 697 MB file, past the ~512 MB string Node can read
 // back, so every load failed and every build re-embedded everything. Lines are read
 // one at a time, so no single string grows with the corpus; a load rebuilds the
 // search index from the records, which costs no embedding.
-const packVector = v => Buffer.from(Float32Array.from(v).buffer).toString('base64');
+// A vector is stored as int8 plus one float32 scale (maxAbs / 127), "i8:" + base64 of the
+// scale followed by the bytes: a quarter of the size, and the cosine to the original stays
+// above 0.999. Indexes written before that hold plain base64 Float32 and still load.
+const I8_PREFIX = 'i8:';
+function packVector(v) {
+  let maxAbs = 0;
+  for (const x of v) maxAbs = Math.max(maxAbs, Math.abs(x));
+  const scale = maxAbs / 127 || 1;
+  const buf = Buffer.alloc(4 + v.length);
+  buf.writeFloatLE(scale, 0);
+  for (let i = 0; i < v.length; i++) buf.writeInt8(Math.round(v[i] / scale), 4 + i);
+  return I8_PREFIX + buf.toString('base64');
+}
 function unpackVector(text) {
+  if (text.startsWith(I8_PREFIX)) {
+    const bytes = Buffer.from(text.slice(I8_PREFIX.length), 'base64');
+    const scale = bytes.readFloatLE(0);
+    return Array.from({ length: bytes.length - 4 }, (_, i) => bytes.readInt8(4 + i) * scale);
+  }
   const bytes = Buffer.from(text, 'base64');
   return Array.from(new Float32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4));
 }
@@ -114,6 +131,8 @@ module.exports = {
   topCosine: (db, args) => orama().then(o => topCosine(o, db, args)),
   saveRecords: async (records, filePath) => saveRecords(records, filePath),
   readRecords,
+  packVector,
+  unpackVector,
   loadIndex: async (filePath) => {
     const records = await readRecords(filePath);
     if (!records) return null;
