@@ -135,6 +135,10 @@ $MARKER
 # Claude Code through the rtk proxy for this session only. Plain claude stays direct, which
 # Remote Control needs.
 export ANTHROPIC_BASE_URL=$URL
+# The proxy forwards to api.anthropic.com, but Claude Code can't tell, so without this it skips
+# your account's model list and /model shows only its built-in models. Undocumented, so it may
+# stop working after a Claude Code update.
+export _CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL=1
 exec claude "\$@"
 EOF
   chmod +x "$wrapper"
