@@ -43,6 +43,10 @@ Bash call.
 - The dedicated **Grep tool** is the same ripgrep and equally safe; it just never goes through rtk.
   Either one is fine. This section is about `grep -r`, not about which tool to reach for.
 - If you must use `grep -r`, scope it to a path or pass `--exclude-dir=repo-docs`.
+- To find code by its shape rather than its text (every call to a function, a JSX prop, an import),
+  write `ast-grep run -p '<code pattern>' -l <lang> <path>`, e.g.
+  `ast-grep run -p 'useQuery($A, $B)' -l tsx src`. It is rewritten to `rtk ast-grep`. Write
+  `ast-grep`, not `sg`, which is a different program on Linux.
 
 ## Meta Commands (always use rtk directly)
 

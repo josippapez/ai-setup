@@ -15,6 +15,7 @@ mkdir -p "$DEST/skills" "$DEST/agents" "$DEST/hooks/scripts"
 
 # rtk (Rust Token Killer) backs the PreToolUse hook in settings.json.
 install_rtk
+install_ast_grep
 
 # Copy top-level config files.
 cp "$SRC/CLAUDE.md" "$DEST/CLAUDE.md"

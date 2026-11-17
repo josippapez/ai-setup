@@ -36,6 +36,8 @@ generated file comes through whole — which is what stalls a bash call. Measure
 - Prefer the **grep tool** (ripgrep, gitignore-aware).
 - From bash, write `rg`, never `grep -r`.
 - If `grep -r` is unavoidable, scope it to a path or pass `--exclude-dir=<generated-dir>`.
+- To find code by its shape rather than its text, write `ast-grep run -p '<code pattern>' -l <lang> <path>`,
+  e.g. `ast-grep run -p 'useQuery($A, $B)' -l tsx src`. Write `ast-grep`, not `sg`.
 
 ## Meta commands (run rtk directly, never via the rewrite)
 

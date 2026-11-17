@@ -196,6 +196,14 @@ install_rtk() {
   install_rtk_release
 }
 
+# ast-grep searches code by syntax tree; RTK.md points agents at it. Never fatal.
+install_ast_grep() {
+  if have ast-grep; then return 0; fi
+  install_homebrew || true
+  if have brew && brew install ast-grep; then return 0; fi
+  warn "could not install ast-grep; install it manually (https://ast-grep.github.io)."
+}
+
 install_rtk_release() {
   asset=""
   case "$(ai_setup_os)/$(ai_setup_arch)" in
