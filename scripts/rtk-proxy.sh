@@ -78,8 +78,13 @@ install_proxy_binary() {
   printf 'installed rtk-proxy %s at %s\n' "$version" "$rtk_dir/rtk-proxy"
 }
 
-# The default proxy only strips terminal noise. The ccr rule also compresses tool results over
-# 1500 tokens that are already in the conversation; the originals stay in a local store for 7 days.
+# The default proxy only strips terminal noise. These rules also compress large tool results; the
+# originals stay in a local store for 7 days. rtk-proxy 1.2.0 ignores `tool` in these conditions
+# and reads only `tokens_gt`, by rule name: `ccr-bulk` for Bash, WebFetch and Agent results, `ccr`
+# for every other tool except Read, which it never compresses. `ccr` is set past any result size
+# so MCP results stay whole: the model fetched back 42% of the MCP results it compressed, but 3%
+# of shell output. `retire-writes` swaps file bodies Claude sent through Write and Edit for a
+# pointer to the file once they are over 400 tokens; they were a fifth of tool-call context.
 write_pipeline() {
   file="$(rtk_config_dir)/pipeline.toml"
   if [ -f "$file" ] && ! grep -qF "$MARKER" "$file"; then
@@ -95,9 +100,19 @@ schema_version = 1
 extends = "rtk:proxy"
 
 [[proxy.request.tool_result]]
-name = "ccr"
-when = { tokens_gt = 1500 }
+name = "ccr-bulk"
+when = { tokens_gt = 300 }
 use  = ["ccr"]
+
+[[proxy.request.tool_result]]
+name = "ccr"
+when = { tokens_gt = 1000000 }
+use  = ["ccr"]
+
+[[proxy.request.tool_use]]
+name = "retire-writes"
+when = { tokens_gt = 400 }
+use  = ["retire-pointer"]
 EOF
 }
 
