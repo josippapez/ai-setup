@@ -47,6 +47,5 @@ rtk trust / untrust     # Opt in/out of project-local TOML filters
 
 ## Escape hatches
 
-`rtk bypass <cmd>` (old name `rtk proxy`) runs unfiltered but still tracks usage. `RTK_DISABLED=1 <cmd>`
-skips the rewrite for one command. `rtk run <cmd>` runs
+`rtk bypass <cmd>` (old name `rtk proxy`) runs unfiltered but still tracks usage. `rtk run <cmd>` runs
 the argv directly with no filtering and no tracking; `rtk run -c '<script>'` runs it through a shell. `rtk pipe` filters stdin.

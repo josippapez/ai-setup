@@ -59,7 +59,6 @@ rtk learn               # Learn CLI corrections from Claude Code error history
 
 ```bash
 rtk bypass <cmd>        # Run without output filtering, but still track usage (`rtk proxy` is the old alias)
-RTK_DISABLED=1 <cmd>    # Skip the hook rewrite for this one command
 rtk run <cmd>           # Run argv directly: no filtering, no tracking
 rtk run -c '<sh>'       # Same, through a shell (plain args are not shell-expanded)
 rtk pipe                # Read stdin, apply a filter, print result (Unix pipe mode)
