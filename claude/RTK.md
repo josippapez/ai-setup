@@ -13,6 +13,11 @@ In a chain only the commands are rewritten, never the text between them:
 Commands inside a quoted `bash -c '...'` / `sh -c '...'` are rewritten too.
 Heredocs, `sed`, and multi-line blocks (loops, `python3 - <<'PY'`) are left alone.
 
+A pipe into anything but `head` or `tail` (`cut`, `sed`, `awk`, `sort`, `wc`) also leaves the whole
+command unrewritten, so rtk never filters it. To shorten long match lines, write
+`rg -M 200 --max-columns-preview <pat>` instead of `rg <pat> | cut -c1-200`; the first goes through
+rtk, the second does not. Last week 1,351 commands skipped rtk only because of a `| cut`.
+
 Inside a Claude Code worktree (`<repo>/.claude/worktrees/<name>`) the hook leaves `git` unrewritten,
 because the worktree guard rejects `rtk git`. Write plain `git` there, never `rtk git`.
 

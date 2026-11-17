@@ -13,6 +13,10 @@ commands are rewritten, never the text between them. Commands inside a quoted `b
 rewritten too. Heredocs, `sed`, and multi-line blocks are left alone. Verified against rtk 1.2.0.
 If `rtk` is not on PATH the plugin no-ops.
 
+A pipe into anything but `head` or `tail` (`cut`, `sed`, `awk`, `sort`, `wc`) also leaves the whole
+command unrewritten. To shorten long match lines, write `rg -M 200 --max-columns-preview <pat>`
+instead of `rg <pat> | cut -c1-200`; the first goes through rtk, the second does not.
+
 Only bash goes through rtk. The dedicated read/edit/write/**grep**/glob tools do not.
 
 ## Reading condensed output
