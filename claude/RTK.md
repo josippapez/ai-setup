@@ -1,6 +1,6 @@
 # RTK - Rust Token Killer
 
-**Usage**: Token-optimized CLI proxy (60-90% savings on dev operations). Verified against rtk 1.2.0.
+Verified against rtk 1.2.0.
 
 ## Hook-Based Usage
 
@@ -16,7 +16,7 @@ Heredocs, `sed`, and multi-line blocks (loops, `python3 - <<'PY'`) are left alon
 A pipe into anything but `head` or `tail` (`cut`, `sed`, `awk`, `sort`, `wc`) also leaves the whole
 command unrewritten, so rtk never filters it. To shorten long match lines, write
 `rg -M 200 --max-columns-preview <pat>` instead of `rg <pat> | cut -c1-200`; the first goes through
-rtk, the second does not. Last week 1,351 commands skipped rtk only because of a `| cut`.
+rtk, the second does not.
 
 Inside a Claude Code worktree (`<repo>/.claude/worktrees/<name>`) the hook leaves `git` unrewritten,
 because the worktree guard rejects `rtk git`. Write plain `git` there, never `rtk git`.
@@ -32,16 +32,10 @@ unusable: empty when output was clearly expected, contradicting its exit code, o
 
 ## ⚠️ Write `rg` from Bash, never `grep -r`
 
-`rtk grep` does **not** respect `.gitignore` and does **not** cap line length, so a long line in a
-generated file comes through whole. Measured in this repo (rtk 1.2.0): `rtk grep -rn <pat> .`
-emitted **111 KB**, almost all of it from the gitignored repo-docs index files, while
-`rtk rg -n <pat> .` emitted **570 bytes** for the same query. That output volume is what stalls a
-Bash call.
+`grep -r` does not respect `.gitignore`, so it also searches generated and ignored files and can
+return a hundred times more output than `rg`.
 
-- From Bash, write `rg`, never `grep -r`. `rg` is rewritten to `rtk rg` and stays gitignore-aware,
-  so a Bash-first session needs nothing else.
-- The dedicated **Grep tool** is the same ripgrep and equally safe; it just never goes through rtk.
-  Either one is fine. This section is about `grep -r`, not about which tool to reach for.
+- From Bash, write `rg`, never `grep -r`. The Grep tool is the same ripgrep and is equally fine.
 - If you must use `grep -r`, scope it to a path or pass `--exclude-dir=repo-docs`.
 - To find code by its shape rather than its text (every call to a function, a JSX prop, an import),
   write `ast-grep run -p '<code pattern>' -l <lang> <path>`, e.g.
@@ -52,22 +46,6 @@ Bash call.
   `ast-grep run -p '<pattern>' -l tsx <path> --json=stream | jq -r '"\(.file):\(.range.start.line+1)"'`.
   `-l` covers one language: `.ts` and `.tsx` files need one run each (`-l ts`, `-l tsx`).
 
-## Meta Commands (always use rtk directly)
-
-```bash
-rtk gain                # Token savings summary (-H history, -g graph, -p this project, -q quota)
-rtk gain --recalls      # How often trimmed output was recalled, per filter
-rtk discover            # Find missed savings in Claude Code history
-rtk session             # RTK adoption across Claude Code sessions
-rtk cc-economics        # Spending (ccusage) vs savings (rtk)
-rtk config              # Show config path + current settings (--create to write defaults)
-rtk config recall       # Show or set where trimmed output is kept (sqlite | tee | disabled)
-rtk hook check '<cmd>'  # Dry-run: show how the hook would rewrite a command (exits 1 if no rewrite)
-rtk verify              # Verify hook integrity and run TOML filter inline tests
-rtk trust / untrust     # Opt in/out of project-local TOML filters
-rtk learn               # Learn CLI corrections from Claude Code error history
-```
-
 ## Escape Hatches
 
 ```bash
@@ -76,17 +54,3 @@ rtk run <cmd>           # Run argv directly: no filtering, no tracking
 rtk run -c '<sh>'       # Same, through a shell (plain args are not shell-expanded)
 rtk pipe                # Read stdin, apply a filter, print result (Unix pipe mode)
 ```
-
-Config lives at `~/Library/Application Support/rtk/config.toml` (macOS). `[filters] ignore_dirs`
-does **not** affect `rtk grep`; `[hooks] exclude_commands` is the knob for opting a command out of
-rewriting.
-
-## Installation Verification
-
-```bash
-rtk --version         # Should show: rtk X.Y.Z
-rtk gain              # Should work (not "command not found")
-which rtk             # Verify correct binary
-```
-
-⚠️ **Name collision**: If `rtk gain` fails, you may have reachingforthejack/rtk (Rust Type Kit) installed instead.
