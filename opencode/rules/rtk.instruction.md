@@ -28,10 +28,8 @@ unusable: empty when output was clearly expected, contradicting its exit code, o
 
 ## Never `grep -r` from bash
 
-`rtk grep` does **not** respect `.gitignore` and does **not** cap line length, so a long line in a
-generated file comes through whole — which is what stalls a bash call. Measured (rtk 1.2.0):
-`rtk grep -rn <pat> .` emitted **111 KB**, almost all from gitignored index files, where
-`rtk rg -n <pat> .` emitted **570 bytes** for the same query.
+`grep -r` does not respect `.gitignore`, so it also searches generated and ignored files and can
+return a hundred times more output than `rg`.
 
 - Prefer the **grep tool** (ripgrep, gitignore-aware).
 - From bash, write `rg`, never `grep -r`.
@@ -41,18 +39,6 @@ generated file comes through whole — which is what stalls a bash call. Measure
 - ast-grep prints each whole matched node. To list locations only, append
   `--json=stream | jq -r '"\(.file):\(.range.start.line+1)"'`. `-l` covers one language, so `.ts`
   and `.tsx` need one run each.
-
-## Meta commands (run rtk directly, never via the rewrite)
-
-```bash
-rtk gain                # Savings summary (-H history, -g graph, -p project, -q quota)
-rtk discover            # Missed savings in agent history
-rtk config              # Config path + current settings
-rtk config recall       # Where trimmed output is kept (sqlite | tee | disabled)
-rtk hook check '<cmd>'  # Dry-run a rewrite (exits 1 when nothing is rewritten)
-rtk verify              # Hook integrity + TOML filter tests
-rtk trust / untrust     # Opt in/out of project-local TOML filters
-```
 
 ## Escape hatches
 
