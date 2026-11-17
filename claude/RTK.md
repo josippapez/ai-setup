@@ -47,6 +47,10 @@ Bash call.
   write `ast-grep run -p '<code pattern>' -l <lang> <path>`, e.g.
   `ast-grep run -p 'useQuery($A, $B)' -l tsx src`. It is rewritten to `rtk ast-grep`. Write
   `ast-grep`, not `sg`, which is a different program on Linux.
+- ast-grep prints each whole matched node, so a match on `useEffect(...)` brings its full body. To
+  list where something is, ask for locations only:
+  `ast-grep run -p '<pattern>' -l tsx <path> --json=stream | jq -r '"\(.file):\(.range.start.line+1)"'`.
+  `-l` covers one language: `.ts` and `.tsx` files need one run each (`-l ts`, `-l tsx`).
 
 ## Meta Commands (always use rtk directly)
 

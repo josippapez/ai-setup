@@ -38,6 +38,9 @@ generated file comes through whole — which is what stalls a bash call. Measure
 - If `grep -r` is unavoidable, scope it to a path or pass `--exclude-dir=<generated-dir>`.
 - To find code by its shape rather than its text, write `ast-grep run -p '<code pattern>' -l <lang> <path>`,
   e.g. `ast-grep run -p 'useQuery($A, $B)' -l tsx src`. Write `ast-grep`, not `sg`.
+- ast-grep prints each whole matched node. To list locations only, append
+  `--json=stream | jq -r '"\(.file):\(.range.start.line+1)"'`. `-l` covers one language, so `.ts`
+  and `.tsx` need one run each.
 
 ## Meta commands (run rtk directly, never via the rewrite)
 
