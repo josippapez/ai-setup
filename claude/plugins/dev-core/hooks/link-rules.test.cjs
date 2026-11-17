@@ -83,6 +83,17 @@ test('the session that publishes the link gets the rules as context; the next on
   assert.strictEqual(run(fx, { session: 's2' }), null);
 });
 
+test('a session in a second config dir that reaches the same plugin data through a symlink gets no second copy', () => {
+  const fx = fixture({ 'a.md': 'rule a' });
+  // ~/.claude-work/plugins -> ~/.claude/plugins: one data dir, two spellings of its path.
+  fs.mkdirSync(path.join(fx.home, '.claude-work'));
+  fs.symlinkSync(path.join(fx.home, '.claude', 'plugins'), path.join(fx.home, '.claude-work', 'plugins'));
+  const other = path.join(fx.home, '.claude-work', 'plugins', 'data', 'probe-mkt');
+  run(fx, { session: 's1' });
+  assert.strictEqual(run(fx, { session: 's2', env: { CLAUDE_PLUGIN_DATA: other } }), null);
+  assert.strictEqual(run(fx, { session: 's3' }), null);
+});
+
 test('subagents in the publishing session get the rules too, and rely on the native copy after', () => {
   const fx = fixture({ 'a.md': 'rule a' });
   run(fx, { session: 's1' });

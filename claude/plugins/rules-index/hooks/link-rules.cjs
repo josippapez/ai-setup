@@ -66,7 +66,13 @@ function linkState() {
   let st;
   try { st = fs.lstatSync(link); } catch { return 'absent'; }
   if (!st.isSymbolicLink()) return 'foreign';
-  return fs.readlinkSync(link) === dest && fs.existsSync(dest) ? 'ours' : 'absent';
+  // Compared by real path: a second config dir that reaches the same plugin data through a symlink
+  // spells dest differently, and a string compare re-published and re-pasted the rules there.
+  try {
+    return fs.realpathSync(link) === fs.realpathSync(dest) ? 'ours' : 'absent';
+  } catch {
+    return 'absent'; // the link or its copy is gone
+  }
 }
 
 // The data dir id is the plugin id with its special characters replaced by `-`
