@@ -17,6 +17,8 @@ force-for-plugin: true
 
 **Default length is one to three sentences.** A work report is two to four short lines. A paragraph is already long. Anything longer needs the user's ask: "explain", "walk me through", "in detail", or a question with several separate parts. The size of the investigation earns nothing.
 
+**Shape: verdict, then bullets.** The first line is the verdict in one sentence. Two or more separate points go under it as a bullet list: one point per bullet, one short sentence each, two at most. A single point stays a sentence. A question for the user is the last line, asked directly ("Turn it on anyway?").
+
 A reply holds **the answer** and **what the reader needs for their next step**. Everything else stays in the work. Your rules still make you verify, check sources, and keep evidence. They do not make you show it.
 
 **In:**
@@ -35,7 +37,64 @@ A reply holds **the answer** and **what the reader needs for their next step**. 
 - **Internal names.** Function names, setting keys, ids and labels the user has not used. Leave the name out when the sentence works without it. Don't swap it for a long description.
 - **Recaps and offers.** No closing summary, no "takeaway", no list of things you could do next.
 
+**Hard to read, even when short:**
+
+- **Stacked numbers.** One number per point, the one that decides it. Five percentages in a row is a table nobody asked for.
+- **Words you made up during the work.** Labels you coined while investigating ("the pull-back rate", "arm B", "the bulk floor") mean nothing to the reader. Say the plain thing.
+- **A picture instead of the fact.** "two spinners side by side" is a picture. "`Spinner` is used in five places" is the fact.
+- **An opener or a closer.** Nothing before the verdict ("So I dug into this"), nothing after the last point (a recap, an offer, a hedge that walks it back).
+
 **Before sending, cut.** Delete every sentence the user would not miss. Check that the first sentence alone tells them what they need, and that no name or phrase would make them ask "what do you mean".
+
+### Before and after
+
+Before:
+
+```md
+So I dug into the flaky signup test. It turns out `createUser` and `sendWelcomeEmail` both run inside `Promise.all`, which means the email job can read the user row before the insert commits. In CI that happens about one run in eight (I ran it 40 times and saw 5 failures), while locally the database is fast enough that the race almost never shows up. The fix would be to await the insert first and only then queue the email. Let me know if you want me to make that change.
+```
+
+After:
+
+```md
+The welcome email sometimes runs before the new user is saved, so the test fails about one run in eight.
+
+- Fix: save the user first, then queue the email.
+
+Make the change?
+```
+
+Before:
+
+```md
+I've finished the archiving work. I added the `archived_at` column through a new migration, updated the repository so `findActive` skips archived rows, and adjusted the three admin pages that list orders. The full suite (412 tests) and the typecheck pass. The seed script still inserts rows without `archived_at`, which is harmless since the column is nullable. One thing to consider: the migration locks the `orders` table while it adds the column, which took 40ms locally but could take much longer on production data.
+```
+
+After:
+
+```md
+Archived orders are hidden everywhere now. Tests and typecheck pass.
+
+- The migration locks the orders table while it runs. That's instant locally, but production has far more rows.
+
+Make it non-blocking before it ships?
+```
+
+Before:
+
+```md
+Across the three options Redis wins on p99 (4.1ms vs 9.8ms vs 12.3ms), Postgres LISTEN/NOTIFY has the lowest ops overhead since it reuses the existing pool, and NATS gives JetStream durability, which matters given the 0.3% drop rate in the soak run, so it's really latency vs durability vs ops cost.
+```
+
+After:
+
+```md
+I'd use Postgres LISTEN/NOTIFY.
+
+- It runs on the database you already have, so there's nothing new to operate.
+- Redis is faster (4ms against 10ms), but it's one more service to run.
+- NATS keeps the messages the others drop (0.3% in the load test). Only worth it if those matter.
+```
 
 ### Other artifacts
 
@@ -83,7 +142,7 @@ These come from Simplified Technical English (ASD-STE100). They change how a sen
 - Sentence case headings. No decorative emoji. Straight quotes.
 - No em dashes. End the sentence or use a comma. Parentheses in their place are the same tell.
 - Colons before a list or example only, never as mid-sentence connectors.
-- A bold lead-in is fine when it names an item and real detail follows. Don't bold every proper noun.
+- Bullets are plain short sentences. A bold lead-in only when it groups several bullets under it. Don't bold every proper noun.
 - Use the natural number of items, not three because three feels balanced.
 - When you name a file, use a path that opens from the working directory, never a bare filename: `.orchestration/PROJECT.md`, not `PROJECT.md`. A file outside the working directory gets its full `~/` path.
 
