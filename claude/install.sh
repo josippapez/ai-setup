@@ -120,22 +120,12 @@ if have claude; then
     fi
   done
 
-  # context-mode (mksglu/context-mode) keeps large tool output out of the context window.
-  # Free and local; its hosted Gateway is a separate product and is not set up here.
-  if claude plugin marketplace list 2>/dev/null | grep -q "context-mode"; then
-    claude plugin marketplace update context-mode
-  else
-    claude plugin marketplace add mksglu/context-mode
-  fi
-  if claude plugin list 2>/dev/null | grep -q "context-mode@context-mode"; then
-    claude plugin update "context-mode@context-mode"
-  else
-    claude plugin install "context-mode@context-mode" --scope user
-  fi
-
   # orchestrate and orchestrate-nightly were removed from the marketplace.
   claude plugin uninstall orchestrate@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall orchestrate-nightly@ai-setup >/dev/null 2>&1 || true
+  # context-mode was removed: next to the rtk proxy it kept about 5% of tool output out of context.
+  claude plugin uninstall context-mode@context-mode >/dev/null 2>&1 || true
+  claude plugin marketplace remove context-mode >/dev/null 2>&1 || true
 
   # Installing or re-adding enables a plugin, so turn the ones settings.json ships as false
   # back off. Only enabled ones: disabling a plugin that is already off is an error.
@@ -173,7 +163,6 @@ if have claude; then
   echo "  - rules-index@ai-setup plugin"
   echo "  - better-design@ai-setup plugin"
   echo "  - fundamentals@ai-setup plugin"
-  echo "  - context-mode@context-mode plugin"
 else
   echo "  - plugins NOT installed (no 'claude' CLI on PATH)"
 fi

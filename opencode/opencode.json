@@ -6,8 +6,7 @@
     "./plugins/format-lint-edited-files",
     "./plugins/git-move-guard",
     "./plugins/dev-core",
-    "./plugins/journal",
-    "context-mode"
+    "./plugins/journal"
   ],
   "skills": ["./skills"],
   "permissions": [
