@@ -14,7 +14,7 @@ A local inbox for anything that could be better: pain points, slow steps, ambigu
 
 A mod (`hooks/register.tsx`) adds the UI:
 
-- `/feedback` opens a pane listing this project's entries newest first, with a filter button per
+- `/feedback-inbox` opens a pane listing this project's entries newest first, with a filter button per
   kind; `p` toggles to every project. The footer counts this project's open entries.
 - `/fb <text>` logs a `pain_point` through `collect_feedback` without a model turn.
 - Every successful `collect_feedback` call shows a toast and a card above the prompt; the

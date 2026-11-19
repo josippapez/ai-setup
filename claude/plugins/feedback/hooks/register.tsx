@@ -76,7 +76,7 @@ async function showStatus($: EngineInterface) {
   $.ui.status(
     open.length === 0
       ? undefined
-      : `${open.length} open · ${count('high')} high · ${count('medium')} medium · ${count('low')} low · /feedback to view`,
+      : `${open.length} open · ${count('high')} high · ${count('medium')} medium · ${count('low')} low · /feedback-inbox to view`,
   )
 }
 
@@ -93,7 +93,8 @@ export const register: Register = on => {
   on('tool.describe', { tool: COLLECT }, ($, e) => ({ description: e.description, isDeferred: false }))
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'feedback', description: 'Show reported feedback in a pane' })
+    // Not /feedback: Claude Code ships that name and refuses it, which skipped this whole hook and /fb with it.
+    await $.command.register({ name: 'feedback-inbox', description: 'Show reported feedback in a pane' })
     await $.command.register({ name: 'fb', description: 'Log feedback without a model turn: /fb <what could be better>' })
     await reload($)
     // Other sessions and scripts write the store too, so follow the file, not only this session's calls.
@@ -120,7 +121,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'feedback' }, async $ => {
+  on('command.run', { command: 'feedback-inbox' }, async $ => {
     await reload($)
     await $.ui.open({ id: PANE, title: 'Feedback', focus: true, closeOnEscape: true })
 
@@ -199,7 +200,7 @@ export const register: Register = on => {
             <Text wrap="truncate-end">{entry.title}</Text>
           </Box>
           <Box gap={1}>
-            <Text dimColor>/feedback to see all · closes in {left}s ·</Text>
+            <Text dimColor>/feedback-inbox to see all · closes in {left}s ·</Text>
             <Button key="dismiss-logged" plain role="dismiss" label="Dismiss" onPress={() => update($, justLogged, () => null)} />
           </Box>
         </Box>

@@ -60,7 +60,7 @@ test('the pane lists entries newest first and filters by kind', async ($, on) =>
     return { value: { isPlaced: true } }
   })
 
-  await $.command.run({ ...RUN, command: 'feedback', args: '' })
+  await $.command.run({ ...RUN, command: 'feedback-inbox', args: '' })
 
   // Escape closes it, and the pane takes the keys so Escape does not interrupt a running turn.
   expect(opened).toEqual([expect.objectContaining({ focus: true, closeOnEscape: true })])
@@ -110,7 +110,7 @@ test('logging shows a card above the prompt and updates the footer count', async
 
   await $.command.run({ ...RUN, command: 'fb', args: 'just now' })
 
-  expect(statuses.at(-1)).toBe('3 open · 2 high · 0 medium · 1 low · /feedback to view')
+  expect(statuses.at(-1)).toBe('3 open · 2 high · 0 medium · 1 low · /feedback-inbox to view')
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'feedback', surface, ...BAND })
     expect(await ui.find({ text: /Feedback logged · cccc3333/ })).toBeDefined()
@@ -132,7 +132,7 @@ test('the pane shows open entries by default and resolved ones with their resolu
   on('ui.status', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
 
-  await $.command.run({ ...RUN, command: 'feedback', args: '' })
+  await $.command.run({ ...RUN, command: 'feedback-inbox', args: '' })
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'feedback', surface, component: 'Pane', requestId: 'feedback', props: PANE })
@@ -198,12 +198,12 @@ test('the footer follows writes made outside this session', async ($, on) => {
   on('command.register', (_, e) => ({ value: { command: e.name } }))
 
   await $.session.start({ cwd: '/repo', surface: null, isInteractive: true })
-  expect(statuses.at(-1)).toBe('2 open · 1 high · 0 medium · 1 low · /feedback to view')
+  expect(statuses.at(-1)).toBe('2 open · 1 high · 0 medium · 1 low · /feedback-inbox to view')
 
   store = `${STORE}\n${JSON.stringify({ op: 'update', id: 'aaaa1111', status: 'resolved' })}`
   mtimeMs = 2
   await clock.advance(3000)
-  expect(statuses.at(-1)).toBe('1 open · 0 high · 0 medium · 1 low · /feedback to view')
+  expect(statuses.at(-1)).toBe('1 open · 0 high · 0 medium · 1 low · /feedback-inbox to view')
 })
 
 test('the logged card counts down and goes away on its own', async ($, on) => {
@@ -250,7 +250,7 @@ test('the pane shows this project by default and toggles to all projects', async
   on('session.root', () => ({ value: '/x/ai-setup' }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
 
-  await $.command.run({ ...RUN, command: 'feedback', args: '' })
+  await $.command.run({ ...RUN, command: 'feedback-inbox', args: '' })
   const ui = await $.ui.mount({ plugin: 'feedback', surface: 'terminal', component: 'Pane', requestId: 'feedback', props: PANE })
   const titles = async () => (await ui.findAll({ type: 'Text', text: /old bug|new idea|other repo bug/ })).map(one => one.text)
   expect(await titles()).toEqual(['new idea', 'old bug'])
@@ -267,7 +267,7 @@ test('the pane keeps this project after a shell cd into a subfolder', async ($, 
   on('session.cwd', () => ({ value: '/x/ai-setup/apps/desktop' }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
 
-  await $.command.run({ ...RUN, command: 'feedback', args: '' })
+  await $.command.run({ ...RUN, command: 'feedback-inbox', args: '' })
   const ui = await $.ui.mount({ plugin: 'feedback', surface: 'terminal', component: 'Pane', requestId: 'feedback', props: PANE })
   expect((await ui.findAll({ type: 'Text', text: /old bug|new idea/ })).map(one => one.text)).toEqual(['new idea', 'old bug'])
   await ui.unmount()
@@ -294,5 +294,5 @@ test('the footer shows a download bar while the nudge model warms up', async ($,
 
   warm = JSON.stringify({ state: 'ready', at: Date.now() })
   await clock.advance(1000)
-  expect(statuses.at(-1)).toBe('2 open · 1 high · 0 medium · 1 low · /feedback to view')
+  expect(statuses.at(-1)).toBe('2 open · 1 high · 0 medium · 1 low · /feedback-inbox to view')
 })
