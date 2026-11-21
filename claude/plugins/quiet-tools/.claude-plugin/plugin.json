@@ -1,9 +1,0 @@
-{
-  "name": "quiet-tools",
-  "version": "0.4.0",
-  "description": "Shows skill calls (magenta) and MCP calls (cyan) as one bold line you can click open. Every other tool keeps Claude Code's own display.",
-  "author": {
-    "name": "Personal AI Setup"
-  },
-  "license": "MIT"
-}
