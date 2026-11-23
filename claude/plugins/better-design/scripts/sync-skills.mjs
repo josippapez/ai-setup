@@ -119,7 +119,7 @@ function describeRepo(repo, ref) {
 }
 
 async function syncSkill(name, entry) {
-  const { repo, ref = "main", dir, only, exclude = [], rename = {}, transform } = entry;
+  const { repo, ref = "main", dir, only, exclude = [], extensions = [], rename = {}, transform } = entry;
   const { commit, tree } = await describeRepo(repo, ref);
 
   let paths;
@@ -132,8 +132,9 @@ async function syncSkill(name, entry) {
       // Markdown only. Upstream skill folders also carry demo/ pages with
       // multi-megabyte .jpg/.webp assets (and agents/openai.yaml for other
       // harnesses); Claude Code reads none of it, and fetching a binary
-      // through response.text() corrupts it.
-      .filter((path) => path.endsWith(".md"))
+      // through response.text() corrupts it. An entry whose SKILL.md runs its
+      // own scripts lists the extra text extensions it needs in `extensions`.
+      .filter((path) => [".md", ...extensions].some((ext) => path.endsWith(ext)))
       .filter((path) => !DEFAULT_EXCLUDE.concat(exclude).some((p) => path.startsWith(p)));
   }
   if (paths.length === 0) throw new Error(`${name}: no files matched in ${repo}`);

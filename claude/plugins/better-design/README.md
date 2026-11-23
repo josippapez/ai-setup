@@ -1,11 +1,11 @@
 # better-design
 
-39 vendored web design, motion, and 3D skills. Every `library/<name>/` folder is a verbatim copy
+40 vendored web design, motion, and 3D skills. Every `library/<name>/` folder is a verbatim copy
 of an upstream SKILL.md (plus its markdown references), pinned by commit and sha256 in
 `skills-lock.json`.
 
 Claude Code only lists the one skill this repo writes, `skills/better-design/SKILL.md`. It is a
-router: a short description plus an index of the 39 library skills, and Claude reads the ones that
+router: a short description plus an index of the 40 library skills, and Claude reads the ones that
 fit the task. The library folders sit outside `skills/` so they are not listed one by one.
 
 The starting set is the 25 skills used in `dj-blog`. The additions are cross-cutting picks from
@@ -23,7 +23,19 @@ UI review skills, GreenSock's official GSAP skills, and MengTo's shadow and grad
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | 3 | `apple-design`, `emil-design-eng`, `find-animation-opportunities` |
 | [ibelick/ui-skills](https://github.com/ibelick/ui-skills) | 2 | `baseline-ui`, `improve-ui` |
 | [jakubkrehel/make-interfaces-feel-better](https://github.com/jakubkrehel/make-interfaces-feel-better) | 1 | `make-interfaces-feel-better` |
+| [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | 1 | `taste-skill` (MIT; with its scripts, see below) |
 | [vercel-labs/web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) | 1 | `web-interface-guidelines` |
+
+## taste-skill ships its scripts
+
+`taste-skill` (frontmatter name `design-taste-frontend`, MIT, tasteskill.dev) runs its own Node
+scripts against its asset kit, so its lock entry lists extra `extensions` and the sync vendors
+`scripts/`, `library/*.json` and the text files of `assets/` (CSS, JS, JSON, HTML, SVG) along with
+the markdown. Images (webp, jpg, png, about 27 MB) are left out, so `photos.mjs` cannot copy its
+bundled stock photos and the demo pages show broken images. Live photo search still works.
+`<skill>` in its SKILL.md is `${CLAUDE_PLUGIN_ROOT}/library/taste-skill`. The Stop hook in its
+frontmatter never runs, because library skills are read, not loaded: run `scripts/gate.mjs` by hand
+before calling a page done.
 
 ## Overlaps to know about
 
@@ -49,12 +61,13 @@ Both trees means `library/` here and the OpenCode mirror at `opencode/skills/bet
 fetch. OpenCode reads the same `name` / `description` / `license` frontmatter, so the files are
 byte-identical and there is nothing to port; `--check` fails if either tree stops matching. The
 other skills under `opencode/skills/` are hand-ported and have drifted from their Claude sources —
-these 39 are kept out of that by construction.
+these 40 are kept out of that by construction.
 
 Add a skill by appending an entry (repo, ref, dir) and running the script, then add its line to
-the index in `skills/better-design/SKILL.md`. Claude only finds a library skill through that index. It vendors markdown only:
-upstream folders also carry `demo/` pages with multi-megabyte images and `agents/openai.yaml` files
-for other harnesses, none of which Claude Code reads.
+the index in `skills/better-design/SKILL.md`. Claude only finds a library skill through that index. It vendors markdown only,
+plus any text extensions an entry lists in `extensions`: upstream folders also carry `demo/` pages
+with multi-megabyte images and `agents/openai.yaml` files for other harnesses, none of which Claude
+Code reads. Binaries never sync, because the script fetches every file as text.
 
 The anonymous GitHub API allows 60 requests/hour and a full sync needs two per repo. Set
 `GITHUB_TOKEN` (`GITHUB_TOKEN="$(gh auth token)"`) if you hit the cap.

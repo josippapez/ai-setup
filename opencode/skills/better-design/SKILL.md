@@ -1,11 +1,11 @@
 ---
 name: better-design
-description: "Library of 39 vetted web design skills: GSAP and ScrollTrigger animation, scroll storytelling, word-by-word text reveals, Three.js and WebGL scenes, UI polish (hover and press states, shadows, borders, blur, spacing, typography), UI and design reviews (Vercel interface guidelines, generic AI-look audits) and animation performance. Use before writing, changing or reviewing frontend UI, motion, a landing page or a 3D effect."
+description: "Library of 40 vetted web design skills: GSAP and ScrollTrigger animation, scroll storytelling, word-by-word text reveals, Three.js and WebGL scenes, UI polish (hover and press states, shadows, borders, blur, spacing, typography), UI and design reviews (Vercel interface guidelines, generic AI-look audits) and animation performance. Use before writing, changing or reviewing frontend UI, motion, a landing page or a 3D effect."
 ---
 
 # better-design
 
-The 39 skills below are not listed one by one, to keep them out of every session's context. Pick from the index and read them.
+The 40 skills below are not listed one by one, to keep them out of every session's context. Pick from the index and read them.
 
 1. Pick the one to three entries that fit the task. Prefer the most specific one: `staggered-word-reveal` over `gsap` for a headline reveal.
 2. Read each pick's `library/<name>/SKILL.md` inside this skill's base directory (the skill tool gives you that path), passing `limit: 3000` to the read tool so a long file comes back whole in one call.
@@ -52,6 +52,7 @@ The 39 skills below are not listed one by one, to keep them out of every session
 - `image-first-grid-layout`: image-led grid with full-bleed photos and guide lines.
 - `container-lines`: vertical container guide lines with small corner squares.
 - `atmosphere-background`: dark atmospheric background with light folds and a glow bloom.
+- `taste-skill`: anti-slop playbook for whole company, shop and landing pages (system, sections, copy, motion, finish gate). Its `<skill>` is `library/taste-skill` inside this skill's base directory, scripts included. Bundled stock photos are not vendored, so use live photo search. Its Stop hook does not run here: run `scripts/gate.mjs` yourself before calling a page done.
 
 ### Polish and details
 
