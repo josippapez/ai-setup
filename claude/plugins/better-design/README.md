@@ -54,7 +54,12 @@ directory; the sync script fills in the resolved `commit` and a sha256 per vendo
 ```bash
 node scripts/sync-skills.mjs            # re-fetch everything, rewrite both trees, update the lock
 node scripts/sync-skills.mjs --check    # report drift only, exit 1 if anything moved
+node scripts/sync-skills.mjs gsap taste-skill [--check]   # only the named skills
 ```
+
+A full run takes about 6 minutes, mostly fetching taste-skill's 1,480 files one by one. Name the
+skills you are adding or updating so the run is quick and leaves the other skills' upstream changes
+alone.
 
 Both trees means `library/` here and the OpenCode mirror at `opencode/skills/better-design/library/`
 (behind the same router skill, `opencode/skills/better-design/SKILL.md`), written from the same
@@ -63,7 +68,7 @@ byte-identical and there is nothing to port; `--check` fails if either tree stop
 other skills under `opencode/skills/` are hand-ported and have drifted from their Claude sources —
 these 42 are kept out of that by construction.
 
-Add a skill by appending an entry (repo, ref, dir) and running the script, then add its line to
+Add a skill by appending an entry (repo, ref, dir) and running the script with its name, then add its line to
 the index in `skills/better-design/SKILL.md`. Claude only finds a library skill through that index. It vendors markdown only,
 plus any text extensions an entry lists in `extensions`: upstream folders also carry `demo/` pages
 with multi-megabyte images and `agents/openai.yaml` files for other harnesses, none of which Claude

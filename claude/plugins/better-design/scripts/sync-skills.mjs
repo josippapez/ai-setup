@@ -10,6 +10,7 @@
 //
 //   node scripts/sync-skills.mjs            # fetch + write both trees + update the lock
 //   node scripts/sync-skills.mjs --check    # report drift, write nothing, exit 1 if any
+//   node scripts/sync-skills.mjs gsap taste-skill [--check]   # only these skills
 //
 // GITHUB_TOKEN is used when set; the unauthenticated API allows 60 requests/hour.
 
@@ -153,7 +154,13 @@ async function syncSkill(name, entry) {
 }
 
 const lock = JSON.parse(await readFile(lockPath, "utf8"));
-const names = Object.keys(lock.skills).sort();
+const picked = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
+const unknown = picked.filter((name) => !lock.skills[name]);
+if (unknown.length) {
+  console.error(`Not in skills-lock.json: ${unknown.join(", ")}`);
+  process.exit(2);
+}
+const names = (picked.length ? picked : Object.keys(lock.skills)).sort();
 const drift = [];
 
 for (const name of names) {
