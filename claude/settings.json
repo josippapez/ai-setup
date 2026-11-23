@@ -155,5 +155,10 @@
     "anthropic-skills:computer-use": "user-invocable-only",
     "anthropic-skills:morning": "user-invocable-only",
     "anthropic-skills:import-memory": "user-invocable-only"
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    }
   }
 }
