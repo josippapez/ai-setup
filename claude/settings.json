@@ -50,7 +50,22 @@
       "mcp__wings__tasks__*",
       "mcp__wings__search_history",
       "mcp__wings__list_sessions",
-      "mcp__wings__project_info_read"
+      "mcp__wings__project_info_read",
+      "mcp__wings__read_session",
+      "mcp__wings__read_pane",
+      "mcp__wings__changes__changed_files",
+      "mcp__wings__changes__recent_commits",
+      "mcp__wings__pr-tracker__pull_request",
+      "mcp__wings__pr-tracker__failing_checks",
+      "mcp__wings__disk__list_disks",
+      "mcp__wings__disk__folder_usage",
+      "mcp__wings__disk__largest_files",
+      "mcp__wings__schedules__list",
+      "mcp__wings__sprint-board__board_check",
+      "mcp__wings__cyclops__list_projects",
+      "mcp__wings__cyclops__list_entries",
+      "mcp__wings__cyclops__running_timers",
+      "mcp__wings__performance"
     ]
   },
   "model": "opus",
