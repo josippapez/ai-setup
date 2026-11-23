@@ -2,6 +2,15 @@
   "$comment": "Source manifest AND lock for the vendored skills under skills/. Add an entry (without `commit`/`files`) and run `node scripts/sync-skills.mjs` to vendor it; the script fills in the resolved commit and per-file sha256. Run with --check in CI or before committing to see upstream drift.",
   "version": 2,
   "skills": {
+    "animation-performance": {
+      "repo": "emilkowalski/skills",
+      "ref": "main",
+      "dir": "skills/animation-performance",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "files": {
+        "SKILL.md": "6481e7a611b54c0d1d229ac3ac516c05648e63aa79de88c0a1bdc5ae2666ab80"
+      }
+    },
     "animation-systems": {
       "repo": "MengTo/Skills",
       "ref": "main",
@@ -64,6 +73,16 @@
       "commit": "409b4d04c98559bbd9d3344260e3a0878df30d43",
       "files": {
         "SKILL.md": "1568e003d112e72df0ea2ec925829a5039b762c27174e063c192d7ccf7f4f9e6"
+      }
+    },
+    "choreograph": {
+      "repo": "emilkowalski/skills",
+      "ref": "main",
+      "dir": "skills/choreograph",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "files": {
+        "RECIPES.md": "c256ff760f42d905b19f97becd2c0caaf40a95b41b49770c973281374c9600cf",
+        "SKILL.md": "0a6802bb2fd5a3993842d48332b8ab56ae5bab369ffa8700f85f6fcff56b8478"
       }
     },
     "cinematic-gsap-lenis-motion-system": {

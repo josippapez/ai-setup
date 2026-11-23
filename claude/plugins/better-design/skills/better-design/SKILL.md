@@ -1,11 +1,11 @@
 ---
 name: better-design
-description: "Library of 40 vetted web design skills: GSAP and ScrollTrigger animation, scroll storytelling, word-by-word text reveals, Three.js and WebGL scenes, UI polish (hover and press states, shadows, borders, blur, spacing, typography), UI and design reviews (Vercel interface guidelines, generic AI-look audits) and animation performance. Use before writing, changing or reviewing frontend UI, motion, a landing page or a 3D effect."
+description: "Library of 42 vetted web design skills: GSAP and ScrollTrigger animation, scroll storytelling, word-by-word text reveals, Three.js and WebGL scenes, UI polish (hover and press states, shadows, borders, blur, spacing, typography), UI and design reviews (Vercel interface guidelines, generic AI-look audits) and animation performance. Use before writing, changing or reviewing frontend UI, motion, a landing page or a 3D effect."
 ---
 
 # better-design
 
-The 40 skills below are not listed one by one, to keep them out of every session's context. Pick from the index and read them.
+The 42 skills below are not listed one by one, to keep them out of every session's context. Pick from the index and read them.
 
 1. Pick the one to three entries that fit the task. Prefer the most specific one: `staggered-word-reveal` over `gsap` for a headline reveal.
 2. Read each pick's `${CLAUDE_PLUGIN_ROOT}/library/<name>/SKILL.md` with the Read tool, passing `limit: 3000` so a long file comes back whole in one call.
@@ -23,8 +23,10 @@ The 40 skills below are not listed one by one, to keep them out of every session
 - `gsap`: short practical GSAP guide with common pitfalls (HTML, CSS, JS, React).
 - `animation-systems`: product-grade motion like Stripe or Linear: principles, easing and duration defaults, choreography.
 - `apple-design`: Apple-style fluid, physical motion: springs, gestures, drag, sheets, interruptible transitions.
+- `choreograph`: several elements animating together: stagger, sequence, overlap, hero entrances, view swaps, multi-step flows.
 - `find-animation-opportunities`: read-only scan for places that should animate, with exact values.
 - `optimize-web-animations`: profile and fix slow pages and animations, rAF loops, memory leaks.
+- `animation-performance`: one janky animation: composite-only properties, CSS vs JS off the main thread, `will-change`, dropped frames.
 
 ### Scroll and text effects
 
@@ -74,5 +76,5 @@ The 40 skills below are not listed one by one, to keep them out of every session
 ## Overlaps
 
 - `gsap` and `gsap-core` both cover GSAP basics. `gsap-core` has the fuller API detail.
-- `optimize-web-animations` profiles a whole page. `gsap-performance` is GSAP only.
+- `optimize-web-animations` profiles a whole page. `animation-performance` fixes one janky animation. `gsap-performance` is GSAP only.
 - `audit-ai-design-slop` reviews, `no-ai-design-slop` prevents. They share a `REFERENCES.md`.

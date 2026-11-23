@@ -1,11 +1,11 @@
 # better-design
 
-40 vendored web design, motion, and 3D skills. Every `library/<name>/` folder is a verbatim copy
+42 vendored web design, motion, and 3D skills. Every `library/<name>/` folder is a verbatim copy
 of an upstream SKILL.md (plus its markdown references), pinned by commit and sha256 in
 `skills-lock.json`.
 
 Claude Code only lists the one skill this repo writes, `skills/better-design/SKILL.md`. It is a
-router: a short description plus an index of the 40 library skills, and Claude reads the ones that
+router: a short description plus an index of the 42 library skills, and Claude reads the ones that
 fit the task. The library folders sit outside `skills/` so they are not listed one by one.
 
 The starting set is the 25 skills used in `dj-blog`. The additions are cross-cutting picks from
@@ -20,7 +20,7 @@ UI review skills, GreenSock's official GSAP skills, and MengTo's shadow and grad
 | [MengTo/Skills](https://github.com/MengTo/Skills) | 23 | `animation-systems`, `atmosphere-background`, `audit-ai-design-slop`, `beautiful-shadows`, `build-awwwards-quality-sites`, `cinematic-gsap-lenis-motion-system`, `cinematic-scroll-storytelling`, `container-lines`, `css-border-gradient`, `editorial-portfolio-chapters`, `globe-particles`, `gsap`, `gsap-scrolltrigger-storytelling`, `image-first-grid-layout`, `masked-reveal`, `no-ai-design-slop`, `optimize-web-animations`, `progressive-blur`, `scroll-scrubbed-word-reveal`, `staggered-word-reveal`, `stitched-full-page-capture`, `threejs`, `webgl-landing-steering` |
 | [greensock/gsap-skills](https://github.com/greensock/gsap-skills) | 5 | `gsap-core`, `gsap-performance`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline` |
 | [CloudAI-X/threejs-skills](https://github.com/CloudAI-X/threejs-skills) | 4 | `threejs-geometry`, `threejs-lighting`, `threejs-materials`, `threejs-shaders` |
-| [emilkowalski/skills](https://github.com/emilkowalski/skills) | 3 | `apple-design`, `emil-design-eng`, `find-animation-opportunities` |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) | 5 | `animation-performance`, `apple-design`, `choreograph`, `emil-design-eng`, `find-animation-opportunities` |
 | [ibelick/ui-skills](https://github.com/ibelick/ui-skills) | 2 | `baseline-ui`, `improve-ui` |
 | [jakubkrehel/make-interfaces-feel-better](https://github.com/jakubkrehel/make-interfaces-feel-better) | 1 | `make-interfaces-feel-better` |
 | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | 1 | `taste-skill` (MIT; with its scripts, see below) |
@@ -61,7 +61,7 @@ Both trees means `library/` here and the OpenCode mirror at `opencode/skills/bet
 fetch. OpenCode reads the same `name` / `description` / `license` frontmatter, so the files are
 byte-identical and there is nothing to port; `--check` fails if either tree stops matching. The
 other skills under `opencode/skills/` are hand-ported and have drifted from their Claude sources —
-these 40 are kept out of that by construction.
+these 42 are kept out of that by construction.
 
 Add a skill by appending an entry (repo, ref, dir) and running the script, then add its line to
 the index in `skills/better-design/SKILL.md`. Claude only finds a library skill through that index. It vendors markdown only,
