@@ -13,6 +13,12 @@ In a chain only the commands are rewritten, never the text between them:
 Commands inside a quoted `bash -c '...'` / `sh -c '...'` are rewritten too.
 Heredocs, `sed`, and multi-line blocks (loops, `python3 - <<'PY'`) are left alone.
 
+**Write the `rtk` form yourself** (`rtk git status`, `rtk rg`, `rtk read f`). In auto mode, once the
+hook rewrites one call, Claude Code refuses every later call in the same response, Bash and MCP
+alike, with "gave no verdict". A command that already starts with `rtk` passes through unchanged.
+The hook also rewrites `ssh`, `curl`, `cargo` and `docker`. `rtk hook check '<cmd>'` prints what it
+would make of any command.
+
 A pipe into anything but `head` or `tail` (`cut`, `sed`, `awk`, `sort`, `wc`) also leaves the whole
 command unrewritten, so rtk never filters it. To shorten long match lines, write
 `rg -M 200 --max-columns-preview <pat>` instead of `rg <pat> | cut -c1-200`; the first goes through
