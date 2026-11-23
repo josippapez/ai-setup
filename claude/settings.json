@@ -46,7 +46,11 @@
       "mcp__plugin_dev-core_chrome-devtools__list_network_requests",
       "mcp__plugin_feedback_feedback__collect_feedback",
       "mcp__plugin_feedback_feedback__read_feedback",
-      "mcp__plugin_feedback_feedback__update_feedback"
+      "mcp__plugin_feedback_feedback__update_feedback",
+      "mcp__wings__tasks__*",
+      "mcp__wings__search_history",
+      "mcp__wings__list_sessions",
+      "mcp__wings__project_info_read"
     ]
   },
   "model": "opus",
