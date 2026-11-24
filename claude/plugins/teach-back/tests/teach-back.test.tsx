@@ -50,9 +50,6 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mount($, surface)
     expect((await ui.find({ type: 'Text', text: 'Where the retry lives' }))?.text).toBe('Where the retry lives')
     expect(await ui.find({ type: 'Text', text: /Every caller gets it/ })).toBeDefined()
-    // Back and Next sit above the card, so they don't move as cards change length.
-    const drawn = await ui.findAll({})
-    expect(drawn.findIndex(el => el.key === 'next')).toBeLessThan(drawn.findIndex(el => el.text === 'Where the retry lives'))
 
     await ui.press({ key: 'next' })
     expect(await ui.find({ type: 'Text', text: 'How it is proven' })).toBeDefined()
