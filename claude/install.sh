@@ -113,7 +113,7 @@ if have claude; then
   fi
 
   # Install or update dev-core, concise-output, rules-index, and better-design.
-  for plugin in dev-core concise-output rules-index better-design fundamentals verified feedback scope journal replay-theater; do
+  for plugin in dev-core concise-output rules-index better-design fundamentals verified feedback scope journal; do
     if claude plugin list 2>/dev/null | grep -q "$plugin@ai-setup"; then
       claude plugin update "$plugin@ai-setup"
     else
@@ -121,6 +121,8 @@ if have claude; then
     fi
   done
 
+  # replay-theater was removed: teach-back shows the changes with the why behind them.
+  claude plugin uninstall replay-theater@ai-setup >/dev/null 2>&1 || true
   # orchestrate and orchestrate-nightly were removed from the marketplace.
   claude plugin uninstall orchestrate@ai-setup >/dev/null 2>&1 || true
   claude plugin uninstall orchestrate-nightly@ai-setup >/dev/null 2>&1 || true

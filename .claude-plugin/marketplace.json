@@ -95,15 +95,6 @@
       },
       "category": "development",
       "source": "./claude/plugins/journal"
-    },
-    {
-      "name": "replay-theater",
-      "description": "Step through the file edits Claude made in the last turn, one diff at a time (/replay, or r after a turn).",
-      "author": {
-        "name": "Claude Code DevRel"
-      },
-      "category": "development",
-      "source": "./claude/plugins/replay-theater"
     }
   ]
 }

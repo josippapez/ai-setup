@@ -97,8 +97,7 @@
     "verified@ai-setup": false,
     "feedback@ai-setup": true,
     "scope@ai-setup": true,
-    "journal@ai-setup": true,
-    "replay-theater@ai-setup": true
+    "journal@ai-setup": true
   },
   "extraKnownMarketplaces": {
     "ai-setup": {
