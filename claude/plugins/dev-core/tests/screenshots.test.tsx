@@ -28,6 +28,19 @@ test('an inline PNG screenshot draws as an image in the terminal, at its own sha
   await desktop.unmount()
 })
 
+test('a browse screenshot draws as an image too', async ($, on) => {
+  on('ui.render', { component: 'ToolResult' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine result</Text>
+  })
+  const output = [{ type: 'image', data: PNG, mimeType: 'image/png' }, { type: 'text', text: '{"width":200,"height":100,"format":"png"}' }]
+  const event = result(output)
+
+  const ui = await $.ui.mount({ surface: 'terminal', ...event, props: { ...event.props, tool: 'mcp__plugin_dev-core_browse__screenshot' } })
+  expect(await ui.find({ type: 'Image' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('a screenshot saved to a file draws from that file; a JPEG keeps the default row', async ($, on) => {
   on('ui.render', { component: 'ToolResult' }, ($, e) => {
     const { Text } = $.ui.resolve(e)

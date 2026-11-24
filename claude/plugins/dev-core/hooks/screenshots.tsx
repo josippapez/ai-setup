@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 
-const SCREENSHOT = 'mcp__plugin_dev-core_chrome-devtools__take_screenshot'
+const SCREENSHOT = ['mcp__plugin_dev-core_chrome-devtools__take_screenshot', 'mcp__plugin_dev-core_browse__screenshot']
 const COLUMNS = 64
 
 type Block = { type?: string; text?: string; data?: string; mimeType?: string; source?: { data?: string; media_type?: string } }
@@ -30,7 +30,7 @@ function pngSize(base64: string) {
 
 export function registerScreenshots(on: On) {
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
-    if (e.props.tool !== SCREENSHOT || e.props.isErrored || e.surface !== 'terminal') return next(e)
+    if (!SCREENSHOT.includes(e.props.tool) || e.props.isErrored || e.surface !== 'terminal') return next(e)
     const source = findPng(e.props.output)
     if (source === null) return next(e)
     const { Box, Image, Text } = $.ui.resolve(e)

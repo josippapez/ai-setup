@@ -1,7 +1,7 @@
 ---
 name: computer-use
 description: 'Drive the real desktop with mouse, keyboard, and screenshots: native app UI, OS dialogs, browser chrome outside the page, and seeing what is actually on screen. Use whenever the thing you need has no API and no DOM behind it.'
-when_to_use: 'Native app windows, menus and dialogs; OS-level UI like file pickers, keychain and permission prompts, notifications, System Settings, the menu bar and Dock; browser UI outside the page (address bar, profile picker, extension popups, download bar, autofill); checking what actually rendered, what has focus, or which window is in front; copying between applications. Also rescues a chrome-devtools call stuck on the native Allow remote debugging dialog after a Chrome restart. Prefer chrome-devtools for anything inside a web page: it reads the DOM and clicks by uid.'
+when_to_use: 'Native app windows, menus and dialogs; OS-level UI like file pickers, keychain and permission prompts, notifications, System Settings, the menu bar and Dock; browser UI outside the page (address bar, profile picker, extension popups, download bar, autofill); checking what actually rendered, what has focus, or which window is in front; copying between applications. Also rescues a chrome-devtools call stuck on the native Allow remote debugging dialog after a Chrome restart. Prefer browse for anything inside a web page: it reads the DOM and clicks by snapshot ref.'
 ---
 
 # computer-use — drive the desktop when there is no API
@@ -32,7 +32,7 @@ Anything with no API and no DOM behind it:
 
 **Check the user is not at the machine first.** Keystrokes go to whatever app is in front at that moment, so driving the screen while the user works can type into their apps. Before the first input action, check that the screen is not locked (a long idle time usually means locked, not free), then check which app is in front and how long the user has been idle. When they are active, look with `screencapture -l <windowid>` instead of raising the window, and ask them to click through steps that need real input. Launching an app also steals focus, so keep any launch short and quit it straight away.
 
-Prefer keyboard over clicking: `key` with a shortcut is faster and lands more reliably than hunting for coordinates. For anything inside a web page use `chrome-devtools`, which reads the DOM and clicks by uid.
+Prefer keyboard over clicking: `key` with a shortcut is faster and lands more reliably than hunting for coordinates. For anything inside a web page use the browse tools, which read the DOM and click by snapshot ref.
 
 ## Unblocking a stuck chrome-devtools call
 

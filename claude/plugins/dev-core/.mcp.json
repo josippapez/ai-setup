@@ -31,6 +31,14 @@
       "/tmp"
     ]
   },
+  "browse": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@opencode/browse@latest", "mcp"],
+    "env": {
+      "OPENCODE_BROWSER_TOOLS": "plain"
+    }
+  },
   "computer-use": {
     "type": "stdio",
     "command": "npx",

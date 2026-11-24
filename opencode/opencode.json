@@ -42,6 +42,18 @@
       ],
       "timeout": { "catalog": 120000, "execution": 120000 }
       },
+      "browse": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@opencode/browse@latest",
+        "mcp"
+      ],
+      "environment": {
+        "OPENCODE_BROWSER_TOOLS": "plain"
+      }
+      },
       "computer-use": {
       "type": "local",
       "command": [
