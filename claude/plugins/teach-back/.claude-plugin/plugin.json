@@ -1,0 +1,15 @@
+{
+  "name": "teach-back",
+  "version": "0.1.0",
+  "description": "Teaches back work the agent did on its own (a handed-over ticket, a bug): a lesson on the task, the idea behind the solution and where it lives, then a quiz, in a pane beside the chat.",
+  "author": {
+    "name": "Personal AI Setup"
+  },
+  "license": "MIT",
+  "keywords": [
+    "learning",
+    "quiz",
+    "handoff"
+  ],
+  "types": "./types/index.d.ts"
+}

@@ -95,6 +95,15 @@
       },
       "category": "development",
       "source": "./claude/plugins/journal"
+    },
+    {
+      "name": "teach-back",
+      "description": "Teaches back work you handed over: a lesson on the task, the idea behind the solution and where it lives, then a quiz, in a pane beside the chat (/teach-back, or the Teach me button after a turn that changed files).",
+      "author": {
+        "name": "Personal AI Setup"
+      },
+      "category": "development",
+      "source": "./claude/plugins/teach-back"
     }
   ]
 }
