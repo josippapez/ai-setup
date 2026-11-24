@@ -1,8 +1,8 @@
 /**
  * Web accessibility audit harness.
  *
- * Injected into a running web app page (dev server or deployed) and run from the
- * chrome-devtools MCP. Two passes, and only the second is trusted for focus indicators.
+ * Injected into a running web app page (dev server or deployed) and run through the
+ * browse MCP. Two passes, and only the second is trusted for focus indicators.
  *
  *   __a11yAudit()      Screening pass. axe-core violations, tab order, accessible names, and a
  *                      programmatic focus probe. The focus probe OVER-REPORTS: it calls controls
@@ -13,15 +13,14 @@
  *
  * Screen with the first, confirm every negative with the second.
  *
- * Usage from the browser console or an MCP evaluate call:
- *   await import('http://127.0.0.1:4399/a11y-audit.js'); // or inject as a <script>
+ * Usage, after evaluating axe.min.js and then this file in the page's main world:
  *   await window.__a11yAudit();          // screening
  *   window.__a11yWalkStart();            // then Tab for real, once per control
  *   window.__a11yWalkRead();             // then read
  *
- * axe-core is taken from `axe.min.js` next to this file on the same server — the plugin's own
- * pinned copy, so a run needs no network. If that is not there (the install hook has not run yet),
- * it falls back to the same version on the CDN.
+ * axe-core is reused when it is already on the page, which is how the skill hands it the plugin's
+ * pinned copy. Loaded as a <script src>, it takes `axe.min.js` next to this file on the same server
+ * instead. Failing both, it falls back to the same version on the CDN.
  *
  * Two knobs, both set on window BEFORE this file loads:
  *   __A11Y_AXE_URL   force a specific axe-core URL, skipping both defaults.

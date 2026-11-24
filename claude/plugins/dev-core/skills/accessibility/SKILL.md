@@ -1,6 +1,6 @@
 ---
 name: accessibility
-description: 'Use whenever accessibility or a11y work comes up, and for any WCAG question — even when WCAG is never named. Two halves: scan a running page for real violations with the bundled axe-core harness driven through the chrome-devtools MCP, and look up authoritative WCAG 2.2 / 2.1 text with the bundled wcag CLI (`npx @rawwee/wcag-cli@latest`) instead of recalling it from memory. Load it before writing, reviewing, fixing, auditing, or citing anything accessibility-related.'
+description: 'Use whenever accessibility or a11y work comes up, and for any WCAG question — even when WCAG is never named. Two halves: scan a running page for real violations with the bundled axe-core harness driven through the browse MCP, and look up authoritative WCAG 2.2 / 2.1 text with the bundled wcag CLI (`npx @rawwee/wcag-cli@latest`) instead of recalling it from memory. Load it before writing, reviewing, fixing, auditing, or citing anything accessibility-related.'
 when_to_use: 'Any accessibility or a11y work, even when WCAG is never named: contrast ratios, alt text, ARIA roles/states/attributes, accessible names, labels, keyboard navigation, focus order, focus visible, form errors, headings, landmarks, live regions, screen readers, semantic HTML, target/touch size, reflow, motion, Section 508 / EN 301 549 / ADA mapping. Direct asks: "accessibility audit", "accessibility review", "a11y check", "run axe", "is this accessible", "check the focus indicators", "keyboard walk", "wcag cli", "check the wcag", any criterion number (1.1.1, 1.4.3, 2.4.7, 2.5.8), "what changed in WCAG 2.2". Never guess criterion text, levels, or CLI flags. A repo with its own accessibility policy, skill, or PR gate outranks this one — follow that instead.'
 ---
 
@@ -203,8 +203,7 @@ older cached copy, so check `get-server-info` if a command or flag is rejected.
 
 The CLI cannot find a violation. `scripts/a11y-audit.js`, beside this file, can: it runs axe-core
 over the page and adds a tab-order, accessible-name and focus-indicator probe. It works against any
-web app with no per-repo setup, because axe comes from the CDN rather than the repo's
-`node_modules`. Driven through the chrome-devtools MCP.
+web app with no per-repo setup. Driven through the browse MCP, in the user's own Chrome.
 
 Two entry points, and only the second is trusted for focus indicators:
 
@@ -214,67 +213,73 @@ Two entry points, and only the second is trusted for focus indicators:
 - `window.__a11yWalkStart()` / `window.__a11yWalkRead()` — the real-keyboard walk, and the oracle.
   Never report a "no focus indicator" finding from the screening pass alone.
 
+Every browse `eval` here needs `world: "main"`. The default isolated world sees the DOM but not
+`window.__a11yAudit`.
+
 ### The loop
 
-1. **Serve the harness and axe together.** A page cannot load either off the filesystem, so put
-   both behind a local HTTP server, on a port nothing else holds:
+1. **Open the page** with browse `navigate` and keep the `tab` id it returns. If browse is not
+   connected, ask the user to run `npx -y @opencode/browse@latest install --agent none` once.
+
+2. **Inject axe and the harness from Bash**, with the `browse` CLI, so neither file's source passes
+   through your context:
 
    ```bash
    SKILL=$(ls -dt ~/.claude/plugins/cache/*/dev-core/*/skills/accessibility \
                   ~/.config/opencode/skills/accessibility 2>/dev/null | head -1)
    AXE=$(ls -t ~/.claude/plugins/data/dev-core-*/node_modules/axe-core/axe.min.js 2>/dev/null | head -1)
-   PORT=4398
-   lsof -nP -iTCP:$PORT -sTCP:LISTEN            # must print nothing
-   SERVE=$(mktemp -d)
-   ln -s "$SKILL/scripts/a11y-audit.js" "$SERVE/a11y-audit.js"
-   [ -n "$AXE" ] && ln -s "$AXE" "$SERVE/axe.min.js"
-   (cd "$SERVE" && python3 -m http.server $PORT --bind 127.0.0.1 &)
-   curl -sS http://127.0.0.1:$PORT/a11y-audit.js | grep -c __a11yAudit
+   TAB=<the tab id navigate returned>
+   inject() {
+     browse eval --json "$(jq -nc --arg tab "$TAB" --rawfile src "$1" --arg check "$2" \
+       '{tab: ($tab | tonumber? // $tab), world: "main", timeout: 120000, expression: ($src + "\n;" + $check)}')"
+   }
+   [ -n "$AXE" ] && inject "$AXE" 'window.axe.version'            # prints "4.13.0"
+   inject "$SKILL/scripts/a11y-audit.js" 'typeof window.__a11yAudit'  # prints "function"
    ```
 
-   The port check and the `curl` are not ceremony. A stale server left on that port by earlier work
-   answers happily with a different script, `python3 -m http.server` fails silently into the
-   background when the bind is refused, and the audit then measures something other than what you
-   shipped. Delete `$SERVE` and stop the server when you are done.
+   Do not inject with a `<script src="http://127.0.0.1:...">` tag. Chrome holds a public `https://`
+   page's request to this machine until the user answers a local network permission prompt, so
+   that load hangs on every site except localhost. The eval route also works under a strict content
+   security policy (measured on GitHub).
 
-   An empty `$AXE` means the plugin's install hook has not run in this session yet; the harness
-   falls back to the same pinned version on the CDN, and says so in `axeFrom`.
+   An empty `$AXE` means the plugin's install hook has not run in this session yet. Skip that
+   line: the harness then loads the same pinned version from jsDelivr, which needs the network and
+   can be blocked by a strict content security policy.
 
-2. **Inject it** with `evaluate_script`: append a `<script src="http://127.0.0.1:4398/a11y-audit.js">`
-   and resolve the promise on `onload`. Chrome treats `127.0.0.1` as a trustworthy origin, so this
-   loads into an `https://` page too. Allow a long timeout; the first injection on a slow page can
-   run past a minute.
+3. **Screen** with `eval` (`world: "main"`, `timeout: 180000`; the default 30 s is too short):
+   `await window.__a11yAudit()`, returning only the fields you need. Results over 100k characters
+   are cut. Measured: 38 s on a 194-control page.
 
-3. **Screen** with `await window.__a11yAudit()`, returning only the fields you need — the full object
-   is large. Measured: 7.4 s on a 56-control page.
-
-4. **Confirm every negative focus finding** with the walk: `__a11yWalkStart()`, then real `press_key`
-   Tabs, one per control, then `__a11yWalkRead()`. Wait about half a second after the last Tab: each
-   step is recorded on a 350 ms delay, and a read that races it silently drops steps.
+4. **Confirm every negative focus finding** with the walk: `eval` `window.__a11yWalkStart()`, then
+   one `press` call with key `Tab` per control, then `eval` `window.__a11yWalkRead()`. Leave at least
+   half a second between Tabs and before the read, and never use `press`'s `count`. Each step is read
+   350 ms after focus lands, so a control the next Tab has already left reads as `NONE` (measured:
+   back-to-back Tabs flagged a button that has a visible ring).
 
 5. **Look up** what each violation's criterion actually demands with the CLI above, then report.
 
 ### Where axe comes from
 
-`axe.min.js` served next to the harness, which is the plugin's own pinned copy
-(`axe-core` in the plugin `package.json`, installed into the plugin data dir by a SessionStart
-hook). No network needed. If that file is not being served, the harness falls back to the same
-version on jsDelivr.
+The plugin's own pinned copy (`axe-core` in the plugin `package.json`, installed into the plugin
+data dir by a SessionStart hook), injected in step 2. No network needed. Without it, the harness
+loads the same version from jsDelivr.
 
-The result reports both: `axeVersion` is what actually ran, `axeFrom` is where it came from. Trust
-those over the pin, because the harness reuses a `window.axe` that is already on the page and a
-browser extension can put one there.
+`axeVersion` is what actually ran. Check it against the pin: `axeFrom` reads "already on the page"
+after step 2, because the harness reuses any `window.axe` it finds, and a browser extension can put
+one there too.
 
-Two knobs, both set on `window` before the script loads:
+Two knobs, both set with an `eval` (`world: "main"`) before the harness is injected:
 
-- `__A11Y_AXE_URL` — force a specific axe URL, skipping both defaults.
-- `__A11Y_IGNORE` — CSS selector for chrome that is not the product under audit. Defaults to the
-  TanStack Router/Query devtools overlays.
+- `window.__A11Y_AXE_URL` — force a specific axe URL, skipping both defaults. Only matters when
+  step 2's axe line is skipped.
+- `window.__A11Y_IGNORE` — CSS selector for chrome that is not the product under audit. Defaults to
+  the TanStack Router/Query devtools overlays.
 
 ### What it cannot do
 
-- **Log in.** Audit the public routes, then ask the user to log in in the driven browser and carry
-  on. Do not script around the login.
+- **Log in.** browse runs in the user's own Chrome, so their sessions are usually there already.
+  When a page still needs a login, hand the tab over with browse `handoff` and carry on once they
+  click Continue. Do not script around the login.
 - **Hear anything.** It reads computed styles and the DOM, not announcements. Screen-reader output
   needs a real or virtual reader.
 - **Decide.** axe finds a fraction of WCAG failures, and some of what it reports is not a product
