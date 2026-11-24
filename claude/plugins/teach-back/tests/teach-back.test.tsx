@@ -7,6 +7,8 @@ import { parseGrade, problemsOf } from '../hooks/register'
 const TOOL = 'mcp__teach-back__lesson'
 const PANE = { title: 'Teach-back', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} } as const
 const BAND = { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 5, bodyColumns: 60, scroll: { offset: 0, bodyRows: 5 }, view: {} } as const
+const CHOICE = { kind: 'choice' as const, prompt: 'Where does the retry live?', options: ['In the job', 'In the API client', 'In the scheduler'], answer: 1, explain: 'The client, so every caller gets it.', section: 0 }
+const EXPLAIN = { kind: 'explain' as const, prompt: 'Explain why the retry is capped.', modelAnswer: 'So a dead API fails fast.', rubric: 'Mentions the cap; mentions failing fast.', section: 0 }
 const LESSON = {
   title: 'Retries for the sync job',
   ask: 'Make the nightly sync survive a flaky API',
@@ -15,10 +17,7 @@ const LESSON = {
     { heading: 'Where the retry lives', body: 'In the API client, not the job.', why: 'Every caller gets it; the job stays simple.', files: ['src/client.ts'] },
     { heading: 'How it is proven', body: 'A test fails the API twice and expects success.' },
   ],
-  questions: [
-    { kind: 'choice', prompt: 'Where does the retry live?', options: ['In the job', 'In the API client', 'In the scheduler'], answer: 1, explain: 'The client, so every caller gets it.', section: 0 },
-    { kind: 'explain', prompt: 'Explain why the retry is capped.', modelAnswer: 'So a dead API fails fast.', rubric: 'Mentions the cap; mentions failing fast.', section: 0 },
-  ],
+  questions: [CHOICE, EXPLAIN],
 }
 
 function engine(on: On) {
@@ -51,6 +50,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mount($, surface)
     expect((await ui.find({ type: 'Text', text: 'Where the retry lives' }))?.text).toBe('Where the retry lives')
     expect(await ui.find({ type: 'Text', text: /Every caller gets it/ })).toBeDefined()
+    // Back and Next sit above the card, so they don't move as cards change length.
+    const drawn = await ui.findAll({})
+    expect(drawn.findIndex(el => el.key === 'next')).toBeLessThan(drawn.findIndex(el => el.text === 'Where the retry lives'))
 
     await ui.press({ key: 'next' })
     expect(await ui.find({ type: 'Text', text: 'How it is proven' })).toBeDefined()
@@ -76,7 +78,7 @@ test('with no grade from the model, the person marks the answer themselves', asy
   engine(on)
   on('model.complete', () => ({ value: { isAnswered: false, reason: 'empty-reply', usage: { input_tokens: 1, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } }))
   await start($)
-  await $.tool.run({ tool: TOOL, tool_use_id: 't1', ...LESSON, questions: [LESSON.questions[1]] })
+  await $.tool.run({ tool: TOOL, tool_use_id: 't1', ...LESSON, questions: [EXPLAIN] })
 
   const ui = await mount($, 'desktop')
   await ui.press({ key: 'next' })
@@ -94,7 +96,7 @@ test('a lesson the pane cannot show is refused with what to fix', async ($, on) 
   engine(on)
   await start($)
 
-  const ran = await $.tool.run({ tool: TOOL, tool_use_id: 't1', ...LESSON, questions: [{ ...LESSON.questions[0], answer: 3 }] })
+  const ran = await $.tool.run({ tool: TOOL, tool_use_id: 't1', ...LESSON, questions: [{ ...CHOICE, answer: 3 }] })
 
   expect(ran.deny).toBe('Lesson not shown, fix and call again: questions[0]: answer is not an index into options')
 })

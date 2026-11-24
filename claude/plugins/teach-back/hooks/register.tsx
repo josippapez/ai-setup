@@ -410,7 +410,7 @@ function lessonView($: EngineInterface, ui: ElementTable, lesson: Lesson, at: nu
         <Button key="back-to-list" plain role="dismiss" label="✕" onPress={() => update($, current, () => null)} />
       </Box>
       <Progress label={label} value={here} max={total} />
-      {body}
+      {/* Above the card, not below: cards differ in length, so a row below them moves with every Next. */}
       {here < total && (
         <Box gap={2}>
           {here > 0 && <Button key="prev" plain hotkey="b" label="← Back" onPress={() => go(here - 1)} />}
@@ -423,6 +423,7 @@ function lessonView($: EngineInterface, ui: ElementTable, lesson: Lesson, at: nu
           />
         </Box>
       )}
+      {body}
     </Box>
   )
 }
